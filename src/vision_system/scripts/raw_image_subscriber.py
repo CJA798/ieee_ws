@@ -18,7 +18,7 @@ import cv2
 subscriber_node_name = 'camera_sensor_subscriber'
 
 # Create a name for the topic to subscribe to
-topic_name = 'video_topic'
+topic_name = 'raw_frame'
 
 
 # Callback

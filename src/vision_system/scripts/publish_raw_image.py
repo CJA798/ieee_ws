@@ -15,10 +15,10 @@ import cv2
 
 
 # Create a name for the publisher node
-publisher_node_name = 'camera_sensor_publisher'
+publisher_node_name = 'original_image'
 
 # Create a name for the topic where the messages are going to be published
-topic_name = 'video_topic'
+topic_name = 'raw_frame'
 
 # Initialize the node
 # http://wiki.ros.org/rospy/Overview/Initialization%20and%20Shutdown
