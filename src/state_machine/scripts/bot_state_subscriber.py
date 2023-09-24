@@ -8,10 +8,10 @@ def callback(data):
 
 
 def main():
-    subscrier_name = 'state_subscriber'
+    subscrbier_name = 'state_subscriber'
     topic_name = 'bot_state'
 
-    rospy.init_node(subscrier_name, anonymous=True)
+    rospy.init_node(subscrbier_name, anonymous=True)
     rospy.Subscriber(topic_name, String, callback)
     rospy.spin()
 
