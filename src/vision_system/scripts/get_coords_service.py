@@ -1,12 +1,15 @@
-# UNCA IEEE Workspace
-#### **TODO: insert image here**
-#### **TODO: insert info of each category**
-### State Machine (Master Node)
-### Navigation System
-### Arm System
-### Vision System
-#### TODO:
-Create server node for coordinate feedback of different objects
+#!/usr/bin/env python
+import rospy
+import numpy as np
+import cv2
+import imutils
+from cv_bridge import CvBridge
+
+
+from sensor_msgs.msg import Image
+from geometry_msgs.msg import Point
+
+from vision_system.srv import get_small_package_coordinates, get_small_package_coordinatesResponse
 
 class CoordServer():
 	def __init__(self):
@@ -45,3 +48,9 @@ class CoordServer():
 
 	def get_coords_cb(self, request):
 		pass
+
+if __name__ == "__main__":
+    srv_name = "get_small_package_coordinates"
+    rospy.init_node("small_package_coordinates_server")
+    service = rospy.Service(srv_name, get_small_package_coordinates, get_coordinates_callback)
+    rospy.spin()

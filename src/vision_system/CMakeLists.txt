@@ -59,6 +59,7 @@ find_package(catkin REQUIRED COMPONENTS
 add_service_files(
   FILES
   get_small_package_coordinates.srv
+  get_coords.srv
 )
 
 ## Generate actions in the 'action' folder
@@ -167,6 +168,7 @@ catkin_install_python(PROGRAMS
   scripts/raw_image_subscriber.py
   scripts/small_package_node.py
   scripts/small_package_server.py
+  scripts/get_coords_service.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
