@@ -14,13 +14,22 @@ from vision_system.srv import getCoords, getCoordsResponse
 
 class CoordServer():
 	def __init__(self):
-		self.coords_service = rospy.Service('get_coords_service', getCoords, self.get_coords_cb)
+		self.coords_image_publisher = rospy.Publisher("coords_image", Image, queue_size=10)
+		self.coords_service = rospy.Service("get_coords_service", getCoords, self.get_coords_cb)
 
 
 	def _msg2cv2(self, img_msg):
 		bridge = CvBridge()
 		image = bridge.imgmsg_to_cv2(img_msg)
+
 		return image
+
+
+	def _cv22msg(self, img):
+		bridge = CvBridge()
+		img_msg = bridge.cv2_to_imgmsg(img)
+
+		return img_msg
 
 
 	def _get_bounds(self, object_type):
@@ -90,27 +99,37 @@ class CoordServer():
 		return filtered_contours
 
 
-	def _get_coords_from_contour(self, object_type, contours):
+	def _get_coords_from_contour(self, object_type, original_image):
 		# Use minimum enclosing circle or rotated rectangle to obtain coords from contours
+		coords_image = np.copy(original_image)
 		coords_list = CoordinatesList()
 		for contour in contours:
 			coords = Point()
 
 			if object_type == "small_box":
-				coords.x, coords.y = cv2.minAreaRect(contour)[0]
+				rect = cv2.minAreaRect(contour)
+				coords.x, coords.y = rect[0]
+				box = cv2.boxPoints(rect)
+				box = np.int0(box)
+				cv2.drawContours(coords_image, [box], 0, (255, 0, 255), 2)
 				coords.z = 0.5
 
 				coords_list.coordinates.append(coords)
 			else:
-				(coords.x, coords.y), _ = cv2.minEnclosingCircle(contour)
-				
+				(coords.x, coords.y), radius = cv2.minEnclosingCircle(contour)
+				cv2.circle(coords_image, (coords.x, coords.y), radius, (255, 0, 255), 2)
+
 				if object_type == "fuel_tank":
 					coords.z = 1
 				else:
 					coords.z = 0.5
 
 				coords_list.coordinates.append(coords)
+
+			cv2.circle(coords_image, center, 5, (255, 0, 255), -1)
+			cv2.putText(coords_image, "({coords.x}, {coords.y})", (coords.x - 20, coords.y - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 		
+		self.coords_image_publisher.publish(self._cv22msg(coords_image))
 		return coords_list
 
 
@@ -119,7 +138,7 @@ class CoordServer():
 		preprocessed_image = self._preprocessing(image)
 		color_mask = self._get_color_mask(object_type, preprocessed_image)
 		contours = self._contour_filter(color_mask)
-		coords_list = self._get_coords_from_contour(object_type, contours)
+		coords_list = self._get_coords_from_contour(object_type, contours, image)
 		
 		return coords_list
 

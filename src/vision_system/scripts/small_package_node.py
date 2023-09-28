@@ -17,7 +17,6 @@ def request_coordinates(object_type):
         # Prepare the request
         request = getCoordsRequest()
         request.object_type = object_type  # Specify the object type you want coordinates for
-
         # Call the service to request coordinates
         response = get_coords_proxy(request)
 
