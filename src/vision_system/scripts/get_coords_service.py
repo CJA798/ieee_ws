@@ -79,14 +79,15 @@ class CoordServer():
 		contours = cv2.findContours(color_mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 		contours = imutils.grab_contours(contours)
 
+		filtered_contours = []
 		if len(contours) > 0:
 			for contour in contours:
 				M = cv2.moments(contour)
 				area = M["m00"]
-				if area <= min_area or area >= max_area:
-					contours.pop(contour)
+				if min_area <= area <= max_area:
+					filtered_contours.append(contour)
 
-		return contours
+		return filtered_contours
 
 
 	def _get_coords_from_contour(self, object_type, contours):
@@ -115,7 +116,7 @@ class CoordServer():
 
 	def _get_coords(self, object_type, image):
 		lower, upper = self._get_bounds(object_type)
-		preprocessed_img = self._preprocessing(image)
+		preprocessed_image = self._preprocessing(image)
 		color_mask = self._get_color_mask(object_type, preprocessed_image)
 		contours = self._contour_filter(color_mask)
 		coords_list = self._get_coords_from_contour(object_type, contours)
@@ -124,6 +125,16 @@ class CoordServer():
 
 
 	def get_coords_cb(self, request):
+		# Check for valid frame
+		if not request.frame:
+			rospy.logwarn("Invalid request: Empty image received")
+			return getCoordsResponse()
+		
+		# Check if object type is supported
+		if request.object_type not in ["small_box", "thruster", "fuel_tank"]:
+			rospy.logwarn("Invalid object type: %s", request.object_type)
+			return getCoordsResponse()
+
 		image = self._msg2cv2(request.frame)
 		object_type = request.object_type
 		coords_list = self._get_coords(object_type, image)
