@@ -1,44 +1,37 @@
 #!/usr/bin/env python
-
 import rospy
-import cv2
-from cv_bridge import CvBridge
+from vision_system.srv import getCoords
+from vision_system.msg import CoordinatesList
 
-from sensor_msgs.msg import Image
-from geometry_msgs.msg import Point
+def request_coordinates(object_type):
+    # Initialize ROS node
+    rospy.init_node('coordinate_requester')
 
-from vision_system.srv import get_small_package_coordinates
+    # Wait for the get_coords_service to become available
+    rospy.wait_for_service('get_coords_service')
 
+    try:
+        # Create a service proxy for the get_coords_service
+        get_coords_proxy = rospy.ServiceProxy('get_coords_service', getCoords)
 
-class SmallPackageHandler:
+        # Prepare the request
+        request = getCoordsRequest()
+        request.object_type = object_type  # Specify the object type you want coordinates for
 
-    def __init__(self):
-        sub_topic_name = "raw_frame"
-        pub_topic_name = "small_package_coordinates"
+        # Call the service to request coordinates
+        response = get_coords_proxy(request)
 
-        self.subscriber = rospy.Subscriber(sub_topic_name, Image, self.frame_callback)
-        self.publisher = rospy.Publisher(pub_topic_name, Point, queue_size=10)        
+        # Process the response
+        if response:
+            coordinates_list = response.coordinates
+            for coords in coordinates_list.coordinates:
+                rospy.loginfo("Coordinates: x=%.2f, y=%.2f, z=%.2f", coords.x, coords.y, coords.z)
+        else:
+            rospy.logwarn("No coordinates received from the service")
 
-    def frame_callback(self, message):
-        bridge = CvBridge()
-        frame_to_cv = bridge.imgmsg_to_cv2(message)
-        cv2.imshow("Frame", frame_to_cv)
-        cv2.waitKey(5)
-        rospy.loginfo("Frame received successfully")
-
-        rospy.wait_for_service("get_small_package_coordinates")
-        get_coords = rospy.ServiceProxy("get_small_package_coordinates", get_small_package_coordinates)
-        #coords = get_coords(message)
-        #print(coords.coordinates)
- 
-
-
-def main():
-    node_name = "small_packages"
-    rospy.init_node(node_name)
-    SmallPackageHandler()
-    rospy.spin()
-
+    except rospy.ServiceException as e:
+        rospy.logerr("Service call failed: %s", e)
 
 if __name__ == "__main__":
-    main()
+    object_type = "small_box"  # Specify the object type you want coordinates for
+    request_coordinates(object_type)
