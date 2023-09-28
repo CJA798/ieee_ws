@@ -1,4 +1,4 @@
-std_msgs/String object
+std_msgs/String object_type
 sensor_msgs/Image frame
 ---
 geometry_msgs/Point[] coordinates
