@@ -99,7 +99,7 @@ class CoordServer():
 		return filtered_contours
 
 
-	def _get_coords_from_contour(self, object_type, original_image):
+	def _get_coords_from_contour(self, object_type, contours, original_image):
 		# Use minimum enclosing circle or rotated rectangle to obtain coords from contours
 		coords_image = np.copy(original_image)
 		coords_list = CoordinatesList()
@@ -117,7 +117,7 @@ class CoordServer():
 				coords_list.coordinates.append(coords)
 			else:
 				(coords.x, coords.y), radius = cv2.minEnclosingCircle(contour)
-				cv2.circle(coords_image, (coords.x, coords.y), radius, (255, 0, 255), 2)
+				cv2.circle(coords_image, (int(coords.x), int(coords.y)), int(radius), (255, 0, 255), 2)
 
 				if object_type == "fuel_tank":
 					coords.z = 1
@@ -126,8 +126,9 @@ class CoordServer():
 
 				coords_list.coordinates.append(coords)
 
-			cv2.circle(coords_image, center, 5, (255, 0, 255), -1)
-			cv2.putText(coords_image, "({coords.x}, {coords.y})", (coords.x - 20, coords.y - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+			cv2.circle(coords_image, (int(coords.x), int(coords.y)), 5, (255, 0, 255), -1)
+			coords_text = "({0}, {1})".format(int(coords.x), int(coords.y))
+			cv2.putText(coords_image, coords_text, (int(coords.x) - 20, int(coords.y - 20)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 		
 		self.coords_image_publisher.publish(self._cv22msg(coords_image))
 		return coords_list
@@ -150,16 +151,17 @@ class CoordServer():
 			return getCoordsResponse()
 		
 		# Check if object type is supported
-		if request.object_type not in ["small_box", "thruster", "fuel_tank"]:
+		if request.object_type.data not in ["small_box", "thruster", "fuel_tank"]:
 			rospy.logwarn("Invalid object type: %s", request.object_type)
 			return getCoordsResponse()
 
 		image = self._msg2cv2(request.frame)
-		object_type = request.object_type
+		object_type = request.object_type.data
 		coords_list = self._get_coords(object_type, image)
-		
+
 		response = getCoordsResponse()
 		response.coordinates = coords_list
+
 		rospy.loginfo("Coordinates list returned")
 
 		return response

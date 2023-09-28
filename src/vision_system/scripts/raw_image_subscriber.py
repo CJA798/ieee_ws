@@ -5,6 +5,7 @@ import rospy
 
 # Import Image message type
 from sensor_msgs.msg import Image
+from std_msgs.msg import String
 
 # Import library for converting OpenCV images (of type cv::Mat)
 # into a ROS Image message, and viceversa
@@ -31,7 +32,7 @@ def request_coords(object_type, image_msg):
 
         # Prepare the request
         request = getCoordsRequest()
-        request.object_type = object_type  # Specify the object type you want coordinates for
+        request.object_type = String(data=object_type)  # Specify the object type you want coordinates for
         request.frame = image_msg
 
         # Call the service to request coordinates
@@ -40,10 +41,16 @@ def request_coords(object_type, image_msg):
         # Process the response
         if response:
             coordinates_list = response.coordinates
-            for coords in coordinates_list.coordinates:
-                rospy.loginfo("Coordinates: x=%.2f, y=%.2f, z=%.2f", coords.x, coords.y, coords.z)
+
+            # Check if coordinates_list is not empty
+            if len(coordinates_list.coordinates) > 0:
+                print(coordinates_list)
+                for index, coords in enumerate(coordinates_list.coordinates):
+                    rospy.loginfo("%s#%d: x=%.2f, y=%.2f, z=%.2f", object_type, index, coords.x, coords.y, coords.z)
+            else:
+                rospy.logwarn("No coordinates received from the service")
         else:
-            rospy.logwarn("No coordinates received from the service")
+            rospy.logwarn("No response received from the service")
 
     except rospy.ServiceException as e:
         rospy.logerr("Service call failed: %s", e)
@@ -52,7 +59,7 @@ def request_coords(object_type, image_msg):
 def callback(message):
     bridge = CvBridge()
     frame_to_cv = bridge.imgmsg_to_cv2(message)
-    request_coords(object_type="small_boxes", image_msg=message)
+    request_coords(object_type="small_box", image_msg=message)
 
     cv2.imshow("Frame", frame_to_cv)
     cv2.waitKey(5)
