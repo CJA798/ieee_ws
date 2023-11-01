@@ -34,13 +34,13 @@ class CoordServer():
 
 	def _get_bounds(self, object_type):
 		if object_type == 'small_package':
-			color = [75, 112, 255]
+			color = [217, 147, 211]
 		elif object_type == 'thruster':
 			color = [75, 112, 255]
 		elif object_type == 'fuel_tank':
 			color = [75, 112, 255]
 		else:
-			color = [75, 112, 255]
+			color = [0, 255, 255]
 
 		# Get color limits for the specific object_type
 		c = np.uint8([[color]])  # BGR values

@@ -10,6 +10,7 @@ project(arm_system)
 find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
+  message_generation
 )
 
 ## System dependencies are found with CMake's conventions
@@ -53,11 +54,10 @@ find_package(catkin REQUIRED COMPONENTS
 # )
 
 ## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   Service1.srv
-#   Service2.srv
-# )
+add_service_files(
+  FILES
+  inverseKinematics.srv
+)
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -67,10 +67,10 @@ find_package(catkin REQUIRED COMPONENTS
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   std_msgs
-# )
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -160,6 +160,10 @@ include_directories(
 ## in contrast to setup.py, you can choose the destination
 catkin_install_python(PROGRAMS
   scripts/bot_state_subscriber.py
+  scripts/inverse_kinematics_service.py
+  scripts/inverse_kinematics_node.py
+  scripts/adder_node.py
+  scripts/forward_kinematics_node.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

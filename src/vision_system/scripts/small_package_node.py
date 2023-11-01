@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import rospy
-from vision_system.srv import getCoords
+from vision_system.srv import getCoords, getCoordsRequest
 from vision_system.msg import CoordinatesList
 
 def request_coordinates(object_type):

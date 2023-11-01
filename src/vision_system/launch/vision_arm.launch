@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<launch>
+    <node pkg="vision_system" 
+    type="get_coords_service.py" 
+    name="get_coords_server" 
+    output="screen">
+    </node>
+
+    <node pkg="vision_system" 
+    type="publish_raw_image.py" 
+    name="publish_raw_image" 
+    output="screen">    
+    </node>
+	
+    <arg name="node_start_delay" default="1.0" />
+
+    <node pkg="vision_system" 
+    type="raw_image_subscriber.py" 
+    name="raw_image_subscriber" 
+    output="screen" 
+    launch-prefix="bash -c 'sleep $(arg node_start_delay); $0 $@' ">
+    </node>
+
+    <node pkg="state_machine" 
+    type="bot_state_publisher.py" 
+    name="bot_state_publisher">
+    </node>
+   
+</launch>

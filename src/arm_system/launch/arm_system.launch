@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<launch>
+    <node pkg="arm_system" 
+    type="inverse_kinematics_node.py" 
+    name="IK" 
+    output="screen">
+    </node>
+
+    <node pkg="arm_system" 
+    type="forward_kinematics_node.py" 
+    name="FK" 
+    output="screen">
+    </node>
+
+    <node pkg="arm_system" 
+    type="adder_node.py" 
+    name="ADDER" 
+    output="screen">
+    </node>
+
+</launch>

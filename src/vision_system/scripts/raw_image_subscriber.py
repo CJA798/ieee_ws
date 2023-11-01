@@ -59,7 +59,7 @@ def request_coords(object_type, image_msg):
 def callback(message):
     bridge = CvBridge()
     frame_to_cv = bridge.imgmsg_to_cv2(message)
-    request_coords(object_type="small_box", image_msg=message)
+    request_coords(object_type="thruster", image_msg=message)
 
     cv2.imshow("Frame", frame_to_cv)
     cv2.waitKey(5)
