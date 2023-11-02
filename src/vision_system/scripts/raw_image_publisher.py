@@ -15,10 +15,10 @@ import cv2
 
 
 # Create a name for the publisher node
-publisher_node_name = 'original_image'
+publisher_node_name = 'raw_image_publisher'
 
 # Create a name for the topic where the messages are going to be published
-topic_name = 'raw_frame'
+topic_name = 'raw_image'
 
 # Initialize the node
 # http://wiki.ros.org/rospy/Overview/Initialization%20and%20Shutdown
@@ -43,7 +43,6 @@ cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
 # Create CvBridge object to convert images to messages
 bridge = CvBridge()
 
-
 while not rospy.is_shutdown():
     ret, frame = cap.read()
 
@@ -55,7 +54,7 @@ while not rospy.is_shutdown():
         publisher.publish(img_to_publish)
 
         # Assert publication
-        rospy.loginfo("Video frame published successfully")
+        #rospy.loginfo("Video frame published successfully")
     
     rate.sleep()
 

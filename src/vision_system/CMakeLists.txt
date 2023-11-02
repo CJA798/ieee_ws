@@ -163,11 +163,12 @@ include_directories(
 ## Mark executable scripts (Python etc.) for installation
 ## in contrast to setup.py, you can choose the destination
 catkin_install_python(PROGRAMS
-  scripts/publish_raw_image.py
+  scripts/raw_image_publisher.py
   scripts/raw_image_subscriber.py
   scripts/small_package_node.py
   scripts/small_package_server.py
   scripts/get_coords_service.py
+  scripts/camera_node.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

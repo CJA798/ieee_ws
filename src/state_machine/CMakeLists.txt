@@ -10,6 +10,7 @@ project(state_machine)
 find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
+  message_generation
 )
 
 ## System dependencies are found with CMake's conventions
@@ -161,6 +162,7 @@ include_directories(
 catkin_install_python(PROGRAMS
   scripts/bot_state_publisher.py
   scripts/bot_state_subscriber.py
+  scripts/main_node.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
