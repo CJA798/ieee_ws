@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- VISION SYSTEM -->
+    <node pkg="vision_system" 
+    type="raw_image_publisher.py" 
+    name="raw_image" 
+    output="screen">
+    </node>
+
+    <node pkg="vision_system" 
+    type="get_coords_service.py" 
+    name="coords_server" 
+    output="screen">
+    </node>
+
+    <arg name="node_start_delay" default="1.0" />
+    <node pkg="vision_system" 
+    type="camera_node.py" 
+    name="CAM" 
+    output="screen" 
+    launch-prefix="bash -c 'sleep $(arg node_start_delay); $0 $@' ">
+    </node>
+
+    <!-- ARM SYSTEM -->
+    <node pkg="arm_system" 
+    type="inverse_kinematics_node.py" 
+    name="IK" 
+    output="screen">
+    </node>
+
+    <node pkg="arm_system" 
+    type="forward_kinematics_node.py" 
+    name="FK" 
+    output="screen">
+    </node>
+
+    <!-- STATE MACHINE -->
+    <node pkg="state_machine" 
+    type="main_node.py" 
+    name="MAIN" 
+    output="screen">
+    </node>
+
+    <node pkg="state_machine" 
+    type="state.py" 
+    name="STATE" 
+    output="screen">
+    </node>
+
+
+</launch>

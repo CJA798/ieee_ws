@@ -162,6 +162,8 @@ include_directories(
 catkin_install_python(PROGRAMS
   scripts/bot_state_publisher.py
   scripts/bot_state_subscriber.py
+  scripts/state.py
+  scripts/robot_states.py
   scripts/main_node.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
