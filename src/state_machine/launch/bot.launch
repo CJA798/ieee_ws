@@ -9,7 +9,13 @@
 
     <node pkg="vision_system" 
     type="get_coords_service.py" 
-    name="coords_server" 
+    name="COORDS" 
+    output="screen">
+    </node>
+
+    <node pkg="vision_system" 
+    type="camera_node.py" 
+    name="DEBUG" 
     output="screen">
     </node>
 

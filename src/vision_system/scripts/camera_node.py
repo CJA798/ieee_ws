@@ -12,8 +12,8 @@ from std_msgs.msg import Float64MultiArray
 
 class CameraNode():
     def __init__(self):
-        self.delta_xyz_publisher = rospy.Publisher("delta_xyz", Float64MultiArray, queue_size=10)
-        self.raw_image_subscriber = rospy.Subscriber("raw_image", Image, self.raw_image_cb)
+        #self.delta_xyz_publisher = rospy.Publisher("delta_xyz", Float64MultiArray, queue_size=10)
+        #self.raw_image_subscriber = rospy.Subscriber("raw_image", Image, self.raw_image_cb)
         self.coords_image_subscriber = rospy.Subscriber("coords_image", Image, self.coords_image_cb)
 
     def raw_image_cb(self, message):

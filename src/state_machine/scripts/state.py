@@ -28,7 +28,7 @@ if __name__ == "__main__":
     rospy.sleep(delay)
 
     state_node.set_state(RobotStates.SCANNING_FOR_PURPLE_BOXES.value)
-    rospy.sleep(delay)
+    rospy.sleep(delay*2)
 
     state_node.set_state(RobotStates.VERIFYING_POSE.value)
     rospy.sleep(delay)

@@ -86,7 +86,11 @@ class MainNode():
         bridge = CvBridge()
         image = self.current_image
         image_msg = bridge.cv2_to_imgmsg(image, encoding="bgr8")
-        self.request_coords(object_type, image_msg)
+        
+        coords_list = self.request_coords(object_type, image_msg)
+        if not coords_list:
+            rospy.logwarn("No coordinates obtained for small package. Trying again...")
+            
 
     def handle_verifying_pose(self):
         rospy.loginfo("Handling VERIFYING POSE")
@@ -107,6 +111,7 @@ class MainNode():
 
     def request_coords(self, object_type, image_msg):
         rospy.wait_for_service('get_coords_service')
+        coordinates_list = []
 
         try:
             # Create a service proxy for the get_coords_service
@@ -129,13 +134,21 @@ class MainNode():
                     print(coordinates_list)
                     for index, coords in enumerate(coordinates_list.coordinates):
                         rospy.loginfo("%s#%d: x=%.2f, y=%.2f, z=%.2f", object_type, index, coords.x, coords.y, coords.z)
+
+                    return coordinates_list
+                
                 else:
                     rospy.logwarn("No coordinates received from the service")
+
             else:
                 rospy.logwarn("No response received from the service")
 
         except rospy.ServiceException as e:
             rospy.logerr("Service call failed: %s", e)
+
+        return []
+
+        
 
 if __name__ == "__main__":
     node_name = "MAIN"
