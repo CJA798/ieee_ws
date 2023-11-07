@@ -165,6 +165,7 @@ catkin_install_python(PROGRAMS
   scripts/state.py
   scripts/robot_states.py
   scripts/main_node.py
+  scripts/board_objects.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   geometry_msgs
   message_generation
+  state_machine
 )
 
 ## System dependencies are found with CMake's conventions
@@ -168,6 +169,7 @@ catkin_install_python(PROGRAMS
   scripts/small_package_node.py
   scripts/small_package_server.py
   scripts/get_coords_service.py
+  scripts/board_objects.py
   scripts/camera_node.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )

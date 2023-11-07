@@ -1,23 +1,49 @@
 #!/usr/bin/env python
 import rospy
 import numpy as np
+
 from std_msgs.msg import Float32MultiArray, String
 from std_msgs.msg._MultiArrayLayout import MultiArrayLayout
 from std_msgs.msg._MultiArrayDimension import MultiArrayDimension
 from robot_states import RobotStates
+
+import cv2
+from board_objects import BoardObjects
+from sensor_msgs.msg import Image
+from cv_bridge import CvBridge
+from vision_system.srv import getCoords, getCoordsRequest
+from vision_system.msg import CoordinatesList
+
 
 class MainNode():
     def __init__(self):
         self.manual_subscriber = rospy.Subscriber("manual", Float32MultiArray, callback=self.manual_cb)
         self.current_pose_subscriber = rospy.Subscriber("current_pose", Float32MultiArray, callback=self.current_pose_cb)
         self.state_subscriber = rospy.Subscriber("state", String, callback=self.state_cb)
+        self.raw_image_subscriber = rospy.Subscriber("raw_image", Image, callback=self.raw_frame_cb)
+        
         self.next_pose_publisher = rospy.Publisher("next_pose", Float32MultiArray, queue_size=10)
+        
         self.current_state = RobotStates.IDLE
-    def manual_cb(self):
-        pass
+        self.arm_current_pose = []
+        self.current_image = None
 
-    def current_pose_cb(self):
-        pass
+    def manual_cb(self, data):
+        new_pose = data.data
+        self.arm_current_pose = new_pose
+        rospy.loginfo("Arm pose updated manually to: ", new_pose)
+
+    def current_pose_cb(self, data):
+        new_pose = data.data
+        self.arm_current_pose = new_pose
+        rospy.loginfo("Arm pose updated to: ", new_pose)
+
+    def raw_frame_cb(self, message):
+        bridge = CvBridge()
+        raw_image = bridge.imgmsg_to_cv2(message)
+        self.current_image = raw_image
+        cv2.imshow("Raw Image", raw_image)
+        cv2.waitKey(5)
 
     def state_cb(self, data):
         new_state = data.data
@@ -54,6 +80,13 @@ class MainNode():
     
     def handle_scanning_for_purple_boxes(self):
         rospy.loginfo("Handling SCANNING FOR PURPLE BOXES")
+        # Convert current frame to Image message
+        object_type = BoardObjects.SMALL_PACKAGE.value
+
+        bridge = CvBridge()
+        image = self.current_image
+        image_msg = bridge.cv2_to_imgmsg(image, encoding="bgr8")
+        self.request_coords(object_type, image_msg)
 
     def handle_verifying_pose(self):
         rospy.loginfo("Handling VERIFYING POSE")
@@ -72,6 +105,37 @@ class MainNode():
 
         return msg
 
+    def request_coords(self, object_type, image_msg):
+        rospy.wait_for_service('get_coords_service')
+
+        try:
+            # Create a service proxy for the get_coords_service
+            get_coords_proxy = rospy.ServiceProxy('get_coords_service', getCoords)
+
+            # Prepare the request
+            request = getCoordsRequest()
+            request.object_type = String(data=object_type)  # Specify the object type you want coordinates for
+            request.frame = image_msg
+
+            # Call the service to request coordinates
+            response = get_coords_proxy(request)
+
+            # Process the response
+            if response:
+                coordinates_list = response.coordinates
+
+                # Check if coordinates_list is not empty
+                if len(coordinates_list.coordinates) > 0:
+                    print(coordinates_list)
+                    for index, coords in enumerate(coordinates_list.coordinates):
+                        rospy.loginfo("%s#%d: x=%.2f, y=%.2f, z=%.2f", object_type, index, coords.x, coords.y, coords.z)
+                else:
+                    rospy.logwarn("No coordinates received from the service")
+            else:
+                rospy.logwarn("No response received from the service")
+
+        except rospy.ServiceException as e:
+            rospy.logerr("Service call failed: %s", e)
 
 if __name__ == "__main__":
     node_name = "MAIN"

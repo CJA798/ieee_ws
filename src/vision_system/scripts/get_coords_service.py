@@ -10,7 +10,7 @@ from geometry_msgs.msg import Point
 from vision_system.msg import CoordinatesList
 
 from vision_system.srv import getCoords, getCoordsResponse
-
+from board_objects import BoardObjects
 
 class CoordServer():
 	def __init__(self):
@@ -33,11 +33,11 @@ class CoordServer():
 
 
 	def _get_bounds(self, object_type):
-		if object_type == 'small_package':
+		if object_type == BoardObjects.SMALL_PACKAGE.value:
 			color = [217, 147, 211]
-		elif object_type == 'thruster':
+		elif object_type == BoardObjects.THRUSTER.value:
 			color = [75, 112, 255]
-		elif object_type == 'fuel_tank':
+		elif object_type == BoardObjects.FUEL_TANK.value:
 			color = [75, 112, 255]
 		else:
 			color = [0, 255, 255]
@@ -106,7 +106,7 @@ class CoordServer():
 		for contour in contours:
 			coords = Point()
 
-			if object_type == "small_box":
+			if object_type == BoardObjects.SMALL_PACKAGE.value:
 				rect = cv2.minAreaRect(contour)
 				coords.x, coords.y = rect[0]
 				box = cv2.boxPoints(rect)
@@ -119,7 +119,7 @@ class CoordServer():
 				(coords.x, coords.y), radius = cv2.minEnclosingCircle(contour)
 				cv2.circle(coords_image, (int(coords.x), int(coords.y)), int(radius), (255, 0, 255), 2)
 
-				if object_type == "fuel_tank":
+				if object_type == BoardObjects.FUEL_TANK.value:
 					coords.z = 1
 				else:
 					coords.z = 0.5
@@ -151,7 +151,7 @@ class CoordServer():
 			return getCoordsResponse()
 		
 		# Check if object type is supported
-		if request.object_type.data not in ["small_box", "thruster", "fuel_tank"]:
+		if request.object_type.data not in BoardObjects.__members__:
 			rospy.logwarn("Invalid object type: %s", request.object_type)
 			return getCoordsResponse()
 

@@ -13,14 +13,6 @@
     output="screen">
     </node>
 
-    <arg name="node_start_delay" default="1.0" />
-    <node pkg="vision_system" 
-    type="camera_node.py" 
-    name="CAM" 
-    output="screen" 
-    launch-prefix="bash -c 'sleep $(arg node_start_delay); $0 $@' ">
-    </node>
-
     <!-- ARM SYSTEM -->
     <node pkg="arm_system" 
     type="inverse_kinematics_node.py" 
