@@ -10,6 +10,7 @@ project(state_machine)
 find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
+  rosserial_arduino
   message_generation
 )
 
@@ -105,7 +106,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES state_machine
-#  CATKIN_DEPENDS rospy std_msgs
+  CATKIN_DEPENDS rospy std_msgs rosserial_arduino
 #  DEPENDS system_lib
 )
 
@@ -118,7 +119,13 @@ catkin_package(
 include_directories(
 # include
   ${catkin_INCLUDE_DIRS}
+  ${rosserial_arduino_INCLUDE_DIRS}
 )
+
+#rosserial_generate_ros_lib(
+#  PACKAGE rosserial_arduino
+#  SCRIPT make_libraries.py
+#)
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}

@@ -4,7 +4,7 @@
 import rospy
 import smach
 import smach_ros
-from std_msgs.msg import Int8
+from std_msgs.msg import Int8, Int32
 
 # define state Initialize
 class Initialize(smach.State):
@@ -30,14 +30,18 @@ class ReadingStartLED(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['succeeded','aborted'])
         self.green_detected = False
+        self.green_led_sub = rospy.Subscriber("start_led", Int32, callback=self.start_led_cb)
+        
+    def start_led_cb(self, data):
+        reading = data.data
+        rospy.loginfo("Starting LED Reading: %i", reading)
+        self.green_detected = reading
 
     def execute(self, userdata):
         rospy.loginfo('Executing state ReadingStartLED')
         # Run LED reading logic
-        self.green_detected = True
-        rospy.sleep(5)
-
-        if self.green_detected:
+        rospy.sleep(0.1)
+        if self.green_detected < 1000:
             return 'succeeded'
         
         return 'aborted'
