@@ -4,13 +4,16 @@
 import rospy
 import smach
 import smach_ros
-from std_msgs.msg import Int8, Int32
+import actionlib
+from std_msgs.msg import Int8, Int32, Bool
+
+from vision_system.msg import GetCoordsAction, GetCoordsGoal, GetCoordsResult, GetCoordsFeedback
+
 
 # define state Initialize
 class Initialize(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['succeeded','aborted'])
-        self.test_pub = rospy.Publisher('test_topic', Int8, queue_size=10)
         self.bot_initialized = False
 
     def execute(self, userdata):
@@ -30,20 +33,18 @@ class ReadingStartLED(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['succeeded','aborted'])
         self.green_detected = False
-        self.green_led_sub = rospy.Subscriber("start_led", Int32, callback=self.start_led_cb)
+        self.green_led_sub = rospy.Subscriber("led_state", Bool, callback=self.start_led_cb)
         
     def start_led_cb(self, data):
         reading = data.data
-        rospy.loginfo("Starting LED Reading: %i", reading)
         self.green_detected = reading
+        rospy.loginfo("Green LED: %s", reading)
 
     def execute(self, userdata):
         rospy.loginfo('Executing state ReadingStartLED')
-        # Run LED reading logic
         rospy.sleep(0.1)
-        if self.green_detected < 1000:
+        if self.green_detected:
             return 'succeeded'
-        
         return 'aborted'
 
 # define state PickUpBigPackages
@@ -54,7 +55,7 @@ class PickUpBigPackages(smach.State):
 
     def execute(self, userdata):
         rospy.loginfo('Executing state PickUpBigPackages')
-        # Run LED reading logic
+        # Run big package pickup logic
         self.done = True
         rospy.sleep(15)
 
@@ -71,7 +72,19 @@ class PickUpSmallPackages(smach.State):
 
     def execute(self, userdata):
         rospy.loginfo('Executing state PickUpSmallPackages')
-        # Run LED reading logic
+        # Run small package pickup logic
+        # Place arm in scanning position
+        # Get coordinates from camera
+
+        # Pickup boxes 
+            # Place arm on top of box
+            # Get feedback from camera while lowering to grab box
+            # Put box in respective container
+        
+
+
+
+
         self.done = True
         rospy.sleep(10)
 
@@ -95,9 +108,27 @@ class SetPose(smach.State):
 class GetCoords(smach.State):
     def __init__(self, object_type, pose):
         smach.State.__init__(self, outcomes=['succeeded','aborted'])
+        self.object_type = object_type
+        self.pose = pose
+
+    def feedback_callback(feedback):
+        rospy.loginfo(f'Current Coordinates List: {feedback.coordinates_list}, Elapsed Time: {feedback.elapsed_time}')
 
     def execute(self, userdata):
         rospy.loginfo('Executing state GetCoords(small_packages, scan)')
+        
+        client = actionlib.SimpleActionClient('get_coords', GetCoordsAction)
+        client.wait_for_server()
+
+        goal = GetCoordsGoal()
+        client.send_goal(goal, feedback_cb=self.feedback_callback)
+
+        client.wait_for_result()
+        result = client.get_result()
+        rospy.loginfo(f'Final Elapsed Time: {result.elapsed_time}')
+        rospy.loginfo(f'Final Coordinates List: {result.coordinates_list}')
+
+        
         rospy.sleep(1)
         if True:
             return 'succeeded'

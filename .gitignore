@@ -1,5 +1,6 @@
 .vscode/
 .catkin_workspace
+.catkin_tools/
 
 install/
 devel/

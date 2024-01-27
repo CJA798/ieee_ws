@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- NAVIGATION SYSTEM -->
+
+    <!-- VISION SYSTEM -->
+    <node pkg="vision_system" 
+    type="raw_image_publisher.py" 
+    name="raw_image" 
+    output="screen">
+    </node>
+
+    <node pkg="vision_system" 
+    type="get_coords_server.py" 
+    name="get_coords_server" 
+    output="screen">
+    </node>
+
+    <!-- ARM SYSTEM -->
+
+    <!-- STATE MACHINE -->
+    <node pkg="state_machine" 
+    type="state_machine.py" 
+    name="STATE" 
+    output="screen">
+    </node>
+
+
+</launch>

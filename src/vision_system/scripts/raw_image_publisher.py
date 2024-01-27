@@ -6,12 +6,12 @@ import rospy
 # Import Image message type
 from sensor_msgs.msg import Image
 
+# Import OpenCV
+import cv2
+
 # Import library for converting OpenCV images (of type cv::Mat)
 # into a ROS Image message, and viceversa
 from cv_bridge import CvBridge
-
-# Import OpenCV
-import cv2
 
 
 # Create a name for the publisher node
@@ -44,18 +44,23 @@ cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
 bridge = CvBridge()
 
 while not rospy.is_shutdown():
-    ret, frame = cap.read()
+    ret, raw_image = cap.read()
 
     if ret:
+        cv2.imshow("Frame2", raw_image)
+        cv2.waitKey(5)
+        rospy.loginfo("Frame2 received successfully")
+
         # Convert frame to msg format
-        img_to_publish = bridge.cv2_to_imgmsg(frame)
+        img_to_publish = bridge.cv2_to_imgmsg(raw_image)
         
         # Publish frame to topic
         publisher.publish(img_to_publish)
 
         # Assert publication
-        #rospy.loginfo("Video frame published successfully")
+        rospy.loginfo("Video frame published successfully")
     
     rate.sleep()
 
+cv2.destroyAllWindows()
 cap.release()

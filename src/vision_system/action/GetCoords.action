@@ -1,0 +1,13 @@
+# get_coords.action
+
+# Define the goal
+CoordinatesList coordinates_list
+duration elapsed_time
+---
+# Define the result
+CoordinatesList coordinates_list
+duration elapsed_time
+---
+# Define a feedback message
+CoordinatesList coordinates_list
+duration elapsed_time
