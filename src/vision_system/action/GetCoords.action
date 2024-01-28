@@ -1,13 +1,12 @@
-# get_coords.action
+# GetCoords.action
 
 # Define the goal
-CoordinatesList coordinates_list
-duration elapsed_time
+std_msgs/Float32 timeout                        # Maximum time to keep trying
+std_msgs/Int8 expected_pairs                     # Number of expected coordinate pairs
 ---
 # Define the result
-CoordinatesList coordinates_list
-duration elapsed_time
+vision_system/CoordinatesList coordinates            
 ---
 # Define a feedback message
-CoordinatesList coordinates_list
-duration elapsed_time
+vision_system/CoordinatesList current_coordinates     # Partial list of coordinates found    
+std_msgs/Float32 elapsed_time                   # Time elapsed    

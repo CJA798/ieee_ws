@@ -49,7 +49,7 @@ while not rospy.is_shutdown():
     if ret:
         cv2.imshow("Frame2", raw_image)
         cv2.waitKey(5)
-        rospy.loginfo("Frame2 received successfully")
+        #rospy.loginfo("Frame2 received successfully")
 
         # Convert frame to msg format
         img_to_publish = bridge.cv2_to_imgmsg(raw_image)
@@ -58,7 +58,7 @@ while not rospy.is_shutdown():
         publisher.publish(img_to_publish)
 
         # Assert publication
-        rospy.loginfo("Video frame published successfully")
+        #rospy.loginfo("Video frame published successfully")
     
     rate.sleep()
 

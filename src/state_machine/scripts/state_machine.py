@@ -43,7 +43,8 @@ class ReadingStartLED(smach.State):
     def execute(self, userdata):
         rospy.loginfo('Executing state ReadingStartLED')
         rospy.sleep(0.1)
-        if self.green_detected:
+        #if self.green_detected:
+        if True:
             return 'succeeded'
         return 'aborted'
 
@@ -111,8 +112,8 @@ class GetCoords(smach.State):
         self.object_type = object_type
         self.pose = pose
 
-    def feedback_callback(feedback):
-        rospy.loginfo(f'Current Coordinates List: {feedback.coordinates_list}, Elapsed Time: {feedback.elapsed_time}')
+    def feedback_callback(self, feedback):
+        rospy.loginfo(f'Current Coordinates List: {feedback.current_coordinates}, Elapsed Time: {feedback.elapsed_time}')
 
     def execute(self, userdata):
         rospy.loginfo('Executing state GetCoords(small_packages, scan)')
@@ -121,12 +122,15 @@ class GetCoords(smach.State):
         client.wait_for_server()
 
         goal = GetCoordsGoal()
+        goal.timeout.data = 5.0
+        goal.expected_pairs.data = 3
+
         client.send_goal(goal, feedback_cb=self.feedback_callback)
 
         client.wait_for_result()
         result = client.get_result()
-        rospy.loginfo(f'Final Elapsed Time: {result.elapsed_time}')
-        rospy.loginfo(f'Final Coordinates List: {result.coordinates_list}')
+        #rospy.loginfo(f'Final Elapsed Time: {result.elapsed_time}')
+        rospy.loginfo(f'Final Coordinates List: {result.coordinates}')
 
         
         rospy.sleep(1)
