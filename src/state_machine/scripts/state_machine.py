@@ -113,7 +113,7 @@ class GetCoords(smach.State):
         self.pose = pose
 
     def feedback_callback(self, feedback):
-        rospy.loginfo(f'Current Coordinates List: {feedback.current_coordinates}, Elapsed Time: {feedback.elapsed_time}')
+        rospy.loginfo(f'Current Coordinates List: {feedback.current_coordinates}')
 
     def execute(self, userdata):
         rospy.loginfo('Executing state GetCoords(small_packages, scan)')
@@ -124,13 +124,16 @@ class GetCoords(smach.State):
         goal = GetCoordsGoal()
         goal.timeout.data = 5.0
         goal.expected_pairs.data = 3
+        goal.object_type.data = self.object_type
+        goal.pose.data = self.pose
 
         client.send_goal(goal, feedback_cb=self.feedback_callback)
 
         client.wait_for_result()
         result = client.get_result()
         #rospy.loginfo(f'Final Elapsed Time: {result.elapsed_time}')
-        rospy.loginfo(f'Final Coordinates List: {result.coordinates}')
+        print(result)
+        rospy.loginfo(f'Final Coordinates List: {result.coordinates}    |    Total time: {result.elapsed_time.data}')
 
         
         rospy.sleep(1)

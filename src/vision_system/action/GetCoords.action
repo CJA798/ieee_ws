@@ -2,11 +2,13 @@
 
 # Define the goal
 std_msgs/Float32 timeout                        # Maximum time to keep trying
-std_msgs/Int8 expected_pairs                     # Number of expected coordinate pairs
+std_msgs/Int8 expected_pairs                    # Number of expected coordinate pairs
+std_msgs/String object_type
+std_msgs/String pose                            # Arm pose                         
 ---
 # Define the result
 vision_system/CoordinatesList coordinates            
+std_msgs/Float32 elapsed_time                   # Time elapsed    
 ---
 # Define a feedback message
 vision_system/CoordinatesList current_coordinates     # Partial list of coordinates found    
-std_msgs/Float32 elapsed_time                   # Time elapsed    
