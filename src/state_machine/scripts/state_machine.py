@@ -58,8 +58,7 @@ class PickUpBigPackages(smach.State):
         rospy.loginfo('Executing state PickUpBigPackages')
         # Run big package pickup logic
         self.done = True
-        rospy.sleep(15)
-
+        rospy.sleep(10)
         if self.done:
             return 'succeeded'
         
@@ -125,7 +124,7 @@ class GetCoords(smach.State):
         goal.timeout.data = 5.0
         goal.expected_pairs.data = 3
         goal.object_type.data = self.object_type
-        goal.pose.data = self.pose
+        goal.arm_pose.data = self.pose
 
         client.send_goal(goal, feedback_cb=self.feedback_callback)
 

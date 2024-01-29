@@ -4,7 +4,7 @@
 std_msgs/Float32 timeout                        # Maximum time to keep trying
 std_msgs/Int8 expected_pairs                    # Number of expected coordinate pairs
 std_msgs/String object_type
-std_msgs/String pose                            # Arm pose                         
+std_msgs/String arm_pose
 ---
 # Define the result
 vision_system/CoordinatesList coordinates            

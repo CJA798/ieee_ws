@@ -3,14 +3,29 @@
 import rospy
 import actionlib
 from geometry_msgs.msg import Point
+from sensor_msgs.msg import Image
 from vision_system.msg import CoordinatesList, GetCoordsAction, GetCoordsGoal, GetCoordsResult, GetCoordsFeedback
 from time import time
 from typing import List
+import cv2
+import numpy as np
+from image_processor import ImageProcessor
+from cv_bridge import CvBridge
+
+
 
 class GetCoordsServer:
     def __init__(self):
         self.server = actionlib.SimpleActionServer('get_coords', GetCoordsAction, self.execute, False)
         self.server.start()
+        self.current_frame = np.ndarray(1)
+        self.raw_img_subscriber = rospy.Subscriber('raw_image', Image, callback=self._sub_callback)
+        self.coords_img_publisher = rospy.Publisher('coords_image', Image, queue_size=60)
+
+    def _sub_callback(self, message):
+        bridge = CvBridge()
+        self.current_frame = bridge.imgmsg_to_cv2(message)
+
 
     def execute(self, goal):
         # Start the timer for the action
@@ -19,6 +34,8 @@ class GetCoordsServer:
         # Extract the timeout and number of expected pairs from the goal
         timeout = goal.timeout
         expected_pairs = goal.expected_pairs.data
+        object_type = goal.object_type.data
+        arm_pose = goal.arm_pose.data
 
         # Initialize the action result and feedback
         result = GetCoordsResult()
@@ -26,6 +43,11 @@ class GetCoordsServer:
 
         # Initialize coordinates array
         coordinates = CoordinatesList()
+        
+        # Create CvBridge object to convert images to messages
+        bridge = CvBridge()
+        
+        
 
         # Keep scanning until three coordinate pairs are found or the action time outs
         while not (self._timeout_reached(start_time, timeout) or self._enough_coordinate_pairs_found(expected_pairs, coordinates.coordinates)):
@@ -34,16 +56,26 @@ class GetCoordsServer:
                 rospy.loginfo('get_coords Preempted')
                 self.server.set_preempted()
                 return
-            
-            box1 = Point()
-            box2 = Point()
-            box3 = Point()
+            # Create a copy of the current frame to find the coordinates
+            image = self.current_frame.copy()
 
-            coordinates.coordinates = [box1, box2, box3]
+            coordinates, coords_image = self._get_coordinates(image = image, object_type = object_type, arm_pose = arm_pose)
+            
+            # Convert frame to msg format
+            img_to_publish = bridge.cv2_to_imgmsg(coords_image)
+            
+            # Publish frame to topic
+            self.coords_img_publisher.publish(img_to_publish)
+
+            #box1 = Point()
+            #box2 = Point()
+            #box3 = Point()
+            #coordinates.coordinates = [box1, box2]
             
             # Provide feedback during the process
-            feedback.current_coordinates = coordinates
-            self.server.publish_feedback(feedback)
+            #feedback.current_coordinates = coordinates
+            #self.server.publish_feedback(feedback)
+
         elapsed_time = time() - start_time
         result.coordinates = coordinates
         result.elapsed_time.data = elapsed_time
@@ -62,10 +94,16 @@ class GetCoordsServer:
 
     
     def _enough_coordinate_pairs_found(self, expected_pairs: int, coordinates: List[List]) -> bool:
-        print(f'LEN COORDINATES: {expected_pairs == len(coordinates)}')
         return expected_pairs == len(coordinates)
 
+    def _get_coordinates(self, image: np.ndarray, object_type: str, arm_pose: str):
+        # Initialize coordinates array
+        coordinates = CoordinatesList()
+        coords_image = image
 
+
+        return coordinates, coords_image
+        
 if __name__ == '__main__':
     rospy.init_node('get_coords_server')
     server = GetCoordsServer()

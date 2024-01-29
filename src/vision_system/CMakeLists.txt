@@ -175,6 +175,8 @@ catkin_install_python(PROGRAMS
   scripts/camera_node.py
 
   scripts/server/get_coords_server.py
+  scripts/coords_image_subscriber.py
+  scripts/image_processor.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

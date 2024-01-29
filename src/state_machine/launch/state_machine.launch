@@ -10,6 +10,12 @@
     </node>
 
     <node pkg="vision_system" 
+    type="coords_image_subscriber.py" 
+    name="coords_image_subscriber" 
+    output="screen">
+    </node>
+
+    <node pkg="vision_system" 
     type="get_coords_server.py" 
     name="get_coords_server" 
     output="screen">
