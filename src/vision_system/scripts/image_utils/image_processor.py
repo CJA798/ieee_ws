@@ -2,6 +2,7 @@
 
 from time import time
 from typing import List, Iterable, Sized
+from geometry_msgs.msg import Point
 import cv2
 import numpy as np
 
@@ -20,19 +21,14 @@ class ImageProcessor():
     def __init__(self) -> None:
         self.image = None
 
-    def get_coords(self) -> (CoordinatesList, np.ndarray):
-        coordinates = CoordinatesList()
+    def get_coords(self, object_type: str, pose: str) -> (List[Point], np.ndarray):
+        
+        coordinates = []
         coords_image = self.image.copy()
 
-        # Purple:
-
-        # Other than Purple:
-        # Get color
-        # Get color threshold
-        # Apply filters
-        # Make mask
-        # Find contours
-
+        # ... Obtain coordinates list
+        # ... Obtain image displaying contours and coordinates
+        
         return (coordinates, coords_image)
     
     def get_limits(self, color_code: Iterable[Sized]) -> (np.array, np.array):

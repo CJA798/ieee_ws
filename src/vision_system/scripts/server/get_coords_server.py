@@ -9,7 +9,7 @@ from time import time
 from typing import List
 import cv2
 import numpy as np
-from image_processor import ImageProcessor
+from image_utils.image_processor import ImageProcessor
 from cv_bridge import CvBridge
 
 
@@ -46,8 +46,9 @@ class GetCoordsServer:
         
         # Create CvBridge object to convert images to messages
         bridge = CvBridge()
-        
-        
+
+        # Create image processor to deal with frames
+        ip = ImageProcessor()
 
         # Keep scanning until three coordinate pairs are found or the action time outs
         while not (self._timeout_reached(start_time, timeout) or self._enough_coordinate_pairs_found(expected_pairs, coordinates.coordinates)):
@@ -57,15 +58,15 @@ class GetCoordsServer:
                 self.server.set_preempted()
                 return
             # Create a copy of the current frame to find the coordinates
-            image = self.current_frame.copy()
+            ip.image = self.current_frame.copy()
 
-            coordinates, coords_image = self._get_coordinates(image = image, object_type = object_type, arm_pose = arm_pose)
+            coordinates.coordinates, coords_image = ip.get_coords(object_type = object_type, pose = arm_pose)
             
             # Convert frame to msg format
-            img_to_publish = bridge.cv2_to_imgmsg(coords_image)
+            #img_to_publish = bridge.cv2_to_imgmsg(coords_image)
             
             # Publish frame to topic
-            self.coords_img_publisher.publish(img_to_publish)
+            #self.coords_img_publisher.publish(img_to_publish)
 
             #box1 = Point()
             #box2 = Point()
