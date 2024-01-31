@@ -37,8 +37,11 @@ if not cap.isOpened():
     print('Unable to open camera')
     exit(0)
 
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
+img_resize_factor = 4
+img_width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+img_height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, round(img_width/img_resize_factor))
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, round(img_height/img_resize_factor))
 
 # Create CvBridge object to convert images to messages
 bridge = CvBridge()
