@@ -70,7 +70,37 @@ class ImageProcessor():
         # TODO: Calculate limimts in color_data dictionary.
         # This will avoid doing the same calculation multiple times
         lower_limit, upper_limit = self.get_limits(color_code=color_codes["copper"])
+        
+        mask_median = cv2.inRange(hsv, lower_limit, upper_limit)
+        mask_median_ = cv2.cvtColor(mask_median, cv2.COLOR_GRAY2BGR)
 
+        contour_masks = []
+    
+        frame_copy = frame.copy()
+        contours = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours = imutils.grab_contours(contours)
+
+        if len(contours) > 0:
+            for contour in contours:
+                M = cv2.moments(contour)
+                area = M["m00"]
+                if area <= min_area or area >= max_area:
+                    continue
+                cX = int(M["m10"] / area)
+                cY = int(M["m01"] / area)
+
+                cv2.drawContours(frame_copy, [contour], -1, (0, 255, 0), 2)
+                cv2.circle(frame_copy, (cX, cY), 7, (0, 255, 0), -1)
+                cv2.putText(frame_copy, f"({cX}, {cY})", (cX - 20, cY - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+
+                (x, y), radius = cv2.minEnclosingCircle(contour)
+                center = (int(x), int(y))
+                radius = int(radius)
+                cv2.circle(frame_copy, center, radius, (255, 0, 255), 2)
+                cv2.circle(frame_copy, center, 5, (255, 0, 255), -1)
+        
+        contour_masks.append(frame_copy)
+    
         return (coordinates, coords_image)
 
 def main():
