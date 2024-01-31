@@ -171,7 +171,6 @@ catkin_install_python(PROGRAMS
   scripts/small_package_node.py
   scripts/small_package_server.py
   scripts/get_coords_service.py
-  scripts/board_objects.py
   scripts/camera_node.py
 
   scripts/server/get_coords_server.py
