@@ -5,8 +5,10 @@ from typing import List, Iterable, Sized
 from geometry_msgs.msg import Point
 import cv2
 import numpy as np
+from image_utils.board_objects import BoardObjects
 
 color_codes = {
+    # TODO: Change this dictionary to color_data
     "orange": [75, 112, 255],
     "copper": [75, 112, 255],
     "yellow": [0, 255, 255],
@@ -26,8 +28,13 @@ class ImageProcessor():
         coordinates = []
         coords_image = self.image.copy()
 
-        # ... Obtain coordinates list
-        # ... Obtain image displaying contours and coordinates
+        try:
+            if object_type == BoardObjects.SMALL_PACKAGE.value:
+                coordinates, coords_image = self.find_small_package_coords(coords_image, pose)
+            elif object_type == BoardObjects.FUEL_TANK or object_type == BoardObjects.THRUSTER:
+                coordinates, coords_image = self.find_thruster_or_fuel_tank_coords(coords_image, pose)
+        except ValueError as e:
+            raise ValueError(f"Object type {object_type} not recognized.")
         
         return (coordinates, coords_image)
     
@@ -52,6 +59,19 @@ class ImageProcessor():
 
         return (lowerLimit, upperLimit)
 
+    def find_small_package_coords(self, image: np.ndarray, pose: str) -> (List[Point], np.ndarray):
+        pass
+
+    def find_thruster_or_fuel_tank_coords(self, image: np.ndarray, pose: str) -> (List[Point], np.ndarray):
+        # ... Find thruster or fuel tank coordinates
+        median = cv2.medianBlur(image, 5)
+        hsv = cv2.cvtColor(median, cv2.COLOR_BGR2HSV)
+
+        # TODO: Calculate limimts in color_data dictionary.
+        # This will avoid doing the same calculation multiple times
+        lower_limit, upper_limit = self.get_limits(color_code=color_codes["copper"])
+
+        return (coordinates, coords_image)
 
 def main():
     ip = ImageProcessor()
