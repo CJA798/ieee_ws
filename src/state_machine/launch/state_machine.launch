@@ -1,6 +1,18 @@
 <?xml version="1.0"?>
 <launch>
     <!-- NAVIGATION SYSTEM -->
+    <node pkg="serial_node" 
+    type="serial_node_1.py" 
+    name="serial_node_1" 
+    output="screen">
+    <param name="port" value="/dev/ttyUSB0"/>
+    </node>
+
+    <node pkg="navigation_system" 
+    type="navigation_SM" 
+    name="Nav" 
+    output="screen">
+    </node>
 
     <!-- VISION SYSTEM -->
     <node pkg="vision_system" 

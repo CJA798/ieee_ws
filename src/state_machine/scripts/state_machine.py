@@ -5,7 +5,7 @@ import rospy
 import smach
 import smach_ros
 import actionlib
-from std_msgs.msg import Int8, Int32, Bool
+from std_msgs.msg import Int8, Int32, Bool, String
 
 from vision_system.msg import GetCoordsAction, GetCoordsGoal, GetCoordsResult, GetCoordsFeedback
 
@@ -33,18 +33,18 @@ class ReadingStartLED(smach.State):
     def __init__(self):
         smach.State.__init__(self, outcomes=['succeeded','aborted'])
         self.green_detected = False
-        self.green_led_sub = rospy.Subscriber("led_state", Bool, callback=self.start_led_cb)
+        self.green_led_sub = rospy.Subscriber("LED_State", Bool, callback=self.start_led_cb)
         
     def start_led_cb(self, data):
         reading = data.data
         self.green_detected = reading
-        rospy.loginfo("Green LED: %s", reading)
+        #rospy.loginfo("Green LED: %s", reading)
 
     def execute(self, userdata):
         rospy.loginfo('Executing state ReadingStartLED')
         rospy.sleep(0.1)
-        #if self.green_detected:
-        if True:
+
+        if self.green_detected:
             return 'succeeded'
         return 'aborted'
 
@@ -162,12 +162,26 @@ class GoToDropOff(smach.State):
 
         return 'succeeded'
 
+def feedback_callback(msg):
+    pass
+
+def state_status_callback(msg):
+    pass
 
 def main():
     rospy.init_node('STATE_MACHINE')
 
     # Create a SMACH state machine
     sm = smach.StateMachine(outcomes=['END'])
+
+    # Create publishers
+    state_pub = rospy.Publisher('State', String, queue_size=10)
+    arm_pub = rospy.Publisher('Arm', String, queue_size=10)
+    misc_pub = rospy.Publisher('Misc', String, queue_size=10)
+
+    # Create subscribers
+    feedback_sub = rospy.Subscriber('feedback', String, feedback_callback)
+    state_status_sub = rospy.Subscriber('state_status', String, state_status_callback)
 
     # Open the container
     with sm:

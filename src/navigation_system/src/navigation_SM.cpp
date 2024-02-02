@@ -1,5 +1,5 @@
 #include "ros/ros.h"
-#include "std_msgs/Float32.h"
+#include "std_msgs/Int16.h"
 #include "std_msgs/Float64MultiArray.h"
 #include "std_msgs/String.h"
 
@@ -23,32 +23,32 @@ public:
         stateSub = nh.subscribe("State", 10, &RobotController::stateCallback, this);
     }
 
-    void tofFrontCallback(const std_msgs::Float32::ConstPtr& msg) {
+    void tofFrontCallback(const std_msgs::Int16::ConstPtr& msg) {
         // TOF Front callback logic
         // ...
     }
 
-    void tofLeftCallback(const std_msgs::Float32::ConstPtr& msg) {
+    void tofLeftCallback(const std_msgs::Int16::ConstPtr& msg) {
         // TOF Left callback logic
         // ...
     }
 
-    void tofRightCallback(const std_msgs::Float32::ConstPtr& msg) {
+    void tofRightCallback(const std_msgs::Int16::ConstPtr& msg) {
         // TOF Right callback logic
         // ...
     }
 
-    void tofBackCallback(const std_msgs::Float32::ConstPtr& msg) {
+    void tofBackCallback(const std_msgs::Int16::ConstPtr& msg) {
         // TOF Back callback logic
         // ...
     }
 
-    void imuBearingCallback(const std_msgs::Float32::ConstPtr& msg) {
+    void imuBearingCallback(const std_msgs::Int16::ConstPtr& msg) {
         // IMU Bearing callback logic
         // ...
     }
 
-    void imuGravCallback(const std_msgs::Float32::ConstPtr& msg) {
+    void imuGravCallback(const std_msgs::Int16::ConstPtr& msg) {
         // IMU Grav callback logic
         // ...
     }
