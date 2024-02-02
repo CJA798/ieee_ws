@@ -63,10 +63,10 @@ class GetCoordsServer:
             coordinates.coordinates, coords_image = ip.get_coords(object_type = object_type, pose = arm_pose)
             
             # Convert frame to msg format
-            #img_to_publish = bridge.cv2_to_imgmsg(coords_image)
+            img_to_publish = bridge.cv2_to_imgmsg(coords_image)
             
             # Publish frame to topic
-            #self.coords_img_publisher.publish(img_to_publish)
+            self.coords_img_publisher.publish(img_to_publish)
 
             #box1 = Point()
             #box2 = Point()
