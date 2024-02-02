@@ -1,4 +1,5 @@
 #include <string>
+#include <cstring>
 #include "ros/ros.h"
 #include "std_msgs/Int16.h"
 #include "std_msgs/Float64MultiArray.h"
@@ -8,8 +9,9 @@
 float wheelSpeedOne;
 float wheelSpeedTwo;
 float wheelSpeedThree;
-string navState;
-char botState;
+std_msgs::Float64MultiArray wheelSpeeds;
+std_msgs::String navState;
+std_msgs::String botState;
 
 // global variables for sensor data
 int tofFront;
@@ -20,94 +22,63 @@ int bearing;
 int gravVector;
 
 
-class RobotController {
-public:
-    RobotController() {
-        // Initialize ROS node
-        ros::NodeHandle nh;
+// create subscriber callbacks
+void tofOneCallback(const std_msgs::Int16::ConstPtr& msg){
+    tofFront = msg->data;
+}
 
-        // Publishers
-        stateStatusPub = nh.advertise<std_msgs::String>("state_status", 10);
-        wheelSpeedsPub = nh.advertise<std_msgs::Float64MultiArray>("wheel_speeds", 10);
+void tofTwoCallback(const std_msgs::Int16::ConstPtr& msg){
+    tofLeft = msg->data;
+}
 
-        // Subscribers
-        tofFrontSub = nh.subscribe("TOF_Front", 10, &RobotController::tofFrontCallback);
-        tofLeftSub = nh.subscribe("TOF_Left", 10, &RobotController::tofLeftCallback);
-        tofRightSub = nh.subscribe("TOF_Right", 10, &RobotController::tofRightCallback);
-        tofBackSub = nh.subscribe("TOF_Back", 10, &RobotController::tofBackCallback);
-        imuBearingSub = nh.subscribe("IMU_Bearing", 10, &RobotController::imuBearingCallback);
-        imuGravSub = nh.subscribe("IMU_Grav", 10, &RobotController::imuGravCallback);
-        stateSub = nh.subscribe("State", 10, &RobotController::stateCallback);
-    }
+void tofThreeCallback(const std_msgs::Int16::ConstPtr& msg){
+    tofRight = msg->data;
+}
 
-    void tofFrontCallback(const std_msgs::Int16::ConstPtr& msg) {
-        tofFront = msg->data;
-    }
+void tofFourCallback(const std_msgs::Int16::ConstPtr& msg){
+    tofBack = msg->data;
+}
 
-    void tofLeftCallback(const std_msgs::Int16::ConstPtr& msg) {
-        tofLeft = msg->data;
-    }
+void imuBearCallback(const std_msgs::Int16::ConstPtr& msg){
+    bearing = msg->data;
+}
 
-    void tofRightCallback(const std_msgs::Int16::ConstPtr& msg) {
-        tofRight = msg->data;
-    }
+void imuGravCallback(const std_msgs::Int16::ConstPtr& msg){
+    gravVector = msg->data;
+}
 
-    void tofBackCallback(const std_msgs::Int16::ConstPtr& msg) {
-        tofBack = msg->data;
-    }
+void stateCallback(const std_msgs::String::ConstPtr& msg){
+    botState.data = msg->data;
+}
 
-    void imuBearingCallback(const std_msgs::Int16::ConstPtr& msg) {
-        bearing = msg->data;
-    }
-
-    void imuGravCallback(const std_msgs::Int16::ConstPtr& msg) {
-        gravVector = msg->data;
-    }
-
-    void stateCallback(const std_msgs::String::ConstPtr& msg) {
-        botState = msg->data;
-    }
-
-    void publishData() {
-        // Publishing data to state status topic
-        std_msgs::String stateStatus;
-        stateStatus.data = navState;
-        stateStatusPub.publish(stateStatus);
-
-        // Publishing data to wheel speeds topic
-        std_msgs::Float64MultiArray wheelSpeeds;
-        wheelSpeeds.data = {wheelSpeedOne, wheelSpeedTwo, wheelSpeedThree}; 
-        wheelSpeedsPub.publish(wheelSpeeds);
-    }
-
-private:
-    ros::Publisher stateStatusPub;
-    ros::Publisher wheelSpeedsPub;
-    ros::Subscriber tofFrontSub;
-    ros::Subscriber tofLeftSub;
-    ros::Subscriber tofRightSub;
-    ros::Subscriber tofBackSub;
-    ros::Subscriber imuBearingSub;
-    ros::Subscriber imuGravSub;
-    ros::Subscriber stateSub;
-};
 
 int main(int argc, char **argv) {
     // Initialize ROS node and name node
     ros::init(argc, argv, "robot_controller");
+    ros::NodeHandle nh;
 
-    // Create an instance of the RobotController class
-    RobotController robotController;
+    // create subscriber objects
+    ros::Subscriber front_tof_sub = nh.subscribe("TOF_Front", 10, tofOneCallback);
+    ros::Subscriber left_tof_sub = nh.subscribe("TOF_Left", 10, tofTwoCallback);
+    ros::Subscriber right_tof_sub = nh.subscribe("TOF_Right", 10, tofThreeCallback);
+    ros::Subscriber back_tof_sub = nh.subscribe("TOF_Left", 10, tofFourCallback);
+    ros::Subscriber bearing_sub = nh.subscribe("IMU_Bearing", 10, imuBearCallback);
+    ros::Subscriber grav_sub = nh.subscribe("IMU_Grav", 10, imuGravCallback);
+    ros::Subscriber bot_state_sub = nh.subscribe("State", 10, stateCallback);
+
+    // create publisher objects
+    ros::Publisher nav_state_pub = nh.advertise<std_msgs::String>("state_status", 10);
+    ros::Publisher wheel_speed_pub = nh.advertise<std_msgs::Float64MultiArray>("wheel_speeds", 10);
 
     // Set the loop rate
     ros::Rate loopRate(10); // 10 Hz
 
     while (ros::ok()) {
-        // Call any other logic or functionality here
-        // ...
-
-        // Publish data to topics
-        robotController.publishData();
+        // publish
+        navState.data = "going";
+        wheelSpeeds.data = {wheelSpeedOne, wheelSpeedTwo, wheelSpeedThree};
+        nav_state_pub.publish(navState);
+        wheel_speed_pub.publish(wheelSpeeds);
 
         // Spin and sleep
         ros::spinOnce();
