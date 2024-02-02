@@ -2,10 +2,12 @@
 #### **TODO: insert image here**
 #### **TODO: insert info of each category**
 ### State Machine (Master Node)
-Add details here
+- Add navigation states
+- Add arm states
 ### Navigation System
-Add details here
+- Add state machine code to navigation_SM.cpp
 ### Arm System
-Add details here
+- Create servo node
 ### Vision System
-Add details here
+- Finish get_coords action
+- Benchmark each purple box recognition method
