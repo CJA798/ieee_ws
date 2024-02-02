@@ -1,7 +1,24 @@
+#include <string>
 #include "ros/ros.h"
 #include "std_msgs/Int16.h"
 #include "std_msgs/Float64MultiArray.h"
 #include "std_msgs/String.h"
+
+// global variables for wheel speed and robot state
+float wheelSpeedOne;
+float wheelSpeedTwo;
+float wheelSpeedThree;
+string navState;
+char botState;
+
+// global variables for sensor data
+int tofFront;
+int tofLeft;
+int tofRight;
+int tofBack;
+int bearing;
+int gravVector;
+
 
 class RobotController {
 public:
@@ -14,60 +31,53 @@ public:
         wheelSpeedsPub = nh.advertise<std_msgs::Float64MultiArray>("wheel_speeds", 10);
 
         // Subscribers
-        tofFrontSub = nh.subscribe("TOF_Front", 10, &RobotController::tofFrontCallback, this);
-        tofLeftSub = nh.subscribe("TOF_Left", 10, &RobotController::tofLeftCallback, this);
-        tofRightSub = nh.subscribe("TOF_Right", 10, &RobotController::tofRightCallback, this);
-        tofBackSub = nh.subscribe("TOF_Back", 10, &RobotController::tofBackCallback, this);
-        imuBearingSub = nh.subscribe("IMU_Bearing", 10, &RobotController::imuBearingCallback, this);
-        imuGravSub = nh.subscribe("IMU_Grav", 10, &RobotController::imuGravCallback, this);
-        stateSub = nh.subscribe("State", 10, &RobotController::stateCallback, this);
+        tofFrontSub = nh.subscribe("TOF_Front", 10, &RobotController::tofFrontCallback);
+        tofLeftSub = nh.subscribe("TOF_Left", 10, &RobotController::tofLeftCallback);
+        tofRightSub = nh.subscribe("TOF_Right", 10, &RobotController::tofRightCallback);
+        tofBackSub = nh.subscribe("TOF_Back", 10, &RobotController::tofBackCallback);
+        imuBearingSub = nh.subscribe("IMU_Bearing", 10, &RobotController::imuBearingCallback);
+        imuGravSub = nh.subscribe("IMU_Grav", 10, &RobotController::imuGravCallback);
+        stateSub = nh.subscribe("State", 10, &RobotController::stateCallback);
     }
 
     void tofFrontCallback(const std_msgs::Int16::ConstPtr& msg) {
-        // TOF Front callback logic
-        // ...
+        tofFront = msg->data;
     }
 
     void tofLeftCallback(const std_msgs::Int16::ConstPtr& msg) {
-        // TOF Left callback logic
-        // ...
+        tofLeft = msg->data;
     }
 
     void tofRightCallback(const std_msgs::Int16::ConstPtr& msg) {
-        // TOF Right callback logic
-        // ...
+        tofRight = msg->data;
     }
 
     void tofBackCallback(const std_msgs::Int16::ConstPtr& msg) {
-        // TOF Back callback logic
-        // ...
+        tofBack = msg->data;
     }
 
     void imuBearingCallback(const std_msgs::Int16::ConstPtr& msg) {
-        // IMU Bearing callback logic
-        // ...
+        bearing = msg->data;
     }
 
     void imuGravCallback(const std_msgs::Int16::ConstPtr& msg) {
-        // IMU Grav callback logic
-        // ...
+        gravVector = msg->data;
     }
 
     void stateCallback(const std_msgs::String::ConstPtr& msg) {
-        // State callback logic
-        // ...
+        botState = msg->data;
     }
 
     void publishData() {
-        // Publishing data to state_status topic
-        std_msgs::String stateStatusMsg;
-        stateStatusMsg.data = "Robot is in operational state";
-        stateStatusPub.publish(stateStatusMsg);
+        // Publishing data to state status topic
+        std_msgs::String stateStatus;
+        stateStatus.data = navState;
+        stateStatusPub.publish(stateStatus);
 
-        // Publishing data to wheel_speeds topic
-        std_msgs::Float64MultiArray wheelSpeedsMsg;
-        wheelSpeedsMsg.data = {1.0, 2.0, 3.0, 4.0}; // Placeholder values for wheel speeds
-        wheelSpeedsPub.publish(wheelSpeedsMsg);
+        // Publishing data to wheel speeds topic
+        std_msgs::Float64MultiArray wheelSpeeds;
+        wheelSpeeds.data = {wheelSpeedOne, wheelSpeedTwo, wheelSpeedThree}; 
+        wheelSpeedsPub.publish(wheelSpeeds);
     }
 
 private:
@@ -83,7 +93,7 @@ private:
 };
 
 int main(int argc, char **argv) {
-    // Initialize ROS node
+    // Initialize ROS node and name node
     ros::init(argc, argv, "robot_controller");
 
     // Create an instance of the RobotController class
