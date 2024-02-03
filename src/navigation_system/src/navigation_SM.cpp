@@ -10,7 +10,8 @@
 float wheelSpeedOne;
 float wheelSpeedTwo;
 float wheelSpeedThree;
-std_msgs::Float64MultiArray wheelSpeeds;
+//std_msgs::Float64MultiArray wheelSpeeds;
+std_msgs::Float32MultiArray wheelSpeeds;
 std_msgs::String navState;
 std_msgs::String botState;
 
@@ -23,44 +24,10 @@ int bearing;
 int gravVector;
 
 
-<<<<<<< HEAD
-class RobotController {
-public:
-    RobotController() {
-        // Initialize ROS node
-        ros::NodeHandle nh;
-
-        // Publishers
-        stateStatusPub = nh.advertise<std_msgs::String>("state_status", 10);
-        wheelSpeedsPub = nh.advertise<std_msgs::Float32MultiArray>("wheel_speeds", 10);
-
-        // Subscribers
-        tofFrontSub = nh.subscribe("TOF_Front", 10, &RobotController::tofFrontCallback);
-        tofLeftSub = nh.subscribe("TOF_Left", 10, &RobotController::tofLeftCallback);
-        tofRightSub = nh.subscribe("TOF_Right", 10, &RobotController::tofRightCallback);
-        tofBackSub = nh.subscribe("TOF_Back", 10, &RobotController::tofBackCallback);
-        imuBearingSub = nh.subscribe("IMU_Bearing", 10, &RobotController::imuBearingCallback);
-        imuGravSub = nh.subscribe("IMU_Grav", 10, &RobotController::imuGravCallback);
-        stateSub = nh.subscribe("State", 10, &RobotController::stateCallback);
-    }
-
-    void tofFrontCallback(const std_msgs::Int16::ConstPtr& msg) {
-        tofFront = msg->data;
-    }
-
-    void tofLeftCallback(const std_msgs::Int16::ConstPtr& msg) {
-        tofLeft = msg->data;
-    }
-
-    void tofRightCallback(const std_msgs::Int16::ConstPtr& msg) {
-        tofRight = msg->data;
-    }
-=======
 // create subscriber callbacks
 void tofOneCallback(const std_msgs::Int16::ConstPtr& msg){
     tofFront = msg->data;
 }
->>>>>>> 17271a5f22e66f84eed4c9a2019af782a6ae3557
 
 void tofTwoCallback(const std_msgs::Int16::ConstPtr& msg){
     tofLeft = msg->data;
@@ -82,17 +49,9 @@ void imuGravCallback(const std_msgs::Int16::ConstPtr& msg){
     gravVector = msg->data;
 }
 
-<<<<<<< HEAD
-        // Publishing data to wheel speeds topic
-        std_msgs::Float32MultiArray wheelSpeeds;
-        wheelSpeeds.data = {wheelSpeedOne, wheelSpeedTwo, wheelSpeedThree}; 
-        wheelSpeedsPub.publish(wheelSpeeds);
-    }
-=======
 void stateCallback(const std_msgs::String::ConstPtr& msg){
     botState.data = msg->data;
 }
->>>>>>> 17271a5f22e66f84eed4c9a2019af782a6ae3557
 
 
 int main(int argc, char **argv) {
@@ -111,6 +70,7 @@ int main(int argc, char **argv) {
 
     // create publisher objects
     ros::Publisher nav_state_pub = nh.advertise<std_msgs::String>("state_status", 10);
+    //ros::Publisher wheel_speed_pub = nh.advertise<std_msgs::Float64MultiArray>("wheel_speeds", 10);
     ros::Publisher wheel_speed_pub = nh.advertise<std_msgs::Float64MultiArray>("wheel_speeds", 10);
 
     // Set the loop rate
