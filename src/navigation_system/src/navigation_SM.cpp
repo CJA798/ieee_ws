@@ -1,7 +1,8 @@
 #include <string>
 #include "ros/ros.h"
 #include "std_msgs/Int16.h"
-#include "std_msgs/Float64MultiArray.h"
+//#include "std_msgs/Float64MultiArray.h"
+#include "std_msgs/Float32MultiArray.h"
 #include "std_msgs/String.h"
 
 // global variables for wheel speed and robot state
@@ -28,7 +29,7 @@ public:
 
         // Publishers
         stateStatusPub = nh.advertise<std_msgs::String>("state_status", 10);
-        wheelSpeedsPub = nh.advertise<std_msgs::Float64MultiArray>("wheel_speeds", 10);
+        wheelSpeedsPub = nh.advertise<std_msgs::Float32MultiArray>("wheel_speeds", 10);
 
         // Subscribers
         tofFrontSub = nh.subscribe("TOF_Front", 10, &RobotController::tofFrontCallback);
@@ -75,7 +76,7 @@ public:
         stateStatusPub.publish(stateStatus);
 
         // Publishing data to wheel speeds topic
-        std_msgs::Float64MultiArray wheelSpeeds;
+        std_msgs::Float32MultiArray wheelSpeeds;
         wheelSpeeds.data = {wheelSpeedOne, wheelSpeedTwo, wheelSpeedThree}; 
         wheelSpeedsPub.publish(wheelSpeeds);
     }
