@@ -2,14 +2,16 @@
 #include <cstring>
 #include "ros/ros.h"
 #include "std_msgs/Int16.h"
-#include "std_msgs/Float64MultiArray.h"
+//#include "std_msgs/Float64MultiArray.h"
+#include "std_msgs/Float32MultiArray.h"
 #include "std_msgs/String.h"
 
 // global variables for wheel speed and robot state
 float wheelSpeedOne;
 float wheelSpeedTwo;
 float wheelSpeedThree;
-std_msgs::Float64MultiArray wheelSpeeds;
+//std_msgs::Float64MultiArray wheelSpeeds;
+std_msgs::Float32MultiArray wheelSpeeds;
 std_msgs::String navState;
 std_msgs::String botState;
 
@@ -68,6 +70,7 @@ int main(int argc, char **argv) {
 
     // create publisher objects
     ros::Publisher nav_state_pub = nh.advertise<std_msgs::String>("state_status", 10);
+    //ros::Publisher wheel_speed_pub = nh.advertise<std_msgs::Float64MultiArray>("wheel_speeds", 10);
     ros::Publisher wheel_speed_pub = nh.advertise<std_msgs::Float64MultiArray>("wheel_speeds", 10);
 
     // Set the loop rate
