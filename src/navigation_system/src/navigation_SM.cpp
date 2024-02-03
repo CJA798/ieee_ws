@@ -71,7 +71,7 @@ int main(int argc, char **argv) {
     // create publisher objects
     ros::Publisher nav_state_pub = nh.advertise<std_msgs::String>("state_status", 10);
     //ros::Publisher wheel_speed_pub = nh.advertise<std_msgs::Float64MultiArray>("wheel_speeds", 10);
-    ros::Publisher wheel_speed_pub = nh.advertise<std_msgs::Float64MultiArray>("wheel_speeds", 10);
+    ros::Publisher wheel_speed_pub = nh.advertise<std_msgs::Float32MultiArray>("wheel_speeds", 10);
 
     // Set the loop rate
     ros::Rate loopRate(10); // 10 Hz
