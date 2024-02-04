@@ -6,22 +6,24 @@ from geometry_msgs.msg import Point
 import cv2
 import numpy as np
 from image_utils.board_objects import BoardObjects
+from imutils import grab_contours
 
-color_codes = {
-    # TODO: Change this dictionary to color_data
-    "orange": [75, 112, 255],
-    "copper": [75, 112, 255],
-    "yellow": [0, 255, 255],
-    "black": [0, 0, 0],
-}
 
-class CoordinatesList():
-    def __init__(self):
-        self.coordinates = None
-
+#nidiaes*min_area=514593
+#ax_area¡3847
+#carlosNOsebaña:True
 class ImageProcessor():
+    
     def __init__(self) -> None:
         self.image = None
+        self.color_data = {
+        # TODO: Change this dictionary to color_data
+        "orange": self.get_color_bounds([75, 112, 255]),
+        "copper": self.get_color_bounds([75, 112, 255]),
+        "yellow": self.get_color_bounds([0, 255, 255]),
+        "black": (np.array([0, 0, 0], dtype=np.uint8), np.array([180, 255, 100], dtype=np.uint8)),
+        }
+        
 
     def get_coords(self, object_type: str, pose: str) -> (List[Point], np.ndarray):
         
@@ -38,7 +40,7 @@ class ImageProcessor():
         
         return (coordinates, coords_image)
     
-    def get_limits(self, color_code: Iterable[Sized]) -> (np.array, np.array):
+    def get_color_bounds(self, color_code: Iterable[Sized]) -> (np.array, np.array):
         c = np.uint8([[color_code]])  # BGR values
         hsvC = cv2.cvtColor(c, cv2.COLOR_BGR2HSV)
 
@@ -60,8 +62,28 @@ class ImageProcessor():
         return (lowerLimit, upperLimit)
 
     def find_small_package_coords(self, image: np.ndarray, pose: str) -> (List[Point], np.ndarray):
-        pass
+        # Apply blurs to remove noise
+        blur = cv2.GaussianBlur(image, (7, 7), 0)
+        blur = cv2.medianBlur(blur, 15)
 
+        # Convert to HSV
+        hsvImage = cv2.cvtColor(blur, cv2.COLOR_BGR2HSV)
+
+        # Create yellow mask
+        lower_limit, upper_limit = self.color_data["yellow"]
+        yellow_mask = cv2.inRange(hsvImage, lower_limit, upper_limit)
+        inverted_mask = cv2.bitwise_not(yellow_mask)
+        darkened_frame = cv2.bitwise_and(image, image, mask=inverted_mask)
+
+        # Create black mask
+        black_mask = cv2.inRange(darkened_frame, self.color_data["black"][0], self.color_data["black"][1])
+        black_inverted_mask = cv2.bitwise_not(black_mask)
+        darkened_frame = cv2.bitwise_and(darkened_frame, darkened_frame, mask=black_inverted_mask)
+
+        coordinates, coords_image = self.find_contours()
+
+        return (coordinates, coords_image)
+    
     def find_thruster_or_fuel_tank_coords(self, image: np.ndarray, pose: str) -> (List[Point], np.ndarray):
         # ... Find thruster or fuel tank coordinates
         median = cv2.medianBlur(image, 5)
@@ -69,16 +91,24 @@ class ImageProcessor():
 
         # TODO: Calculate limimts in color_data dictionary.
         # This will avoid doing the same calculation multiple times
-        lower_limit, upper_limit = self.get_limits(color_code=color_codes["copper"])
+        lower_limit, upper_limit = self.color_data["orange"]
         
         mask_median = cv2.inRange(hsv, lower_limit, upper_limit)
         mask_median_ = cv2.cvtColor(mask_median, cv2.COLOR_GRAY2BGR)
-
-        contour_masks = []
     
-        frame_copy = frame.copy()
-        contours = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        contours = imutils.grab_contours(contours)
+        coordinates, coords_image = self.find_contours()
+
+        return (coordinates, coords_image)
+    
+    def find_contours(self, image: np.ndarray) -> (List[Point], np.ndarray):
+        contour_masks = []
+  
+        contours = cv2.findContours(image.copy, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours = grab_contours(contours)
+
+        image_area = image.size()
+        max_area = image_area * 0.0165
+        min_area = image_area * 0.0065
 
         if len(contours) > 0:
             for contour in contours:
@@ -100,9 +130,6 @@ class ImageProcessor():
                 cv2.circle(frame_copy, center, 5, (255, 0, 255), -1)
         
         contour_masks.append(frame_copy)
-    
-        return (coordinates, coords_image)
-
 def main():
     ip = ImageProcessor()
 
@@ -120,7 +147,7 @@ def main():
 
     # Get color bounds
     color = "orange"
-    (lower_bound, upper_bound) = ip.get_limits(color_codes[color])
+    (lower_bound, upper_bound) = ip.get_color_bounds(color_codes[color])
     # Function to calculate the median blur kernel size
     median_kernel = lambda kernel: kernel if kernel % 2 == 1 else kernel + 1 
     
