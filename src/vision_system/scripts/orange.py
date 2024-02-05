@@ -97,7 +97,9 @@ while cap.isOpened():
     mask_bilateral_ = cv2.cvtColor(mask_bilateral, cv2.COLOR_GRAY2BGR)
 
     masks = [mask_original, mask_gaussian, mask_median, mask_bilateral]
-
+#robotmove:1 FileExistsError
+#robotmove:2 ChildProcessError
+#robotmove3 smoothed_frame_gaussian
     # Create a horizontal stack of the frames
     second_row = np.hstack((mask_original_, mask_gaussian_, mask_median_, mask_bilateral_))
     

@@ -69,18 +69,18 @@ int main(int argc, char **argv) {
     ros::Subscriber bot_state_sub = nh.subscribe("State", 10, stateCallback);
 
     // create publisher objects
-    ros::Publisher nav_state_pub = nh.advertise<std_msgs::String>("state_status", 10);
+    ros::Publisher nav_state_pub = nh.advertise<std_msgs::String>("Nav_State", 10);
     //ros::Publisher wheel_speed_pub = nh.advertise<std_msgs::Float64MultiArray>("wheel_speeds", 10);
-    ros::Publisher wheel_speed_pub = nh.advertise<std_msgs::Float64MultiArray>("wheel_speeds", 10);
+    ros::Publisher wheel_speed_pub = nh.advertise<std_msgs::Float32MultiArray>("Wheel_Speeds", 10);
 
     // Set the loop rate
     ros::Rate loopRate(10); // 10 Hz
 
     while (ros::ok()) {
-        // publish
+        // update publishing objects and publish them
         navState.data = "going";
-        wheelSpeeds.data = {wheelSpeedOne, wheelSpeedTwo, wheelSpeedThree};
         nav_state_pub.publish(navState);
+        wheelSpeeds.data = {wheelSpeedOne, wheelSpeedTwo, wheelSpeedThree};
         wheel_speed_pub.publish(wheelSpeeds);
 
         // Spin and sleep
