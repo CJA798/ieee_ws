@@ -15,6 +15,13 @@ from imutils import grab_contours
 class ImageProcessor():
     
     def __init__(self) -> None:
+        '''
+        Initialize the ImageProcessor class.
+        Arguments:
+            None
+        Returns:
+            None
+        '''
         self.image = None
         self.color_data = {
         "orange": self.get_color_bounds([75, 112, 255]),
@@ -33,6 +40,17 @@ class ImageProcessor():
         
 
     def get_coords(self, object_type: str, pose: str) -> (List[Point], np.ndarray):
+        '''
+        Get the coordinates of the object in the image.
+        Arguments: 
+            object_type: str - The type of object to find in the image.
+            pose: str - The pose of the arm when the image was taken.
+        Returns:
+            coordinates: List[Point] - The coordinates of the objects in the image.
+            coords_image: np.ndarray - The image with the coordinates drawn on it.
+        Raises:
+            ValueError: If the object type is not recognized.
+        '''
         coordinates = []
         coords_image = self.image.copy()
 
@@ -47,6 +65,14 @@ class ImageProcessor():
         return (coordinates, coords_image)
     
     def get_color_bounds(self, color_code: Iterable[Sized]) -> (np.array, np.array):
+        '''
+        Get the lower and upper bounds for the color in the image.
+        Arguments:
+            color_code: Iterable[Sized] - The BGR color code for the color.
+        Returns:
+            lower_limit: np.array - The lower limit for the color in the image.
+            upper_limit: np.array - The upper limit for the color in the image.
+        '''
         c = np.uint8([[color_code]])  # BGR values
         hsvC = cv2.cvtColor(c, cv2.COLOR_BGR2HSV)
 
@@ -68,6 +94,15 @@ class ImageProcessor():
         return (lowerLimit, upperLimit)
 
     def find_small_package_coords(self, image: np.ndarray, pose: str) -> (List[Point], np.ndarray):
+        '''
+        Find the coordinates of the small packages in the image.
+        Arguments:
+            image: np.ndarray - The image to find the small packages in.
+            pose: str - The pose of the arm when the image was taken.
+        Returns:
+            coordinates: List[Point] - The coordinates of the small packages in the image.
+            coords_image: np.ndarray - The image with the coordinates drawn on it.
+        '''
         # Apply blurs to remove noise
         blur = cv2.GaussianBlur(image, (7, 7), 0)
         blur = cv2.medianBlur(blur, 15)
@@ -91,7 +126,15 @@ class ImageProcessor():
         return (coordinates, coords_image)
     
     def find_thruster_or_fuel_tank_coords(self, image: np.ndarray, pose: str) -> (List[Point], np.ndarray):
-        # ... Find thruster or fuel tank coordinates
+        '''
+        Find the coordinates of the thrusters or fuel tanks in the image.
+        Arguments:
+            image: np.ndarray - The image to find the thrusters or fuel tanks in.
+            pose: str - The pose of the arm when the image was taken.
+        Returns:
+            coordinates: List[Point] - The coordinates of the thrusters or fuel tanks in the image.
+            coords_image: np.ndarray - The image with the coordinates drawn on it.
+        '''
         median = cv2.medianBlur(image, 5)
         hsv = cv2.cvtColor(median, cv2.COLOR_BGR2HSV)
 
@@ -105,6 +148,15 @@ class ImageProcessor():
         return (coordinates, coords_image)
     
     def find_contours(self, image: np.ndarray, pose: str) -> (List[Point], np.ndarray):
+        '''
+        Find the contours in the image.
+        Arguments:
+            image: np.ndarray - The image to find the contours in.
+            pose: str - The pose of the arm when the image was taken.
+        Returns:
+            contour_masks: List[Point] - The coordinates of the contours in the image.
+            image: np.ndarray - The image with the contours drawn on it.
+        '''
         contour_masks = []
   
         contours = cv2.findContours(image.copy, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -127,13 +179,23 @@ class ImageProcessor():
 
                 cv2.drawContours(image, [cv2.convexHull(contour)], -1, (0, 255, 0), 2)
                 cv2.circle(image, (cX, cY), 7, (0, 255, 0), -1)
-                x_coord, y_coord = self.coordinate_frame_conversion(cX, self.image_height - cY)
+                x_coord, y_coord = self.coordinate_frame_conversion(cX, self.image_height - cY, pose)
                 coords_text = "(%.1f, %.1f)"  % (x_coord, y_coord) 
                 cv2.putText(image, coords_text, (cX - 20, cY - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)    
 
         return (contour_masks, image)
     
     def coordinate_frame_conversion(self, x: Union[int, float], y: Union[int, float], pose: str) -> (float, float):
+        '''
+        Convert the coordinates from the image frame to the arm frame.
+        Arguments:
+            x: Union[int, float] - The x-coordinate in the image frame.
+            y: Union[int, float] - The y-coordinate in the image frame.
+            pose: str - The pose of the arm when the image was taken.
+        Returns:
+            x: float - The x-coordinate in the arm frame.
+            y: float - The y-coordinate in the arm frame.
+        '''
         if pose == "SCAN":
             return x*self.PX2CMX, y*self.PX2CMY
         elif pose == "VERIFY":
