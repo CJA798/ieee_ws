@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from time import time
-from typing import List, Iterable, Sized
+from typing import List, Iterable, Sized, Union
 from geometry_msgs.msg import Point
 import cv2
 import numpy as np
@@ -17,16 +17,22 @@ class ImageProcessor():
     def __init__(self) -> None:
         self.image = None
         self.color_data = {
-        # TODO: Change this dictionary to color_data
         "orange": self.get_color_bounds([75, 112, 255]),
         "copper": self.get_color_bounds([75, 112, 255]),
         "yellow": self.get_color_bounds([0, 255, 255]),
         "black": (np.array([0, 0, 0], dtype=np.uint8), np.array([180, 255, 100], dtype=np.uint8)),
         }
         
+        self.y_conversion_factor = 35.5
+        self.x_conversion_factor = 31.5
+
+        self.image_width, self.image_height, _ = self.image.shape()
+
+        self.PX2CMY = self.y_conversion_factor / self.image_width
+        self.PX2CMX = self.x_conversion_factor / self.image_height
+        
 
     def get_coords(self, object_type: str, pose: str) -> (List[Point], np.ndarray):
-        
         coordinates = []
         coords_image = self.image.copy()
 
@@ -80,7 +86,7 @@ class ImageProcessor():
         black_inverted_mask = cv2.bitwise_not(black_mask)
         darkened_frame = cv2.bitwise_and(darkened_frame, darkened_frame, mask=black_inverted_mask)
 
-        coordinates, coords_image = self.find_contours()
+        coordinates, coords_image = self.find_contours(darkened_frame)
 
         return (coordinates, coords_image)
     
@@ -89,18 +95,16 @@ class ImageProcessor():
         median = cv2.medianBlur(image, 5)
         hsv = cv2.cvtColor(median, cv2.COLOR_BGR2HSV)
 
-        # TODO: Calculate limimts in color_data dictionary.
-        # This will avoid doing the same calculation multiple times
         lower_limit, upper_limit = self.color_data["orange"]
         
-        mask_median = cv2.inRange(hsv, lower_limit, upper_limit)
-        mask_median_ = cv2.cvtColor(mask_median, cv2.COLOR_GRAY2BGR)
+        color_mask = cv2.inRange(hsv, lower_limit, upper_limit)
+        color_mask = cv2.cvtColor(color_mask, cv2.COLOR_GRAY2BGR)
     
-        coordinates, coords_image = self.find_contours()
+        coordinates, coords_image = self.find_contours(color_mask, pose)
 
         return (coordinates, coords_image)
     
-    def find_contours(self, image: np.ndarray) -> (List[Point], np.ndarray):
+    def find_contours(self, image: np.ndarray, pose: str) -> (List[Point], np.ndarray):
         contour_masks = []
   
         contours = cv2.findContours(image.copy, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -112,24 +116,33 @@ class ImageProcessor():
 
         if len(contours) > 0:
             for contour in contours:
+                ()
                 M = cv2.moments(contour)
                 area = M["m00"]
-                if area <= min_area or area >= max_area:
+                #print(f"Min Area {min_area}    |   Area {area}")
+                if area < min_area or area > max_area:
                     continue
                 cX = int(M["m10"] / area)
                 cY = int(M["m01"] / area)
 
-                cv2.drawContours(frame_copy, [contour], -1, (0, 255, 0), 2)
-                cv2.circle(frame_copy, (cX, cY), 7, (0, 255, 0), -1)
-                cv2.putText(frame_copy, f"({cX}, {cY})", (cX - 20, cY - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+                cv2.drawContours(image, [cv2.convexHull(contour)], -1, (0, 255, 0), 2)
+                cv2.circle(image, (cX, cY), 7, (0, 255, 0), -1)
+                x_coord, y_coord = self.coordinate_frame_conversion(cX, self.image_height - cY)
+                coords_text = "(%.1f, %.1f)"  % (x_coord, y_coord) 
+                cv2.putText(image, coords_text, (cX - 20, cY - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)    
 
-                (x, y), radius = cv2.minEnclosingCircle(contour)
-                center = (int(x), int(y))
-                radius = int(radius)
-                cv2.circle(frame_copy, center, radius, (255, 0, 255), 2)
-                cv2.circle(frame_copy, center, 5, (255, 0, 255), -1)
+        return (contour_masks, image)
+    
+    def coordinate_frame_conversion(self, x: Union[int, float], y: Union[int, float], pose: str) -> (float, float):
+        if pose == "SCAN":
+            return x*self.PX2CMX, y*self.PX2CMY
+        elif pose == "VERIFY":
+            # TODO: find and add the conversion factor for the verify pose
+            return x*self.PX2CMX, y*self.PX2CMY
+        else:
+            raise ValueError(f"Arm pose {pose} not recognized.")
         
-        contour_masks.append(frame_copy)
+
 def main():
     ip = ImageProcessor()
 
@@ -147,7 +160,7 @@ def main():
 
     # Get color bounds
     color = "orange"
-    (lower_bound, upper_bound) = ip.get_color_bounds(color_codes[color])
+    (lower_bound, upper_bound) = ip.get_color_bounds(ip.color_data[color])
     # Function to calculate the median blur kernel size
     median_kernel = lambda kernel: kernel if kernel % 2 == 1 else kernel + 1 
     
