@@ -14,6 +14,12 @@
     output="screen">
     </node>
 
+    <node pkg="servos" 
+    type="servos_node" 
+    name="servos" 
+    output="screen">
+    </node>
+
     <!-- VISION SYSTEM -->
     <node pkg="vision_system" 
     type="raw_image_publisher.py" 

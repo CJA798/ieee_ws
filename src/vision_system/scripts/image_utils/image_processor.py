@@ -2,23 +2,24 @@
 
 from time import time
 from typing import List, Iterable, Sized, Union
-#from geometry_msgs.msg import Point
+from geometry_msgs.msg import Point
 import cv2
 import numpy as np
-from board_objects import BoardObjects 
-#from image_utils.board_objects import BoardObjects
+#from board_objects import BoardObjects 
+from image_utils.board_objects import BoardObjects
 from imutils import grab_contours
 
 
 #nidiaes*min_area=514593
 #ax_area¡3847
 #carlosNOsebaña:True
+'''
 class Point():
     def __init__(self, x, y):
         self.x = x
         self.y = y
         self.z = 0
-
+'''
 
 class ImageProcessor():
     
