@@ -106,8 +106,11 @@ class SetPose(smach.State):
         rospy.loginfo('Executing state SetPose(scan)')
         rospy.sleep(5)
         pose = Float32MultiArray()
-        pose.data = [1.0,1.0,15.0,10.0,10.0]
+        # x,y,x,wrist,claw
+        pose.data = [100.0,100.0,150.0,2048,2048]
         arm_pub.publish(pose)
+
+        self.pose = True
 
         if self.pose:
             return 'succeeded'

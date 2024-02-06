@@ -309,7 +309,7 @@ int main(int argc, char** argv){
     initializeServos();
 
     // Sets up ros node and stuff
-    ros::init(argc, argv, "servo");
+    ros::init(argc, argv, "servos");
     ros::NodeHandle nh;
     ros::MultiThreadedSpinner spinner(0);   // Do i still need this???
 
