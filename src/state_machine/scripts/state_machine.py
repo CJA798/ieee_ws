@@ -5,9 +5,11 @@ import rospy
 import smach
 import smach_ros
 import actionlib
-from std_msgs.msg import Int8, Int32, Bool, String
+from std_msgs.msg import Int8, Int32, Bool, String, Float32MultiArray
 
 from vision_system.msg import GetCoordsAction, GetCoordsGoal, GetCoordsResult, GetCoordsFeedback
+
+arm_pub = rospy.Publisher('Task_Space', Float32MultiArray, queue_size=10)
 
 
 # define state Initialize
@@ -37,13 +39,15 @@ class ReadingStartLED(smach.State):
         
     def start_led_cb(self, data):
         reading = data.data
-        self.green_detected = reading
+        #self.green_detected = reading
+        self.green_detected = True
         #rospy.loginfo("Green LED: %s", reading)
 
     def execute(self, userdata):
         rospy.loginfo('Executing state ReadingStartLED')
         rospy.sleep(0.1)
 
+        self.green_detected = True
         if self.green_detected:
             return 'succeeded'
         return 'aborted'
@@ -101,6 +105,13 @@ class SetPose(smach.State):
     def execute(self, userdata):
         rospy.loginfo('Executing state SetPose(scan)')
         rospy.sleep(5)
+        pose = Float32MultiArray()
+        # x,y,x,wrist,claw
+        pose.data = [100.0,100.0,150.0,2048,2048]
+        arm_pub.publish(pose)
+
+        self.pose = True
+
         if self.pose:
             return 'succeeded'
         return 'aborted'
@@ -176,12 +187,14 @@ def main():
 
     # Create publishers
     state_pub = rospy.Publisher('State', String, queue_size=10)
-    arm_pub = rospy.Publisher('Arm', String, queue_size=10)
-    misc_pub = rospy.Publisher('Misc', String, queue_size=10)
+    misc_pub = rospy.Publisher('Misc_Angles', Float32MultiArray, queue_size=10)
+    arm_feedback_pub = rospy.Publisher('Get_Feedback', Float32MultiArray, queue_size=10)
 
     # Create subscribers
-    feedback_sub = rospy.Subscriber('feedback', String, feedback_callback)
-    state_status_sub = rospy.Subscriber('state_status', String, state_status_callback)
+    feedback_sub = rospy.Subscriber('Feedback', Float32MultiArray, feedback_callback)
+    state_status_sub = rospy.Subscriber('Nav_State', String, state_status_callback)
+    arm_state_status_sub = rospy.Subscriber('Arm_Done', Int8, state_status_callback)
+
 
     # Open the container
     with sm:

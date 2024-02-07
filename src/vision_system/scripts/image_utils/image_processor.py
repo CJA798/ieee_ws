@@ -1,30 +1,65 @@
 #!/usr/bin/env python
 
 from time import time
-from typing import List, Iterable, Sized
+from typing import List, Iterable, Sized, Union
 from geometry_msgs.msg import Point
 import cv2
 import numpy as np
+#from board_objects import BoardObjects 
 from image_utils.board_objects import BoardObjects
+from imutils import grab_contours
 
-color_codes = {
-    # TODO: Change this dictionary to color_data
-    "orange": [75, 112, 255],
-    "copper": [75, 112, 255],
-    "yellow": [0, 255, 255],
-    "black": [0, 0, 0],
-}
 
-class CoordinatesList():
-    def __init__(self):
-        self.coordinates = None
+#nidiaes*min_area=514593
+#ax_area¡3847
+#carlosNOsebaña:True
+'''
+class Point():
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.z = 0
+'''
 
 class ImageProcessor():
+    
     def __init__(self) -> None:
-        self.image = None
+        '''
+        Initialize the ImageProcessor class.
+        Arguments:
+            None
+        Returns:
+            None
+        '''
+        self.image = np.zeros((160, 120, 3), dtype=np.uint8)
+        self.color_data = {
+        "orange": self.get_color_bounds([75, 112, 255]),
+        "copper": self.get_color_bounds([75, 112, 255]),
+        "yellow": self.get_color_bounds([0, 255, 255]),
+        "black": (np.array([0, 0, 0], dtype=np.uint8), np.array([180, 255, 100], dtype=np.uint8)),
+        }
+        
+        self.y_conversion_factor = 35.5
+        self.x_conversion_factor = 31.5
+
+        self.image_width, self.image_height, _ = self.image.shape
+
+        self.PX2CMY = self.y_conversion_factor / self.image_width
+        self.PX2CMX = self.x_conversion_factor / self.image_height
+        
 
     def get_coords(self, object_type: str, pose: str) -> (List[Point], np.ndarray):
-        
+        '''
+        Get the coordinates of the object in the image.
+        Arguments: 
+            object_type: str - The type of object to find in the image.
+            pose: str - The pose of the arm when the image was taken.
+        Returns:
+            coordinates: List[Point] - The coordinates of the objects in the image.
+            coords_image: np.ndarray - The image with the coordinates drawn on it.
+        Raises:
+            ValueError: If the object type is not recognized.
+        '''
         coordinates = []
         coords_image = self.image.copy()
 
@@ -38,7 +73,15 @@ class ImageProcessor():
         
         return (coordinates, coords_image)
     
-    def get_limits(self, color_code: Iterable[Sized]) -> (np.array, np.array):
+    def get_color_bounds(self, color_code: Iterable[Sized]) -> (np.array, np.array):
+        '''
+        Get the lower and upper bounds for the color in the image.
+        Arguments:
+            color_code: Iterable[Sized] - The BGR color code for the color.
+        Returns:
+            lower_limit: np.array - The lower limit for the color in the image.
+            upper_limit: np.array - The upper limit for the color in the image.
+        '''
         c = np.uint8([[color_code]])  # BGR values
         hsvC = cv2.cvtColor(c, cv2.COLOR_BGR2HSV)
 
@@ -60,52 +103,120 @@ class ImageProcessor():
         return (lowerLimit, upperLimit)
 
     def find_small_package_coords(self, image: np.ndarray, pose: str) -> (List[Point], np.ndarray):
-        pass
+        '''
+        Find the coordinates of the small packages in the image.
+        Arguments:
+            image: np.ndarray - The image to find the small packages in.
+            pose: str - The pose of the arm when the image was taken.
+        Returns:
+            coordinates: List[Point] - The coordinates of the small packages in the image.
+            coords_image: np.ndarray - The image with the coordinates drawn on it.
+        '''
+        # Apply blurs to remove noise
+        blur = cv2.GaussianBlur(image, (7, 7), 0)
+        blur = cv2.medianBlur(blur, 15)
 
+        # Convert to HSV
+        hsvImage = cv2.cvtColor(blur, cv2.COLOR_BGR2HSV)
+
+        # Create yellow mask
+        lower_limit, upper_limit = self.color_data["yellow"]
+        yellow_mask = cv2.inRange(hsvImage, lower_limit, upper_limit)
+        inverted_mask = cv2.bitwise_not(yellow_mask)
+        darkened_frame = cv2.bitwise_and(image, image, mask=inverted_mask)
+
+        # Create black mask
+        black_mask = cv2.inRange(darkened_frame, self.color_data["black"][0], self.color_data["black"][1])
+        black_inverted_mask = cv2.bitwise_not(black_mask)
+        darkened_frame = cv2.bitwise_and(darkened_frame, darkened_frame, mask=black_inverted_mask)
+
+        coordinates, coords_image = self.find_contours(darkened_frame)
+
+        return (coordinates, coords_image)
+    
     def find_thruster_or_fuel_tank_coords(self, image: np.ndarray, pose: str) -> (List[Point], np.ndarray):
-        # ... Find thruster or fuel tank coordinates
+        '''
+        Find the coordinates of the thrusters or fuel tanks in the image.
+        Arguments:
+            image: np.ndarray - The image to find the thrusters or fuel tanks in.
+            pose: str - The pose of the arm when the image was taken.
+        Returns:
+            coordinates: List[Point] - The coordinates of the thrusters or fuel tanks in the image.
+            coords_image: np.ndarray - The image with the coordinates drawn on it.
+        '''
         median = cv2.medianBlur(image, 5)
         hsv = cv2.cvtColor(median, cv2.COLOR_BGR2HSV)
 
-        # TODO: Calculate limimts in color_data dictionary.
-        # This will avoid doing the same calculation multiple times
-        lower_limit, upper_limit = self.get_limits(color_code=color_codes["copper"])
+        lower_limit, upper_limit = self.color_data["orange"]
         
-        mask_median = cv2.inRange(hsv, lower_limit, upper_limit)
-        mask_median_ = cv2.cvtColor(mask_median, cv2.COLOR_GRAY2BGR)
+        color_mask = cv2.inRange(hsv, lower_limit, upper_limit)
+        color_mask = cv2.cvtColor(color_mask, cv2.COLOR_GRAY2BGR)
 
-        contour_masks = []
+        gray = cv2.cvtColor(color_mask, cv2.COLOR_BGR2GRAY)
+
+        coordinates, coords_image = self.find_contours(gray, pose)
+
+        return (coordinates, coords_image)
     
-        frame_copy = frame.copy()
-        contours = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        contours = imutils.grab_contours(contours)
+    def find_contours(self, image: np.ndarray, pose: str) -> (List[Point], np.ndarray):
+        '''
+        Find the contours in the image.
+        Arguments:
+            image: np.ndarray - The image to find the contours in.
+            pose: str - The pose of the arm when the image was taken.
+        Returns:
+            contour_masks: List[Point] - The coordinates of the contours in the image.
+            image: np.ndarray - The image with the contours drawn on it.
+        '''
+        coords_list = []
+  
+        contours = cv2.findContours(image.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours = grab_contours(contours)
+
+        image_area = image.size
+        max_area = image_area * 0.0165
+        min_area = image_area * 0.0065
 
         if len(contours) > 0:
             for contour in contours:
                 M = cv2.moments(contour)
                 area = M["m00"]
-                if area <= min_area or area >= max_area:
+                #print(f"Min Area {min_area}    |   Area {area}")
+                if area < min_area or area > max_area:
                     continue
                 cX = int(M["m10"] / area)
                 cY = int(M["m01"] / area)
 
-                cv2.drawContours(frame_copy, [contour], -1, (0, 255, 0), 2)
-                cv2.circle(frame_copy, (cX, cY), 7, (0, 255, 0), -1)
-                cv2.putText(frame_copy, f"({cX}, {cY})", (cX - 20, cY - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+                cv2.drawContours(image, [cv2.convexHull(contour)], -1, (0, 255, 0), 2)
+                cv2.circle(image, (cX, cY), 7, (0, 255, 0), -1)
+                x_coord, y_coord = self.coordinate_frame_conversion(cX, self.image_height - cY, pose)
+                coords_list.append(Point(x_coord, y_coord))
+                coords_text = "(%.1f, %.1f)"  % (x_coord, y_coord) 
+                cv2.putText(image, coords_text, (cX - 20, cY - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)    
 
-                (x, y), radius = cv2.minEnclosingCircle(contour)
-                center = (int(x), int(y))
-                radius = int(radius)
-                cv2.circle(frame_copy, center, radius, (255, 0, 255), 2)
-                cv2.circle(frame_copy, center, 5, (255, 0, 255), -1)
-        
-        contour_masks.append(frame_copy)
+        return (coords_list, image)
     
-        return (coordinates, coords_image)
+    def coordinate_frame_conversion(self, x: Union[int, float], y: Union[int, float], pose: str) -> (float, float):
+        '''
+        Convert the coordinates from the image frame to the arm frame.
+        Arguments:
+            x: Union[int, float] - The x-coordinate in the image frame.
+            y: Union[int, float] - The y-coordinate in the image frame.
+            pose: str - The pose of the arm when the image was taken.
+        Returns:
+            x: float - The x-coordinate in the arm frame.
+            y: float - The y-coordinate in the arm frame.
+        '''
+        if pose == "SCAN":
+            return x*self.PX2CMX, y*self.PX2CMY
+        elif pose == "VERIFY":
+            # TODO: find and add the conversion factor for the verify pose
+            return x*self.PX2CMX, y*self.PX2CMY
+        else:
+            raise ValueError(f"Arm pose {pose} not recognized.")
+        
 
 def main():
-    ip = ImageProcessor()
-
     cap = cv2.VideoCapture(0)
     #cap.set(cv2.CAP_PROP_SETTINGS, 1)
     img_resize_factor = 4
@@ -118,15 +229,13 @@ def main():
         print("Cannot open camera")
         exit()
 
-    # Get color bounds
-    color = "orange"
-    (lower_bound, upper_bound) = ip.get_limits(color_codes[color])
     # Function to calculate the median blur kernel size
     median_kernel = lambda kernel: kernel if kernel % 2 == 1 else kernel + 1 
-    
+    ip = ImageProcessor()
     while cap.isOpened():
         ret, ip.image = cap.read()
-
+        coords_list, coords_image = ip.get_coords(BoardObjects.FUEL_TANK, "SCAN")
+        
         if not ret:
             print("Can't receive frame")
             break
@@ -134,6 +243,7 @@ def main():
         if cv2.waitKey(5) == 27:
             break
         
+        '''
         frame = ip.image.copy()
         median_frame = cv2.medianBlur(frame, median_kernel(img_resize_factor))
         hsv_frame = cv2.cvtColor(median_frame, cv2.COLOR_BGR2HSV)
@@ -149,6 +259,10 @@ def main():
         # Stack images horizontally
         output = np.hstack([frame, median_frame, color_mask, opening, closing, median])
         cv2.imshow('K-Means', output)
+        '''
+
+        cv2.imshow('Coordinates', coords_image)
+        print(coords_list)
     cap.release()
     cv2.destroyAllWindows()
 
