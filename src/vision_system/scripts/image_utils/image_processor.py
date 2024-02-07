@@ -64,15 +64,17 @@ class ImageProcessor():
         coords_image = self.image.copy()
 
         try:
-            if object_type == BoardObjects.SMALL_PACKAGE.value:
+            if object_type == 'SMALL_PACKAGE':
+                print("Finding small package coordinates")
                 coordinates, coords_image = self.find_small_package_coords(coords_image, pose)
-            elif object_type == BoardObjects.FUEL_TANK or object_type == BoardObjects.THRUSTER:
+            elif object_type == 'FUEL_TANK' or object_type == 'THRUSTER':
+                print("Finding thruster or fuel tank coordinates")
                 coordinates, coords_image = self.find_thruster_or_fuel_tank_coords(coords_image, pose)
         except ValueError as e:
             raise ValueError(f"Object type {object_type} not recognized.")
         
         return (coordinates, coords_image)
-    
+
     def get_color_bounds(self, color_code: Iterable[Sized]) -> (np.array, np.array):
         '''
         Get the lower and upper bounds for the color in the image.
@@ -130,7 +132,7 @@ class ImageProcessor():
         black_inverted_mask = cv2.bitwise_not(black_mask)
         darkened_frame = cv2.bitwise_and(darkened_frame, darkened_frame, mask=black_inverted_mask)
 
-        coordinates, coords_image = self.find_contours(darkened_frame)
+        coordinates, coords_image = self.find_contours(darkened_frame, pose)
 
         return (coordinates, coords_image)
     
@@ -174,9 +176,9 @@ class ImageProcessor():
         contours = grab_contours(contours)
 
         image_area = image.size
-        max_area = image_area * 0.0165
-        min_area = image_area * 0.0065
-
+        max_area = image_area * 1
+        min_area = image_area * 0.01
+        output_img = self.image
         if len(contours) > 0:
             for contour in contours:
                 M = cv2.moments(contour)
@@ -187,14 +189,18 @@ class ImageProcessor():
                 cX = int(M["m10"] / area)
                 cY = int(M["m01"] / area)
 
-                cv2.drawContours(image, [cv2.convexHull(contour)], -1, (0, 255, 0), 2)
-                cv2.circle(image, (cX, cY), 7, (0, 255, 0), -1)
+                cv2.drawContours(self.image, [cv2.convexHull(contour)], -1, (0, 255, 0), 2)
+                cv2.circle(self.image, (cX, cY), 2, (0, 255, 0), -1)
                 x_coord, y_coord = self.coordinate_frame_conversion(cX, self.image_height - cY, pose)
-                coords_list.append(Point(x_coord, y_coord))
+                coords = Point()
+                coords.x = x_coord
+                coords.y = y_coord
+                coords.z = 35.0
+                coords_list.append(coords)
                 coords_text = "(%.1f, %.1f)"  % (x_coord, y_coord) 
-                cv2.putText(image, coords_text, (cX - 20, cY - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)    
-
-        return (coords_list, image)
+                cv2.putText(self.image, coords_text, (cX - 15, cY - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.25, (255, 255, 255), 1)    
+                output_img = np.hstack([self.image, cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)])
+        return (coords_list, output_img)
     
     def coordinate_frame_conversion(self, x: Union[int, float], y: Union[int, float], pose: str) -> (float, float):
         '''
@@ -234,7 +240,7 @@ def main():
     ip = ImageProcessor()
     while cap.isOpened():
         ret, ip.image = cap.read()
-        coords_list, coords_image = ip.get_coords(BoardObjects.FUEL_TANK, "SCAN")
+        coords_list, coords_image = ip.get_coords('THRUSTER', "SCAN")
         
         if not ret:
             print("Can't receive frame")

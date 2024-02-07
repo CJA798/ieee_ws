@@ -84,10 +84,6 @@ class PickUpSmallPackages(smach.State):
             # Place arm on top of box
             # Get feedback from camera while lowering to grab box
             # Put box in respective container
-        
-
-
-
 
         self.done = True
         rospy.sleep(10)
@@ -101,20 +97,28 @@ class SetPose(smach.State):
     def __init__(self, pose):
         self.pose = pose
         smach.State.__init__(self, outcomes=['succeeded','aborted'])
+        rospy.loginfo(f'Executing state SetPose({pose})')
+        self.arm_done = False
+        self.arm_done_sub = rospy.Subscriber('Arm_Done', Int8, callback=self.arm_done_cb)
 
     def execute(self, userdata):
-        rospy.loginfo('Executing state SetPose(scan)')
-        rospy.sleep(5)
         pose = Float32MultiArray()
-        # x,y,x,wrist,claw
-        pose.data = [100.0,100.0,150.0,2048,2048]
+        if self.pose == 'scan':
+            pose.data = [167.0, 209.0, 33.0, 1843.0, 1897.0]
+
+        elif self.pose == 'verify':
+            pose.data = [100.0,100.0,150.0,2048,2048]
+
         arm_pub.publish(pose)
 
-        self.pose = True
-
-        if self.pose:
+        rospy.sleep(5)
+        self.arm_done = True
+        if self.arm_done:
             return 'succeeded'
         return 'aborted'
+    
+    def arm_done_cb(self, message):
+        self.arm_done = message.data
 
 class GetCoords(smach.State):
     def __init__(self, object_type, pose):
@@ -188,7 +192,7 @@ def main():
     # Create publishers
     state_pub = rospy.Publisher('State', String, queue_size=10)
     misc_pub = rospy.Publisher('Misc_Angles', Float32MultiArray, queue_size=10)
-    arm_feedback_pub = rospy.Publisher('Get_Feedback', Float32MultiArray, queue_size=10)
+    arm_feedback_pub = rospy.Publisher('Get_Feedback', Int8, queue_size=10)
 
     # Create subscribers
     feedback_sub = rospy.Subscriber('Feedback', Float32MultiArray, feedback_callback)
@@ -218,11 +222,11 @@ def main():
             with sm_small_packages:
                 smach.StateMachine.add('SCAN_POSE', SetPose('scan'),
                                         transitions={'succeeded':'GET_SP_COORDS', 'aborted':'SCAN_POSE'})
-                smach.StateMachine.add('GET_SP_COORDS', GetCoords(object_type='small_package', pose='scan'),
+                smach.StateMachine.add('GET_SP_COORDS', GetCoords(object_type='THRUSTER', pose='scan'),
                                         transitions={'succeeded':'VERIFY_POSE', 'aborted':'GET_SP_COORDS'})
                 smach.StateMachine.add('VERIFY_POSE', SetPose('verify'),
                                         transitions={'succeeded':'VERIFY_COORDS', 'aborted':'VERIFY_POSE'})
-                smach.StateMachine.add('VERIFY_COORDS', GetCoords(object_type='small_package', pose='verify'),
+                smach.StateMachine.add('VERIFY_COORDS', GetCoords(object_type='THRUSTER', pose='verify'),
                                         transitions={'succeeded':'PICK_UP', 'aborted':'VERIFY_COORDS'})
                 smach.StateMachine.add('PICK_UP', PickUp(),
                                         transitions={'succeeded':'succeeded', 'aborted':'PICK_UP'})
