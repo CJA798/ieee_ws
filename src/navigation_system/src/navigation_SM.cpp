@@ -32,7 +32,13 @@ int TurnCCW = [0,0,0];
 int Go_Right = [0,0,0];
 int Go_Left = [0,0,0];
 
-//N
+//Nav States
+enum class State {
+    STOP,
+    BIG_BLOCKS,
+    SLOPE_DETECT,
+    WAIT
+};
 
 
 // create subscriber callbacks
@@ -94,13 +100,17 @@ int main(int argc, char **argv) {
         wheelSpeeds.data = {wheelSpeedOne, wheelSpeedTwo, wheelSpeedThree};
         wheel_speed_pub.publish(wheelSpeeds);
 
-          /*
+          
         switch(event){
             case STOP:
             //All motors off
             wheelSpeeds.data = {0,0,0};
             wheel_speed_pub.publish(wheelSpeeds);
             Movement(Stop);
+            navState.data = "Waiting";
+             nav_state_pub.publish(navState);
+
+            break;
 
             case BIG_BLOCKS:
             //motors go forward about 10 in
@@ -111,6 +121,8 @@ int main(int argc, char **argv) {
     
             // Perform some task (for demonstration, we'll just sleep for a while)
             Movement(Go_Forward); // Sleep for 3 seconds
+            navState.data = "Moving";
+             nav_state_pub.publish(navState);
     
            // Stop the timer
             auto end_time = std::chrono::high_resolution_clock::now();
@@ -119,9 +131,40 @@ int main(int argc, char **argv) {
             Movement(Stop);
 
             //block collection will take place, announce state to be "ready for collection"
+             navState.data = "Collection";
+             nav_state_pub.publish(navState);
 
-            case 
-            */
+             break;
+
+            case SLOPE_DETECT:
+            Go_Forward(tofRight);
+            slopeDetect(gravVector);
+            //After detecting 2 slopes, stop and start watching the front sensor
+            navState.data = "Ramp";
+            nav_state_pub.publish(navState);
+
+            Go_Forward(tofFront);
+            //Arrive at green area
+
+            TurnCCW(90);
+
+            break;
+
+            case GO_BLUE:
+            Go_Forward(tofFront);
+            navState.data = "Waiting";
+             nav_state_pub.publish(navState);
+
+            break;
+
+
+            
+
+
+
+
+
+            
             
 
       
@@ -253,6 +296,34 @@ void TurnCCW(int degrees){  //put in the angle you would like the bot to end up 
       default:break;
 
     }
+
+
+    //Slope detect function:
+   // Values are multiplied by 10
+    void slopeDetect(int xVector) {
+
+  if ((xVector > 28) || (xVector < -28)) {
+    onSlope = 1;
+  }
+  if ((onSlope == 1) && (xVector < 3) && (xVector > -3)) {  //if we where just on the slope and are now flat
+    slopeCount++;
+    onSlope = 0;
+  }
+}
+
+Go Forward function:
+void Go_Forward(int S1, int S2, int S4) {  //go forward specified distance from wall
+  if (90 < S2 < 160) {                     //if robot with chosen wall range then go forward
+    Movement(0, 200, 0);
+  }
+
+  if (S2 >= 160) {        //if robot is too far away from wall move closer
+    Movement(100, 0, 0);  //This variable may be too quick, watch it.
+  }
+  if (S2 <= 90) {  //if robot is too close to wall move away
+    Movement(-100, 0, 0);
+  }
+}
         
         
         */
