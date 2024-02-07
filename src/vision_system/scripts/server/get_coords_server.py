@@ -74,8 +74,8 @@ class GetCoordsServer:
             #coordinates.coordinates = [box1, box2]
             
             # Provide feedback during the process
-            #feedback.current_coordinates = coordinates
-            #self.server.publish_feedback(feedback)
+            feedback.current_coordinates = coordinates
+            self.server.publish_feedback(feedback)
 
         elapsed_time = time() - start_time
         result.coordinates = coordinates
