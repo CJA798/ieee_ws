@@ -13,9 +13,11 @@ from vision_system.msg import GetCoordsAction, GetCoordsGoal, GetCoordsResult, G
 
 # Global variables
 green_detected = False
+arm_done = False
 
 # Create publishers
-#task_space_pub = rospy.Publisher('Task_Space', Float32MultiArray, queue_size=10)
+task_space_pub = rospy.Publisher('Task_Space', Float32MultiArray, queue_size=10)
+arm_angles_pub = rospy.Publisher('Arm_Angles', Float32MultiArray, queue_size=10)
 #state_SM2Nav_pub = rospy.Publisher('State_SM2Nav', String, queue_size=10)
 
 # Callback function to handle start green LED state updates
@@ -28,16 +30,17 @@ def start_led_callback(data):
 
 # Callback function to handle arm state updates
 def state_arm2sm_cb(data):
+    global arm_done
     try:
-        state_arm2sm = data.data
-        rospy.loginfo("Arm State: %s", state_arm2sm)
+        arm_done = data.data
+        rospy.loginfo("Arm Done: %s", arm_done)
     except Exception as e:
         rospy.logerr("Error in state_arm2sm_cb: {}".format(e))
 
 # Create subscribers
 #state_Nav2SM_sub = rospy.Subscriber("State_Nav2SM", String, callback=state_nav_cb)
 start_led_state_sub = rospy.Subscriber("LED_State", Bool, callback=start_led_callback)
-state_arm2sm_sub = rospy.Subscriber("State_Arm2SM", Int8, callback=state_arm2sm_cb)
+arm_done_sub = rospy.Subscriber("Arm_Done", Int8, callback=state_arm2sm_cb)
 
 # define state Initialize
 class Initialize(smach.State):
@@ -77,12 +80,35 @@ class ReadingStartLED(smach.State):
 
 # define state SetPose
 class SetPose(smach.State):
-    def __init__(self):
+    def __init__(self, pose):
+        self.pose = pose
         smach.State.__init__(self, outcomes=['pose_reached','pose_not_reached'])
+        rospy.loginfo(f'Executing state SetPose({pose})')
+        global arm_done
+        arm_done = False
 
     def execute(self, userdata):
-        rospy.sleep(1)
-        return 'pose_reached'
+        global arm_done
+        pose_ = Float32MultiArray()
+        angles_ = Float32MultiArray()
+        if self.pose == 'SCAN':
+            #pose_.data = [185.0, 217.0, -30.0, 2048.0, 1446.0]
+            angles_.data = [2164.0, 1776.0, 1776.0, 2787.0, 2048.0, 556.0, 3147782.0, 1446.0]
+            arm_angles_pub.publish(angles_)
+            #rospy.sleep(5)
+
+        elif self.pose == 'VERIFY':
+            return 'pose_reached'
+            pose_.data = [185.0, 217.0, -30.0, 2048.0, 1446.0]
+
+        #task_space_pub.publish(pose_)
+
+        #rospy.sleep(5)
+        #self.arm_done = True
+        while not arm_done:
+            arm_done = False
+            return 'pose_reached'
+        return 'pose_not_reached'
     
 # define state GetCoords
 class GetCoords(smach.State):
@@ -90,6 +116,11 @@ class GetCoords(smach.State):
         smach.State.__init__(self, outcomes=['coords_received','coords_not_received'])
         self.object_type = object_type
         self.pose = pose
+        #TODO for some reason, removing this sleep brings back the fucking
+        # raise ValueError(f"Object type {object_type} not recognized.")
+        # ValueError: Object type SMALL_PACKAGE not recognized.
+
+        rospy.sleep(5)
 
     def feedback_callback(self, feedback):
         rospy.loginfo(f'Current Coordinates List: {feedback.current_coordinates}')
@@ -115,7 +146,7 @@ class GetCoords(smach.State):
         rospy.loginfo(f'Final Coordinates List: {result.coordinates}    |    Total time: {result.elapsed_time.data}')
 
         
-        rospy.sleep(1)
+        #rospy.sleep(1)
         if True:
             return 'coords_received'
         return 'coords_not_received'
@@ -171,17 +202,16 @@ def main():
             small_packages_sm = smach.StateMachine(outcomes=['packages_picked_up'])
 
             with small_packages_sm:
-                smach.StateMachine.add('SCAN_POSE', SetPose(),
+                smach.StateMachine.add('SCAN_POSE', SetPose('SCAN'),
                                         transitions={'pose_reached':'GET_SP_COORDS', 'pose_not_reached':'SCAN_POSE'})
                 smach.StateMachine.add('GET_SP_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose='SCAN'),
                                         transitions={'coords_received':'VERIFY_POSE', 'coords_not_received':'GET_SP_COORDS'})
-                smach.StateMachine.add('VERIFY_POSE', SetPose(),
+                smach.StateMachine.add('VERIFY_POSE', SetPose('VERIFY'),
                                         transitions={'pose_reached':'VERIFY_COORDS', 'pose_not_reached':'VERIFY_POSE'})
                 smach.StateMachine.add('VERIFY_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose='VERIFY'),
                                         transitions={'coords_received':'PICK_UP', 'coords_not_received':'VERIFY_COORDS'})
                 smach.StateMachine.add('PICK_UP', PickUp(),
                                         transitions={'packages_picked_up':'packages_picked_up', 'packages_not_picked_up':'PICK_UP'})
-                                        
                                         
             smach.Concurrence.add('PICK_BIG_PACKAGES', PickUpBigPackages())
             smach.Concurrence.add('PICK_SMALL_PACKAGES', small_packages_sm)

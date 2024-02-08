@@ -114,9 +114,13 @@ class ImageProcessor():
             coordinates: List[Point] - The coordinates of the small packages in the image.
             coords_image: np.ndarray - The image with the coordinates drawn on it.
         '''
+        if image == np.zeros((160, 120, 3), dtype=np.uint8):
+            coordinates = []
+            return (coordinates, image)
         # Apply blurs to remove noise
         blur = cv2.GaussianBlur(image, (3, 3), 0)
         median = cv2.medianBlur(blur, 3)
+        #median = blur
 
         # Convert to HSV
         hsvImage = cv2.cvtColor(median, cv2.COLOR_BGR2HSV)
