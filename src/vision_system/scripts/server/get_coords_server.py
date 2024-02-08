@@ -34,7 +34,7 @@ class GetCoordsServer:
         # Extract the timeout and number of expected pairs from the goal
         timeout = goal.timeout
         expected_pairs = goal.expected_pairs.data
-        object_type = goal.object_type
+        object_type = goal.object_type.data
         arm_pose = goal.arm_pose.data
 
         # Initialize the action result and feedback

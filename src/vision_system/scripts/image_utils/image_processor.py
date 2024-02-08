@@ -88,19 +88,19 @@ class ImageProcessor():
         hsvC = cv2.cvtColor(c, cv2.COLOR_BGR2HSV)
 
         hue = hsvC[0][0][0]  # Get the hue value
-        min_saturation = 50
-        min_value = 10
+        min_saturation = 0
+        min_value = 0
 
         # Handle red hue wrap-around
         if hue >= 165:  # Upper limit for divided red hue
-            lowerLimit = np.array([hue - 10, min_saturation, min_value], dtype=np.uint8)
+            lowerLimit = np.array([hue - 30, min_saturation, min_value], dtype=np.uint8)
             upperLimit = np.array([180, 255, 255], dtype=np.uint8)
         elif hue <= 15:  # Lower limit for divided red hue
             lowerLimit = np.array([0, min_saturation, min_value], dtype=np.uint8)
-            upperLimit = np.array([hue + 10, 255, 255], dtype=np.uint8)
+            upperLimit = np.array([hue + 30, 255, 255], dtype=np.uint8)
         else:
-            lowerLimit = np.array([hue - 10, min_saturation, min_value], dtype=np.uint8)
-            upperLimit = np.array([hue + 10, 255, 255], dtype=np.uint8)
+            lowerLimit = np.array([hue - 30, min_saturation, min_value], dtype=np.uint8)
+            upperLimit = np.array([hue + 30, 255, 255], dtype=np.uint8)
 
         return (lowerLimit, upperLimit)
 
@@ -115,15 +115,16 @@ class ImageProcessor():
             coords_image: np.ndarray - The image with the coordinates drawn on it.
         '''
         # Apply blurs to remove noise
-        blur = cv2.GaussianBlur(image, (7, 7), 0)
-        blur = cv2.medianBlur(blur, 15)
+        blur = cv2.GaussianBlur(image, (3, 3), 0)
+        median = cv2.medianBlur(blur, 3)
 
         # Convert to HSV
-        hsvImage = cv2.cvtColor(blur, cv2.COLOR_BGR2HSV)
+        hsvImage = cv2.cvtColor(median, cv2.COLOR_BGR2HSV)
 
         # Create yellow mask
         lower_limit, upper_limit = self.color_data["yellow"]
         yellow_mask = cv2.inRange(hsvImage, lower_limit, upper_limit)
+
         inverted_mask = cv2.bitwise_not(yellow_mask)
         darkened_frame = cv2.bitwise_and(image, image, mask=inverted_mask)
 
@@ -131,9 +132,9 @@ class ImageProcessor():
         black_mask = cv2.inRange(darkened_frame, self.color_data["black"][0], self.color_data["black"][1])
         black_inverted_mask = cv2.bitwise_not(black_mask)
         darkened_frame = cv2.bitwise_and(darkened_frame, darkened_frame, mask=black_inverted_mask)
-
-        coordinates, coords_image = self.find_contours(darkened_frame, pose)
-
+        gray = cv2.cvtColor(darkened_frame, cv2.COLOR_BGR2GRAY)
+        coordinates, coords_image = self.find_contours(gray, pose)
+        coords_image = np.hstack([image, blur, median, darkened_frame, self.image])
         return (coordinates, coords_image)
     
     def find_thruster_or_fuel_tank_coords(self, image: np.ndarray, pose: str) -> (List[Point], np.ndarray):
@@ -240,7 +241,7 @@ def main():
     ip = ImageProcessor()
     while cap.isOpened():
         ret, ip.image = cap.read()
-        coords_list, coords_image = ip.get_coords('THRUSTER', "SCAN")
+        coords_list, coords_image = ip.get_coords('SMALL_PACKAGE', "SCAN")
         
         if not ret:
             print("Can't receive frame")
