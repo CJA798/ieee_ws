@@ -69,7 +69,7 @@ public:
         // Publishers
         Feedback_pub = nh.advertise<std_msgs::Float32MultiArray>("/Feedback", 1);
         Arm_Angles_pub = nh.advertise<std_msgs::Float32MultiArray>("/Arm_Angles", 1);
-        Arm_Done_pub = nh.advertise<std_msgs::Int8>("/Arm_Done", 1);
+        Arm_Done_pub = nh.advertise<std_msgs::Int8>("/State_Arm2SM", 1);
 
         // Subscribers
         Get_Feedback_sub = nh.subscribe("/Get_Feedback", 1, &ServoClass::Get_FeedbackCallback, this);
@@ -91,7 +91,7 @@ public:
         phi = Task_Space.data[4];
 
         //Print x, y, z recieved to ros
-        //ROS_INFO("%d, %d, %d, %d, %d]", (int)x, (int)y, (int)z, (int)theta, (int)phi);
+        ROS_INFO("%d, %d, %d, %d, %d]", (int)x, (int)y, (int)z, (int)theta, (int)phi);
 
         // Creat arrays for calculations and predefined values
         float q[6] = { 0, 0, 0, 0, 0, 0 };                          // Major joint angles of robot
@@ -127,7 +127,7 @@ public:
         Q[7] = (int)phi;
 
         // Print final servo values to ros
-        //ROS_INFO("%d, %d, %d, %d, %d, %d", (int)(q[0] * 180 / M_PI), (int)(q[1] * 180 / M_PI), (int)(q[2] * 180 / M_PI), (int)(q[3] * 180 / M_PI), (int)(q[4] * 180 / M_PI), (int)(q[5] * 180 / M_PI));
+        ROS_INFO("%d, %d, %d, %d, %d, %d", (int)(q[0] * 180 / M_PI), (int)(q[1] * 180 / M_PI), (int)(q[2] * 180 / M_PI), (int)(q[3] * 180 / M_PI), (int)(q[4] * 180 / M_PI), (int)(q[5] * 180 / M_PI));
         
         // Publish 8 servo angles to Arm_Angles
         for (int i = 0; i < 8; i++){
@@ -155,7 +155,7 @@ public:
         groupBulkWrite.txPacket();  // Write servos with prepared list all at once
 
         // Sets the arm moving flag to start checking for arm to complete move
-        int arm_moving = 1;
+        arm_moving = 1;
 
         // Print final servo values to ros
         //ROS_INFO("Angles: %f, %f, %f, %f, %f, %f, %f, %f", Arm_Angles.data[0], Arm_Angles.data[1], Arm_Angles.data[2], Arm_Angles.data[3], Arm_Angles.data[4], Arm_Angles.data[5], Arm_Angles.data[6], Arm_Angles.data[7]);
@@ -232,7 +232,7 @@ public:
         Feedback_pub.publish(Feedback); // Publishes 8x array of arm servo torques
 
         // Prints arm servo torques
-        //ROS_INFO("Present Posistion: %d, %d, %d, %d, %d, %d, %d, %d", Feedback.data[0], Feedback.data[1], Feedback.data[2], Feedback.data[3], Feedback.data[4], Feedback.data[5], Feedback.data[6], Feedback.data[7]);
+        ROS_INFO("Present Posistion: %d, %d, %d, %d, %d, %d, %d, %d", Feedback.data[0], Feedback.data[1], Feedback.data[2], Feedback.data[3], Feedback.data[4], Feedback.data[5], Feedback.data[6], Feedback.data[7]);
     }
 
 

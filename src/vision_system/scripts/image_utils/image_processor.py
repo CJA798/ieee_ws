@@ -62,12 +62,12 @@ class ImageProcessor():
         '''
         coordinates = []
         coords_image = self.image.copy()
-
+        #print(f"Finding coordinates for {object_type} in pose {pose}")
         try:
-            if object_type == 'SMALL_PACKAGE':
+            if object_type == BoardObjects.SMALL_PACKAGE.name:
                 print("Finding small package coordinates")
                 coordinates, coords_image = self.find_small_package_coords(coords_image, pose)
-            elif object_type == 'FUEL_TANK' or object_type == 'THRUSTER':
+            elif object_type == BoardObjects.THRUSTER or object_type == BoardObjects.FUEL_TANK:
                 print("Finding thruster or fuel tank coordinates")
                 coordinates, coords_image = self.find_thruster_or_fuel_tank_coords(coords_image, pose)
         except ValueError as e:

@@ -34,7 +34,7 @@ class GetCoordsServer:
         # Extract the timeout and number of expected pairs from the goal
         timeout = goal.timeout
         expected_pairs = goal.expected_pairs.data
-        object_type = goal.object_type.data
+        object_type = goal.object_type
         arm_pose = goal.arm_pose.data
 
         # Initialize the action result and feedback
@@ -60,6 +60,7 @@ class GetCoordsServer:
             # Create a copy of the current frame to find the coordinates
             ip.image = self.current_frame.copy()
 
+            #print(f'Object type: {object_type}  |   Arm pose: {arm_pose}')
             coordinates.coordinates, coords_image = ip.get_coords(object_type = object_type, pose = arm_pose)
             
             # Convert frame to msg format
@@ -74,8 +75,8 @@ class GetCoordsServer:
             #coordinates.coordinates = [box1, box2]
             
             # Provide feedback during the process
-            feedback.current_coordinates = coordinates
-            self.server.publish_feedback(feedback)
+            #feedback.current_coordinates = coordinates
+            #self.server.publish_feedback(feedback)
 
         elapsed_time = time() - start_time
         result.coordinates = coordinates
