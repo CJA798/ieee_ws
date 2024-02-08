@@ -166,11 +166,16 @@ class VerifyPose(smach.State):
         arm_done = False
 
     def execute(self, userdata):
-        # print the user data
-        coordinates = userdata.coordinates
+        # store the coordinates list: CoordinatesList -> coordinates[coordinates]
+        coordinates = userdata.coordinates.coordinates
         rospy.loginfo(f'Coordinates: {coordinates}')
+        # Go to first coordinate
+        task_space = Float32MultiArray()
+        target = coordinates[0]
+        task_space.data = [target.x, target.y, target.z, 2048, 2048]
+        task_space_pub.publish(task_space)
         # wait 5 seconds and go to next state
-        rospy.sleep(5)
+        rospy.sleep(20)
 
         return 'pose_reached'
 

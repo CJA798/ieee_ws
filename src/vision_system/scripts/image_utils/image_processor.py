@@ -38,14 +38,14 @@ class ImageProcessor():
         "yellow": self.get_color_bounds([0, 255, 255]),
         "black": (np.array([0, 0, 0], dtype=np.uint8), np.array([180, 255, 100], dtype=np.uint8)),
         }
-        
-        self.y_conversion_factor = 35.5
-        self.x_conversion_factor = 31.5
 
         self.image_width, self.image_height, _ = self.image.shape
 
-        self.PX2CMY = self.y_conversion_factor / self.image_width
-        self.PX2CMX = self.x_conversion_factor / self.image_height
+        self.x_conversion_factor = 203.2
+        self.z_conversion_factor = 177.8
+
+        self.PX2MMZ = self.z_conversion_factor / self.image_width
+        self.PX2MMX = self.x_conversion_factor / self.image_height
         
 
     def get_coords(self, object_type: str, pose: str) -> (List[Point], np.ndarray):
@@ -196,13 +196,13 @@ class ImageProcessor():
 
                 cv2.drawContours(self.image, [cv2.convexHull(contour)], -1, (0, 255, 0), 2)
                 cv2.circle(self.image, (cX, cY), 2, (0, 255, 0), -1)
-                x_coord, y_coord = self.coordinate_frame_conversion(cX, self.image_height - cY, pose)
+                x_coord, z_coord = self.coordinate_frame_conversion(cX, self.image_height - cY, pose)
                 coords = Point()
                 coords.x = x_coord
-                coords.y = y_coord
-                coords.z = 35.0
+                coords.z = z_coord
+                coords.y = -20.0
                 coords_list.append(coords)
-                coords_text = "(%.1f, %.1f)"  % (x_coord, y_coord) 
+                coords_text = "(%.1f, %.1f)"  % (x_coord, z_coord) 
                 cv2.putText(self.image, coords_text, (cX - 15, cY - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.25, (255, 255, 255), 1)    
                 output_img = np.hstack([self.image, cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)])
         return (coords_list, output_img)
@@ -219,10 +219,10 @@ class ImageProcessor():
             y: float - The y-coordinate in the arm frame.
         '''
         if pose == "SCAN":
-            return x*self.PX2CMX, y*self.PX2CMY
+            return x*self.PX2MMX + 25, y*self.PX2MMZ - self.image_width/2
         elif pose == "VERIFY":
             # TODO: find and add the conversion factor for the verify pose
-            return x*self.PX2CMX, y*self.PX2CMY
+            return x*self.PX2MMX, y*self.PX2MMZ
         else:
             raise ValueError(f"Arm pose {pose} not recognized.")
         
