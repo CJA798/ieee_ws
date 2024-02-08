@@ -177,8 +177,8 @@ class ImageProcessor():
         contours = grab_contours(contours)
 
         image_area = image.size
-        max_area = image_area * 1
-        min_area = image_area * 0.01
+        max_area = image_area * 0.025
+        min_area = image_area * 0.0075
         output_img = self.image
         if len(contours) > 0:
             for contour in contours:
