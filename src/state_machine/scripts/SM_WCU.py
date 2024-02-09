@@ -32,8 +32,9 @@ def start_led_callback(data):
 def state_arm2sm_cb(data):
     global arm_done
     try:
-        arm_done = data.data
-        rospy.loginfo("Arm Done: %s", arm_done)
+        if not arm_done:
+            arm_done = data.data
+        #rospy.loginfo("Arm Done: %s", arm_done)
     except Exception as e:
         rospy.logerr("Error in state_arm2sm_cb: {}".format(e))
 
@@ -90,7 +91,6 @@ class ScanPose(smach.State):
         global arm_done
         angles_ = Float32MultiArray()
         
-        #pose_.data = [185.0, 217.0, -30.0, 2048.0, 1446.0]
         angles_.data = [2164.0, 1776.0, 1776.0, 2787.0, 2048.0, 556.0, 3147782.0, 1446.0]
         arm_angles_pub.publish(angles_)
         #rospy.sleep(5)
@@ -124,7 +124,7 @@ class GetCoords(smach.State):
         client.wait_for_server()
 
         goal = GetCoordsGoal()
-        goal.timeout.data = 10.0
+        goal.timeout.data = 5.0
         goal.expected_pairs.data = 3
         goal.object_type.data = self.object_type
         goal.arm_pose.data = self.pose
@@ -141,20 +141,10 @@ class GetCoords(smach.State):
             userdata.coordinates = result.coordinates
 
         if True:
+            #rospy.sleep(5)
             return 'coords_received'
         return 'coords_not_received'
     
-# define state PickUp
-class PickUp(smach.State):
-    def __init__(self):
-        smach.State.__init__(self, outcomes=['packages_picked_up','packages_not_picked_up'])
-
-    def execute(self, userdata):
-        rospy.loginfo('Executing state PickUp')
-        rospy.sleep(2)
-        if True:
-            return 'packages_picked_up'
-        return 'packages_not_picked_up'
 
 # define state VerifyPose
 class VerifyPose(smach.State):
@@ -162,24 +152,71 @@ class VerifyPose(smach.State):
         smach.State.__init__(self, outcomes=['pose_reached','pose_not_reached'],
                              input_keys=['coordinates'])
         rospy.loginfo(f'Executing state VerifyPose')
+        rospy.loginfo(f'Executing state VerifyPose')
+
         global arm_done
         arm_done = False
 
     def execute(self, userdata):
+        global arm_done
         # store the coordinates list: CoordinatesList -> coordinates[coordinates]
         coordinates = userdata.coordinates.coordinates
         rospy.loginfo(f'Coordinates: {coordinates}')
         # Go to first coordinate
         task_space = Float32MultiArray()
         target = coordinates[0]
-        task_space.data = [target.x, target.y, target.z, 2048, 2048]
+        task_space.data = [target.x, target.y, target.z, 2048, 1700]
         task_space_pub.publish(task_space)
         # wait 5 seconds and go to next state
-        rospy.sleep(20)
+        rospy.sleep(2)
 
+        #while not arm_done:
+        #    rospy.sleep(10)
+        #    arm_done = False
+        #    return 'pose_reached'
         return 'pose_reached'
+    
+# define state PickUp
+class PickUp(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['packages_picked_up','packages_not_picked_up'],
+                             input_keys=['coordinates'],)
+        global arm_done
+        arm_done = False
 
+    def execute(self, userdata):
+        global arm_done
+        # store the coordinates list: CoordinatesList -> coordinates[coordinates]
+        coordinates = userdata.coordinates.coordinates
+        rospy.loginfo(f'Coordinates: {coordinates}')
+        # Go to first coordinate
+        task_space = Float32MultiArray()
+        target = coordinates[0]
+        task_space.data = [target.x, target.y, target.z, 2048, 2100]
+        task_space_pub.publish(task_space)
+        # wait 5 seconds and go to next state
+        rospy.sleep(2)
 
+        #while not arm_done:
+        #    rospy.sleep(10)
+        #    arm_done = False
+        #    return 'pose_reached'
+        return 'packages_picked_up'
+
+# define state Store
+class Store(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['packages_stored','packages_not_stored'])
+
+    def execute(self, userdata):
+        task_space = Float32MultiArray()
+        task_space.data = [100, 100, 0, 2048, 2100]
+        task_space_pub.publish(task_space)
+
+        if True:
+            return 'packages_stored'
+        return 'packages_not_stored'
+    
 # define state PickUpBigPackages
 class PickUpBigPackages(smach.State):
     def __init__(self):
@@ -224,12 +261,14 @@ def main():
                 smach.StateMachine.add('GET_SP_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose='SCAN'),
                                         transitions={'coords_received':'VERIFY_POSE', 'coords_not_received':'GET_SP_COORDS'})
                 smach.StateMachine.add('VERIFY_POSE', VerifyPose(),
-                                        transitions={'pose_reached':'VERIFY_COORDS', 'pose_not_reached':'VERIFY_POSE'})
-                smach.StateMachine.add('VERIFY_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose='VERIFY'),
-                                        transitions={'coords_received':'PICK_UP', 'coords_not_received':'VERIFY_COORDS'})
+                                        transitions={'pose_reached':'PICK_UP', 'pose_not_reached':'VERIFY_POSE'})
+                #smach.StateMachine.add('VERIFY_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose='VERIFY'),
+                                        #transitions={'coords_received':'PICK_UP', 'coords_not_received':'VERIFY_COORDS'})
                 smach.StateMachine.add('PICK_UP', PickUp(),
-                                        transitions={'packages_picked_up':'packages_picked_up', 'packages_not_picked_up':'PICK_UP'})
-                                        
+                                        transitions={'packages_picked_up':'STORE', 'packages_not_picked_up':'PICK_UP'})
+                smach.StateMachine.add('STORE', Store(),
+                                        transitions={'packages_stored':'packages_picked_up', 'packages_not_stored':'STORE'})
+
             smach.Concurrence.add('PICK_BIG_PACKAGES', PickUpBigPackages())
             smach.Concurrence.add('PICK_SMALL_PACKAGES', small_packages_sm)
 

@@ -65,10 +65,10 @@ class ImageProcessor():
         #print(f"Finding coordinates for {object_type} in pose {pose}")
         try:
             if object_type == BoardObjects.SMALL_PACKAGE.name:
-                print("Finding small package coordinates")
+                #print("Finding small package coordinates")
                 coordinates, coords_image = self.find_small_package_coords(coords_image, pose)
             elif object_type == BoardObjects.THRUSTER or object_type == BoardObjects.FUEL_TANK:
-                print("Finding thruster or fuel tank coordinates")
+                #print("Finding thruster or fuel tank coordinates")
                 coordinates, coords_image = self.find_thruster_or_fuel_tank_coords(coords_image, pose)
         except ValueError as e:
             raise ValueError(f"Object type {object_type} not recognized.")
@@ -200,7 +200,7 @@ class ImageProcessor():
                 coords = Point()
                 coords.x = x_coord
                 coords.z = z_coord
-                coords.y = -20.0
+                coords.y = -35.0
                 coords_list.append(coords)
                 coords_text = "(%.1f, %.1f)"  % (x_coord, z_coord) 
                 cv2.putText(self.image, coords_text, (cX - 15, cY - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.25, (255, 255, 255), 1)    
@@ -219,7 +219,7 @@ class ImageProcessor():
             y: float - The y-coordinate in the arm frame.
         '''
         if pose == "SCAN":
-            return x*self.PX2MMX + 25, y*self.PX2MMZ - self.image_width/2
+            return x*self.PX2MMX + 45.0, y*self.PX2MMZ - self.image_width/2
         elif pose == "VERIFY":
             # TODO: find and add the conversion factor for the verify pose
             return x*self.PX2MMX, y*self.PX2MMZ
