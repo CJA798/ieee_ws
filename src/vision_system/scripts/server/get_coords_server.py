@@ -60,6 +60,7 @@ class GetCoordsServer:
             # Create a copy of the current frame to find the coordinates
             ip.image = self.current_frame.copy()
 
+            #print(f'Object type: {object_type}  |   Arm pose: {arm_pose}')
             coordinates.coordinates, coords_image = ip.get_coords(object_type = object_type, pose = arm_pose)
             
             # Convert frame to msg format
@@ -74,8 +75,8 @@ class GetCoordsServer:
             #coordinates.coordinates = [box1, box2]
             
             # Provide feedback during the process
-            feedback.current_coordinates = coordinates
-            self.server.publish_feedback(feedback)
+            #feedback.current_coordinates = coordinates
+            #self.server.publish_feedback(feedback)
 
         elapsed_time = time() - start_time
         result.coordinates = coordinates
@@ -83,8 +84,8 @@ class GetCoordsServer:
 
         if self._timeout_reached(start_time, timeout):
             rospy.loginfo('get_coords Timed Out')
-            self.server.set_aborted()
-            return
+            #self.server.set_aborted()
+            #return
 
         self.server.set_succeeded(result)
         
@@ -97,13 +98,6 @@ class GetCoordsServer:
     def _enough_coordinate_pairs_found(self, expected_pairs: int, coordinates: List[List]) -> bool:
         return expected_pairs == len(coordinates)
 
-    def _get_coordinates(self, image: np.ndarray, object_type: str, arm_pose: str):
-        # Initialize coordinates array
-        coordinates = CoordinatesList()
-        coords_image = image
-
-
-        return coordinates, coords_image
         
 if __name__ == '__main__':
     rospy.init_node('get_coords_server')

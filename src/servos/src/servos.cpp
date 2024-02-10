@@ -41,7 +41,7 @@ using namespace dynamixel;
 
 // Default dynamixel setting
 #define BAUDRATE              57600           // Default Baudrate of DYNAMIXEL X series
-#define DEVICE_NAME           "/dev/ttyUSB1"  // [Linux] To find assigned port, use "$ ls /dev/ttyUSB*" command
+#define DEVICE_NAME           "/dev/ttyUSB0"  // [Linux] To find assigned port, use "$ ls /dev/ttyUSB*" command
 #define PROTOCOL_VERSION      2.0             // Default Protocol version of DYNAMIXEL X series.
 
 // Set up dynamixel ports and packets
@@ -155,7 +155,7 @@ public:
         groupBulkWrite.txPacket();  // Write servos with prepared list all at once
 
         // Sets the arm moving flag to start checking for arm to complete move
-        int arm_moving = 1;
+        arm_moving = 1;
 
         // Print final servo values to ros
         //ROS_INFO("Angles: %f, %f, %f, %f, %f, %f, %f, %f", Arm_Angles.data[0], Arm_Angles.data[1], Arm_Angles.data[2], Arm_Angles.data[3], Arm_Angles.data[4], Arm_Angles.data[5], Arm_Angles.data[6], Arm_Angles.data[7]);

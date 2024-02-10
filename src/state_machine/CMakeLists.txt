@@ -175,6 +175,7 @@ catkin_install_python(PROGRAMS
   scripts/main_node.py
   scripts/board_objects.py
   scripts/state_machine.py
+  scripts/SM_WCU.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

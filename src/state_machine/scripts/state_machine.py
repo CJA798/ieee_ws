@@ -5,7 +5,9 @@ import rospy
 import smach
 import smach_ros
 import actionlib
+import sys
 from std_msgs.msg import Int8, Int32, Bool, String, Float32MultiArray
+from image_utils.board_objects import BoardObjects
 
 from vision_system.msg import GetCoordsAction, GetCoordsGoal, GetCoordsResult, GetCoordsFeedback
 
@@ -86,7 +88,7 @@ class PickUpSmallPackages(smach.State):
             # Put box in respective container
 
         self.done = True
-        rospy.sleep(10)
+        rospy.sleep(5)
 
         if self.done:
             return 'succeeded'
@@ -103,16 +105,16 @@ class SetPose(smach.State):
 
     def execute(self, userdata):
         pose = Float32MultiArray()
-        if self.pose == 'scan':
-            pose.data = [167.0, 209.0, 33.0, 1843.0, 1897.0]
+        if self.pose == 'SCAN':
+            pose.data = [100.0, 250.0, 0.0, 2048.0, 1446.0]
 
-        elif self.pose == 'verify':
+        elif self.pose == 'VERIFY':
             pose.data = [100.0,100.0,150.0,2048,2048]
 
         arm_pub.publish(pose)
 
-        rospy.sleep(5)
-        self.arm_done = True
+        #rospy.sleep(5)
+        #self.arm_done = True
         if self.arm_done:
             return 'succeeded'
         return 'aborted'
@@ -222,11 +224,11 @@ def main():
             with sm_small_packages:
                 smach.StateMachine.add('SCAN_POSE', SetPose('scan'),
                                         transitions={'succeeded':'GET_SP_COORDS', 'aborted':'SCAN_POSE'})
-                smach.StateMachine.add('GET_SP_COORDS', GetCoords(object_type='THRUSTER', pose='scan'),
+                smach.StateMachine.add('GET_SP_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose='SCAN'),
                                         transitions={'succeeded':'VERIFY_POSE', 'aborted':'GET_SP_COORDS'})
                 smach.StateMachine.add('VERIFY_POSE', SetPose('verify'),
                                         transitions={'succeeded':'VERIFY_COORDS', 'aborted':'VERIFY_POSE'})
-                smach.StateMachine.add('VERIFY_COORDS', GetCoords(object_type='THRUSTER', pose='verify'),
+                smach.StateMachine.add('VERIFY_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose='VERIFY'),
                                         transitions={'succeeded':'PICK_UP', 'aborted':'VERIFY_COORDS'})
                 smach.StateMachine.add('PICK_UP', PickUp(),
                                         transitions={'succeeded':'succeeded', 'aborted':'PICK_UP'})
@@ -252,6 +254,10 @@ def main():
     # Stop the introspection server
     sis.stop()
     rospy.loginfo('State machine execution completed.')
+
+    # Terminate the program
+    rospy.signal_shutdown('State machine execution completed.')  # Gracefully shutdown ROS
+    sys.exit(0)  # Exit the program with exit code 0 (indicating successful termination)
 
 
 if __name__ == '__main__':

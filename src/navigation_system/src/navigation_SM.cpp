@@ -24,13 +24,14 @@ int bearing;
 int gravVector;
 
 //variables for the movement arrays
-int Stop = [0,0,0];
-double Go = [0,200,0];
-int Backwards = [0,0,0];
-int TurnCW = [0,0,0];
-int TurnCCW = [0,0,0];
-int Go_Right = [0,0,0];
-int Go_Left = [0,0,0];
+int Stop[] = {0, 0, 0};
+int Go[] = {0, 0, 0};
+int Backwards[] = {0, 0, 0};
+int TurnCW[] = {0, 0, 0};
+int TurnCCW[] = {0, 0, 0};
+int Go_Right[] = {0, 0, 0};
+int Go_Left[] = {0, 0, 0};
+
 
 //Nav States
 enum class State {
@@ -84,10 +85,10 @@ int main(int argc, char **argv) {
     ros::Subscriber back_tof_sub = nh.subscribe("TOF_Left", 10, tofFourCallback);
     ros::Subscriber bearing_sub = nh.subscribe("IMU_Bearing", 10, imuBearCallback);
     ros::Subscriber grav_sub = nh.subscribe("IMU_Grav", 10, imuGravCallback);
-    ros::Subscriber bot_state_sub = nh.subscribe("State", 10, stateCallback);
+    ros::Subscriber bot_state_sub = nh.subscribe("State_SM2Nav", 10, stateCallback);
 
     // create publisher objects
-    ros::Publisher nav_state_pub = nh.advertise<std_msgs::String>("Nav_State", 10);
+    ros::Publisher nav_state_pub = nh.advertise<std_msgs::String>("State_Nav2SM", 10);
     //ros::Publisher wheel_speed_pub = nh.advertise<std_msgs::Float64MultiArray>("wheel_speeds", 10);
     ros::Publisher wheel_speed_pub = nh.advertise<std_msgs::Float32MultiArray>("Wheel_Speeds", 10);
 
@@ -96,7 +97,7 @@ int main(int argc, char **argv) {
 
     while (ros::ok()) {
         // update publishing objects and publish them
-        navState.data = "going";
+        /*navState.data = "going";
         nav_state_pub.publish(navState);
         wheelSpeeds.data = {wheelSpeedOne, wheelSpeedTwo, wheelSpeedThree};
         wheel_speed_pub.publish(wheelSpeeds);
@@ -157,7 +158,8 @@ int main(int argc, char **argv) {
              nav_state_pub.publish(navState);
 
             break;
-            */
+
+            //test jason
 
 
             
@@ -183,7 +185,8 @@ int main(int argc, char **argv) {
 
 
 
-        }
+        }*/
+/////////////////////////////////////////////////////////////////////////
 
         /*
         //THIS WORKS FOR CLOCKWISE TURNS 90 AND 180 NOT 360
