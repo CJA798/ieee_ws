@@ -178,7 +178,7 @@ public:
         // Creates and assigns array with each byte of message
         uint8_t data_array[4];
         for (int i = 1; i < 4; i++){    // Do for all 3 wheel servos
-            uint32_t data = (unsigned int)(Wheel_Speeds.data[i - 1]); // Convert int32 to uint32
+            int32_t data = (int32_t)(Wheel_Speeds.data[i - 1]); // Convert int32 to uint32
             data_array[0] = DXL_LOBYTE(DXL_LOWORD(data));
             data_array[1] = DXL_HIBYTE(DXL_LOWORD(data));
             data_array[2] = DXL_LOBYTE(DXL_HIWORD(data));
@@ -293,6 +293,7 @@ void initializeServos(){
 
     // Sets up initial values and states for servos
     packetHandler->write1ByteTxOnly(portHandler, ARM_SECONDARY_ID, TORQUE_ENABLE_ADDR, TORQUE_ENABLE);      // Enable torque
+    packetHandler->write1ByteTxOnly(portHandler, ARM_SECONDARY_ID, 65, 1);      // Turnn on LED
     packetHandler->write4ByteTxOnly(portHandler, ARM_SECONDARY_ID, MAX_ACC_ADDR, MAX_ACC);                  // Set acc limit of posistion mode
     packetHandler->write4ByteTxOnly(portHandler, ARM_SECONDARY_ID, MAX_VEL_ADDR, MAX_VEL);                  // Set vel limit of posistion mode
     packetHandler->write4ByteTxOnly(portHandler, ARM_SECONDARY_ID, GOAL_VELOCITY_ADDR, STOP);               // Sets starting velocity to stop
@@ -328,6 +329,7 @@ int main(int argc, char** argv){
     }
 
     // Close ports and stop node
+    packetHandler->write4ByteTxOnly(portHandler, ARM_SECONDARY_ID, GOAL_VELOCITY_ADDR, STOP);               // Sets velocity to stop
     portHandler->closePort();
     return 0;
 }
