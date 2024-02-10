@@ -25,7 +25,7 @@ int gravVector;
 
 //variables for the movement arrays
 int Stop = [0,0,0];
-int Go = [0,0,0];
+double Go = [0,200,0];
 int Backwards = [0,0,0];
 int TurnCW = [0,0,0];
 int TurnCCW = [0,0,0];
@@ -34,6 +34,7 @@ int Go_Left = [0,0,0];
 
 //Nav States
 enum class State {
+    TEST,
     STOP,
     BIG_BLOCKS,
     SLOPE_DETECT,
@@ -102,15 +103,15 @@ int main(int argc, char **argv) {
 
           
         switch(event){
-            case STOP:
-            //All motors off
-            wheelSpeeds.data = {0,0,0};
-            wheel_speed_pub.publish(wheelSpeeds);
-            Movement(Stop);
-            navState.data = "Waiting";
+            case TEST:
+            //test values
+          
+            Movement(Go);
+            navState.data = "Going";
              nav_state_pub.publish(navState);
 
             break;
+            /*
 
             case BIG_BLOCKS:
             //motors go forward about 10 in
@@ -156,6 +157,7 @@ int main(int argc, char **argv) {
              nav_state_pub.publish(navState);
 
             break;
+            */
 
 
             
@@ -334,4 +336,30 @@ void Go_Forward(int S1, int S2, int S4) {  //go forward specified distance from 
     }
 
     return 0;
+}
+
+
+void Movement(double array[]) {
+  VelocityBot[0] = array[0];  //update global variable for robot local velocity
+  VelocityBot[1] = array[1];
+  VelocityBot[2] = array[2];
+
+
+  //update math for wheel velocities
+  Vlin[0] = -.5 * VelocityBot[0] - 0.866 * VelocityBot[1] + 105.25 * VelocityBot[2];  //va
+  Vlin[1] = -.5 * VelocityBot[0] + 0.866 * VelocityBot[1] + 105.25 * VelocityBot[2];  //vb
+  Vlin[2] = VelocityBot[0] + 105.25 * VelocityBot[2];                                 //vc
+
+  Vlin[0] = 60 * (Vlin[0] / radius) / (0.229 * 2 * 3.14);
+  Vlin[1] = 60 * (Vlin[1] / radius) / (0.229 * 2 * 3.14);
+  Vlin[2] = 60 * (Vlin[2] / radius) / (0.229 * 2 * 3.14);
+
+  wheelSpeeds.data(Vlin[0],Vlin[1],Vlin[2]);
+  wheel_speed_pub.publish(wheelSpeeds);
+
+  /*
+  dxl.setGoalVelocity(DXL_ID1, Vlin[2]);  //vc
+  dxl.setGoalVelocity(DXL_ID2, Vlin[1]);  //vb
+  dxl.setGoalVelocity(DXL_ID3, Vlin[0]);  //va
+  */
 }
