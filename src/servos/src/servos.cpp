@@ -41,7 +41,7 @@ using namespace dynamixel;
 
 // Default dynamixel setting
 #define BAUDRATE              57600           // Default Baudrate of DYNAMIXEL X series
-#define DEVICE_NAME           "/dev/ttyUSB0"  // [Linux] To find assigned port, use "$ ls /dev/ttyUSB*" command
+#define DEVICE_NAME           "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT89FKZ2-if00-port0"  // [Linux] To find assigned port, use "$ ls /dev/ttyUSB*" command
 #define PROTOCOL_VERSION      2.0             // Default Protocol version of DYNAMIXEL X series.
 
 // Set up dynamixel ports and packets
@@ -113,7 +113,7 @@ public:
         q[1] = beta - phi2;
         q[2] = alpha + omega - M_PI;
         q[3] = -q[1] - q[2] - M_PI / 2;
-        q[4] = M_PI * theta / 2;
+        q[4] = theta;
         q[5] = (phi - 2048) * M_PI / 180 / 11.3778;
 
         //Final servo angles including duplicated J2 and claw in int's 0 - 4096 centered around 2048
@@ -123,7 +123,7 @@ public:
         Q[3] = (int)(q[2] * 180 / M_PI * 11.3778 + 2048);
         Q[4] = 2048;
         Q[5] = (int)(q[3] * 180 / M_PI * 11.3778 + 2048);
-        Q[6] = (int)(q[4] * 180 / M_PI * 11.3778 + 2048);
+        Q[6] = (int)theta;
         Q[7] = (int)phi;
 
         // Print final servo values to ros

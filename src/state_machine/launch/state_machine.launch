@@ -5,7 +5,7 @@
     type="serial_node_1.py" 
     name="serial_node_1" 
     output="screen">
-    <param name="port" value="/dev/ttyUSB0"/>
+    <param name="port" value="/dev/serial/by-id/usb-1a86_USB2.0-Serial-if00-port0"/>
     </node>
 
     <node pkg="navigation_system" 
