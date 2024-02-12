@@ -18,7 +18,7 @@
     type="servos_node" 
     name="servos" 
     output="screen">
-    <param name="port" value="/dev/ttyUSB1"/>
+    <param name="port" value="/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT89FKZ2-if00-port0"/>
     </node>
 
     <!-- VISION SYSTEM -->
