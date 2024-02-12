@@ -86,7 +86,7 @@ void tofOneCallback(const std_msgs::Int16::ConstPtr& msg){
 }
 
 void tofTwoCallback(const std_msgs::Int16::ConstPtr& msg){
-    tofLeft = msg->data;
+    tofBack = msg->data;
 }
 
 void tofThreeCallback(const std_msgs::Int16::ConstPtr& msg){
@@ -94,7 +94,7 @@ void tofThreeCallback(const std_msgs::Int16::ConstPtr& msg){
 }
 
 void tofFourCallback(const std_msgs::Int16::ConstPtr& msg){
-    tofBack = msg->data;
+    tofLeft = msg->data;
 }
 
 void imuBearCallback(const std_msgs::Int16::ConstPtr& msg){
@@ -117,7 +117,7 @@ int main(int argc, char **argv) {
 
     // create subscriber objects
     ros::Subscriber front_tof_sub = nh.subscribe("TOF_Front", 10, tofOneCallback);
-    ros::Subscriber left_tof_sub = nh.subscribe("TOF_Left", 10, tofTwoCallback);
+    ros::Subscriber left_tof_sub = nh.subscribe("TOF_Back", 10, tofTwoCallback);
     ros::Subscriber right_tof_sub = nh.subscribe("TOF_Right", 10, tofThreeCallback);
     ros::Subscriber back_tof_sub = nh.subscribe("TOF_Left", 10, tofFourCallback);
     ros::Subscriber bearing_sub = nh.subscribe("IMU_Bearing", 10, imuBearCallback);
@@ -143,7 +143,7 @@ int main(int argc, char **argv) {
         // update publishing objects and publish them
 
 
-          
+          /*
         switch(event){
             case 0:
             //test values
@@ -160,6 +160,7 @@ int main(int argc, char **argv) {
              nav_state_pub.publish(navState);
 
             break;
+            */
             /*
 
             case BIG_BLOCKS:
@@ -388,7 +389,7 @@ void Go_Forward(int S1, int S2, int S4) {  //go forward specified distance from 
 
     return 0;
 }
-}
+//}
 
 
 
