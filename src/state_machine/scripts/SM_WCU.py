@@ -53,7 +53,7 @@ class Initialize(smach.State):
         rospy.loginfo('Executing state Initialize')
         # Run initialization logic
         self.bot_initialized = True
-        rospy.sleep(1)
+        rospy.sleep(0.2)
 
         if self.bot_initialized:
             return 'succeeded'
@@ -74,7 +74,7 @@ class ReadingStartLED(smach.State):
         #TODO
         #if green_detected:
         if True:
-            rospy.sleep(1)
+            rospy.sleep(0.2)
             return 'green_led_detected'
         return 'green_led_not_detected'
 
@@ -168,7 +168,7 @@ class VerifyPose(smach.State):
         task_space.data = [target.x, target.y, target.z, 2048, 1700]
         task_space_pub.publish(task_space)
         # wait 5 seconds and go to next state
-        rospy.sleep(2)
+        rospy.sleep(3)
 
         #while not arm_done:
         #    rospy.sleep(10)
@@ -224,7 +224,7 @@ class PickUpBigPackages(smach.State):
 
     def execute(self, userdata):
         rospy.loginfo('Executing state PickUpBigPackages')
-        rospy.sleep(2)
+        rospy.sleep(0.2)
         if True:
             return 'packages_picked_up'
         return 'packages_not_picked_up'

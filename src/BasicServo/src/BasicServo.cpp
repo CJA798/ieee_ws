@@ -26,7 +26,7 @@ int bearing;
 int gravVector;
 
 //variables for the movement arrays
-int Stop[] = {0, 0, 0};
+double Stop[] = {0, 0, 0};
 double Go[] = {0, 200, 0};
 int Backwards[] = {0, 0, 0};
 int TurnCW[] = {0, 0, 0};
@@ -155,16 +155,35 @@ int main(int argc, char **argv) {
 
               V_ang = Movement(Go);
 
-              wheelSpeeds.data[0]= V_ang[0];
+              //changed indexes in V_ang
+
+              wheelSpeeds.data[0]= V_ang[2];
               wheelSpeeds.data[1]= V_ang[1];
-              wheelSpeeds.data[2]= V_ang[2];
+              wheelSpeeds.data[2]= V_ang[0];
               wheel_speed_pub.publish(wheelSpeeds);
+
+              event++;
           
             
             navState.data = "Going";
              nav_state_pub.publish(navState);
 
             break;
+
+            case 1:
+
+            V_ang = Movement(Stop);
+
+            wheelSpeeds.data[0]= V_ang[2];
+            wheelSpeeds.data[1]= V_ang[1];
+            wheelSpeeds.data[2]= V_ang[0];
+            wheel_speed_pub.publish(wheelSpeeds);
+
+            break;
+
+            default:break;
+
+
             /*
 
             case BIG_BLOCKS:
