@@ -213,7 +213,7 @@ public:
         //ROS_INFO("Angles: %f, %f, %f, %f, %f, %f, %f, %f", Misc_Angles.data[0], Misc_Angles.data[1], Misc_Angles.data[2], Misc_Angles.data[3], Misc_Angles.data[4], Misc_Angles.data[5], Misc_Angles.data[6], Misc_Angles.data[7]);
     }
 
-
+    //*******// Curently sending arm angles instead
     // Read present loads and publishes to feedback
     void Get_FeedbackCallback(const std_msgs::Int8& Get_Feedback){
         // Clears bulk read stack
@@ -221,18 +221,20 @@ public:
 
         // Reads servo torques of arm and stores in array
         for (int i = 1; i < 9; i++){
-            groupBulkRead.addParam(i, 126, 2);
+            //********// groupBulkRead.addParam(i, 126, 2);
+            groupBulkRead.addParam(i, 132, 4);
         }
         groupBulkRead.txRxPacket(); // Executes bulk read
 
         // Assigns temp bulk read array to topic and publishes
         for (int i = 0; i < 8; i++){
-            Feedback.data[i] = groupBulkRead.getData((i + 1), 126, 2);
+            //**********//Feedback.data[i] = groupBulkRead.getData((i + 1), 126, 2);
+            Feedback.data[i] = groupBulkRead.getData((i + 1), 132, 4);
         }
         Feedback_pub.publish(Feedback); // Publishes 8x array of arm servo torques
 
         // Prints arm servo torques
-        //ROS_INFO("Present Posistion: %d, %d, %d, %d, %d, %d, %d, %d", Feedback.data[0], Feedback.data[1], Feedback.data[2], Feedback.data[3], Feedback.data[4], Feedback.data[5], Feedback.data[6], Feedback.data[7]);
+        //ROS_INFO("Present Load: %d, %d, %d, %d, %d, %d, %d, %d", Feedback.data[0], Feedback.data[1], Feedback.data[2], Feedback.data[3], Feedback.data[4], Feedback.data[5], Feedback.data[6], Feedback.data[7]);
     }
 
 
