@@ -224,7 +224,7 @@ class PickUpBigPackages(smach.State):
 
     def execute(self, userdata):
         rospy.loginfo('Executing state PickUpBigPackages')
-        rospy.sleep(0.2)
+        rospy.sleep(5)
         if True:
             return 'packages_picked_up'
         return 'packages_not_picked_up'
