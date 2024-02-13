@@ -279,26 +279,33 @@ int main(int argc, char **argv) {
 
             case 1:
             nav_obj.Go_Forward(tofRight);
-            nav_obj.slopeDetect(gravVector);
-            if ((slopeCount == 2) && (tofFront < 120)) {
-              navString_input = "Waiting";
-                nav_obj.publishSpeedsAndState(nav_obj.Movement(Stop), navString_input);
-                current_orientation = bearing;
-             }
+            event++;
+            
+            
+           
 
-             event++;
+             
 
 
 
             break;
 
             case 2:
-            nav_obj.Turn_CCW(90);
+            nav_obj.slopeDetect(gravVector);
+             if ((slopeCount == 2) && (tofFront < 120)) {
+              navString_input = "Waiting";
+                nav_obj.publishSpeedsAndState(nav_obj.Movement(Stop), navString_input);
+                current_orientation = bearing;
+                event++;
+             }
+             event--;
+            
 
 
             break;
 
             case 3:
+            nav_obj.Turn_CCW(90);
 
 
             break;
