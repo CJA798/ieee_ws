@@ -14,11 +14,12 @@ from vision_system.msg import GetCoordsAction, GetCoordsGoal, GetCoordsResult, G
 # Global variables
 green_detected = False
 arm_done = False
+nav_state = None
 
 # Create publishers
 task_space_pub = rospy.Publisher('Task_Space', Float32MultiArray, queue_size=10)
 arm_angles_pub = rospy.Publisher('Arm_Angles', Float32MultiArray, queue_size=10)
-#state_SM2Nav_pub = rospy.Publisher('State_SM2Nav', String, queue_size=10)
+state_SM2Nav_pub = rospy.Publisher('State_SM2Nav', String, queue_size=10)
 
 # Callback function to handle start green LED state updates
 def start_led_callback(data):
@@ -38,10 +39,20 @@ def state_arm2sm_cb(data):
     except Exception as e:
         rospy.logerr("Error in state_arm2sm_cb: {}".format(e))
 
+# Callback function to handle navigation state updates
+def state_nav2arm_cb(data):
+    global nav_state
+    try:
+        nav_state = data.data
+        #rospy.loginfo("Nav State: %s", nav_state)
+    except Exception as e:
+        rospy.logerr("Error in state_nav_cb: {}".format(e))
+
 # Create subscribers
 #state_Nav2SM_sub = rospy.Subscriber("State_Nav2SM", String, callback=state_nav_cb)
 start_led_state_sub = rospy.Subscriber("LED_State", Bool, callback=start_led_callback)
 arm_done_sub = rospy.Subscriber("Arm_Done", Int8, callback=state_arm2sm_cb)
+state_Nav2SM_sub = rospy.Subscriber("State_Nav2SM", String, callback=state_nav2arm_cb)
 
 # define state Initialize
 class Initialize(smach.State):
@@ -228,6 +239,50 @@ class PickUpBigPackages(smach.State):
         if True:
             return 'packages_picked_up'
         return 'packages_not_picked_up'
+    
+# define state GoToDropOffArea
+class GoToDropOffArea(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['succeeded','aborted'])
+
+    def execute(self, userdata):
+        state_SM2Nav = String()
+        state_SM2Nav.data = 'GoToDropOffArea'
+        state_SM2Nav_pub.publish(state_SM2Nav)
+        rospy.loginfo('Executing state GoToDropOffArea')
+        
+# define state DropOffSmallPackages
+class Wait4Nav(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['succeeded','aborted'])
+
+    def execute(self, userdata):
+        pass
+
+# define state DropOffBigPackages
+class DropOffBigPackages(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['packages_dropped_off','packages_not_dropped_off'])
+    
+    def execute(self, userdata):
+        rospy.loginfo('Executing state DropOffBigPackages')
+        rospy.sleep(5)
+        if True:
+            return 'packages_dropped_off'
+        return 'packages_not_dropped_off'
+    
+# define state DropOffSmallPackages
+class DropOffSmallPackages(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['packages_dropped_off','packages_not_dropped_off'])
+    
+    def execute(self, userdata):
+        rospy.loginfo('Executing state DropOffSmallPackages')
+        rospy.sleep(5)
+        if True:
+            return 'packages_dropped_off'
+        return 'packages_not_dropped_off'
+
 
 def main():
     rospy.init_node('STATE_MACHINE')
@@ -273,8 +328,25 @@ def main():
             smach.Concurrence.add('PICK_SMALL_PACKAGES', small_packages_sm)
 
         smach.StateMachine.add('PACKAGE_PICKUP', package_pickup_sm,
-                                transitions={'packages_picked_up':'END',
+                                transitions={'packages_picked_up':'GO_TO_DROP_OFF_AREA',
                                             'aborted':'INITIALIZE'})
+        
+        smach.StateMachine.add('GO_TO_DROP_OFF_AREA', GoToDropOffArea(),
+                                transitions={'succeeded':'PACKAGE_DROP_OFF', 'aborted':'GO_TO_DROP_OFF_AREA'})
+        
+        package_drop_off_sm = smach.Concurrence(outcomes=['packages_dropped_off','aborted'],
+                                    default_outcome='aborted',
+                                    outcome_map={'packages_dropped_off':{
+                                        'DROP_BIG_PACKAGES':'packages_dropped_off',
+                                        'DROP_SMALL_PACKAGES':'packages_dropped_off'
+                                    }})
+        
+        with package_drop_off_sm:
+            smach.Concurrence.add('DROP_BIG_PACKAGES', DropOffBigPackages())
+            smach.Concurrence.add('DROP_SMALL_PACKAGES', DropOffSmallPackages())
+
+        smach.StateMachine.add('PACKAGE_DROP_OFF', package_drop_off_sm,
+                                transitions={'packages_dropped_off':'END', 'aborted':'PACKAGE_DROP_OFF'})
 
     # Create and start the introspection server
     sis = smach_ros.IntrospectionServer('server_name', sm, '/START')
