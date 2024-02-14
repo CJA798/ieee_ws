@@ -1,4 +1,5 @@
 .vscode/
+.vs/
 .catkin_workspace
 .catkin_tools/
 src/DynamixelSDK/
