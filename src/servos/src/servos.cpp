@@ -288,12 +288,13 @@ private:
 
 
 // Open servo ports, and set initial values
-void initializeServos(){
+void initializeServos(int arm){
     // Starts communications with servos
     portHandler->openPort();            // Opens port to U2D2
     portHandler->setBaudRate(BAUDRATE); // Sets default baud rate
 
     // Sets up initial values and states for servos
+    if(arm){
     packetHandler->write1ByteTxOnly(portHandler, ARM_SECONDARY_ID, TORQUE_ENABLE_ADDR, TORQUE_ENABLE);      // Enable torque
     packetHandler->write1ByteTxOnly(portHandler, ARM_SECONDARY_ID, 65, 1);      // Turnn on LED
     packetHandler->write4ByteTxOnly(portHandler, ARM_SECONDARY_ID, MAX_ACC_ADDR, MAX_ACC);                  // Set acc limit of posistion mode
@@ -303,13 +304,14 @@ void initializeServos(){
     packetHandler->write2ByteTxOnly(portHandler, ARM_SECONDARY_ID, POS_P_GAIN_ADDR, POS_P_GAIN);            // Sets posistion P gain
     packetHandler->write2ByteTxOnly(portHandler, ARM_SECONDARY_ID, POS_I_GAIN_ADDR, POS_I_GAIN);            // Sets posistion I gain
     packetHandler->write2ByteTxOnly(portHandler, ARM_SECONDARY_ID, POS_D_GAIN_ADDR, POS_D_GAIN);            // Sets posistion D gain
+    }
 }
 
 
 // Main loop
 int main(int argc, char** argv){
     // Starts communication and sets start vaules for servos
-    initializeServos();
+    initializeServos(1);
 
     // Sets up ros node and stuff
     ros::init(argc, argv, "servos");

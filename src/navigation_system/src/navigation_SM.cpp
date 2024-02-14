@@ -22,12 +22,12 @@ int gravVector;
 
 //variables for the movement arrays
 double Stop[] = {0, 0, 0};
-double Go[] = {0, 200, 0};
+double Go[] = {0, 0, 0};
 double Backwards[] = {0, 0, 0};
 double TurnCW[] = {0, 0, 0};
 double TurnCCW[] = {0, 0, 0};
-double Go_Right[] = {150, 0, 0};
-double Go_Left[] = {-150, 0, 0};
+double Go_Right[] = {120, 0, 0};
+double Go_Left[] = {-120, 0, 0};
 
 //Arrays for Wheel Speeds
 float* V_ang;
@@ -69,6 +69,7 @@ class NavClass{
 // create subscriber callbacks
 void tofOneCallback(const std_msgs::Int16::ConstPtr& msg){
     tofFront = msg->data;
+    std::cout<< "tofFront: " << tofFront << std::endl;
 }
 
 void tofTwoCallback(const std_msgs::Int16::ConstPtr& msg){
@@ -77,6 +78,7 @@ void tofTwoCallback(const std_msgs::Int16::ConstPtr& msg){
 
 void tofThreeCallback(const std_msgs::Int16::ConstPtr& msg){
     tofRight = msg->data;
+    
 }
 
 void tofFourCallback(const std_msgs::Int16::ConstPtr& msg){
@@ -193,27 +195,27 @@ void Turn_CCW(int degrees){  //put in the angle you would like the bot to end up
 // Values are multiplied by 10
     void slopeDetect(int xVector) {
 
-  if ((xVector > 28) || (xVector < -28)) {
+  if ((xVector > 36) || (xVector < -36)) {
     onSlope = 1;
   }
-  if ((onSlope == 1) && (xVector < 3) && (xVector > -3)) {  //if we where just on the slope and are now flat
+  if ((onSlope == 1) && (xVector < 5) && (xVector > -5)) {  //if we where just on the slope and are now flat
     slopeCount++;
     onSlope = 0;
   }
 }
 
 void Go_Forward(int sensor) {  //go forward specified distance from wall
-  if (90 < tofRight < 160) {                     //if robot with chosen wall range then go forward
+  if (center - 30 < tofRight < center + 30) {                     //if robot with chosen wall range then go forward
     navString_input = "Going Forward";
     publishSpeedsAndState(Movement(Go), navString_input);
   }
 
-  if (tofRight >= center) {        //if robot is too far away from wall move closer
+  else if (tofRight >= center + 30) {        //if robot is too far away from wall move closer
     navString_input = "Moving Right";
     publishSpeedsAndState(Movement(Go_Right), navString_input);  //This variable may be too quick, watch it.
   }
-  if (tofRight <= center) {  //if robot is too close to wall move away
-    navString_input = "Turning Left";
+  else if (tofRight <= center - 30) {  //if robot is too close to wall move away
+    navString_input = "Moving Left";
     publishSpeedsAndState(Movement(Go_Left), navString_input);
   }
 }
@@ -243,10 +245,27 @@ private:
     std_msgs::String botState;
 };
 
+class Timer {
+public:
+    Timer() : start_time_(std::chrono::steady_clock::now()) {}
+
+    void reset() {
+        start_time_ = std::chrono::steady_clock::now();
+    }
+
+    double elapsed() const {
+        auto end_time = std::chrono::steady_clock::now();
+        return std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time_).count() / 1000.0;
+    }
+
+private:
+    std::chrono::time_point<std::chrono::steady_clock> start_time_;
+};
+
 
 int main(int argc, char **argv) {
     // Initialize ROS node and name node
-    ros::init(argc, argv, "BasicServo");
+    ros::init(argc, argv, "navigation_SM");
     ros::NodeHandle nh;
     // Set the loop rate
     ros::Rate loopRate(10); // 10 Hz
@@ -263,18 +282,22 @@ int main(int argc, char **argv) {
         // update publishing objects and publish them
         switch(event){
             case 0:
+            
+    
             //initial state
             navString_input = "Waiting";
             nav_obj.publishSpeedsAndState(nav_obj.Movement(Stop), navString_input);
             //obtain desired direction which will be the initial heading of the bot
             desired_orientation = bearing;
             center = tofRight;
+            std::cout<< "center: " << center << std::endl;
+            
 
             event++;
 
 
             break;  
-            default:break;
+            
             
 
             case 1:
@@ -292,11 +315,16 @@ int main(int argc, char **argv) {
 
             case 2:
             nav_obj.slopeDetect(gravVector);
+            std::cout << "slopeCount: " << slopeCount << std::endl;
+            std::cout << "onSlope : " << onSlope << std::endl;
+            std::cout<< "center: " << center << std::endl;
+            //std::cout<< "tofFront: " << tofFront << std::endl;
              if ((slopeCount == 2) && (tofFront < 120)) {
               navString_input = "Waiting";
                 nav_obj.publishSpeedsAndState(nav_obj.Movement(Stop), navString_input);
                 current_orientation = bearing;
                 event++;
+                break;
              }
              event--;
             
@@ -311,12 +339,14 @@ int main(int argc, char **argv) {
             break;
             
 
-
-        // Spin and sleep
+            default:break;
+        
+        std::cout << "End of loop" << std::endl;
+        
+    }
+    // Spin and sleep
         ros::spinOnce();
         loopRate.sleep();
-    }
-
     
   }
   return 0;
