@@ -191,6 +191,7 @@ void Turn_CCW(int degrees){  //put in the angle you would like the bot to end up
 
 void Turn_CW(int degrees){  //put in the angle you would like the bot to end up facing on the board (in reference to starting position) 270 -> Left, 180 -> backwards, 360/0 -> straight ahead
 
+    int option = 0;
 
     if(desired_orientation + degrees > 360){
       degrees = (desired_orientation + degrees) - 360;
