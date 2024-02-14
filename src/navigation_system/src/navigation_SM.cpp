@@ -24,8 +24,8 @@ int gravVector;
 double Stop[] = {0, 0, 0};
 double Go[] = {0, 220, 0};
 double Backwards[] = {0, 0, 0};
-double TurnCW[] = {0, 0, 0};
-double TurnCCW[] = {0, 0, 1};
+double TurnCW[] = {0, 0, 1};
+double TurnCCW[] = {0, 0, -1};
 double Go_Right[] = {150, 150, 0};
 double Go_Left[] = {-150, 150, 0};
 
@@ -148,22 +148,20 @@ void Turn_CCW(int degrees){  //put in the angle you would like the bot to end up
 
     switch(option){
       case 1:
-       if(350 >= current_orientation && current_orientation <=90){
+       if(350 >= bearing && bearing <=90){
       navString_input = "Turning CCW";
       publishSpeedsAndState(Movement(TurnCCW), navString_input);
-      current_orientation = bearing;
     }
-    else if(current_orientation >= degrees){
+    else if(bearing >= degrees + 10){
         navString_input = "Turning CCW";
         publishSpeedsAndState(Movement(TurnCCW), navString_input);
-        current_orientation = bearing;
 
       }
 
   else{
     navString_input = "Waiting";
     publishSpeedsAndState(Movement(Stop), navString_input);
-    event = 0;
+    event = 10;
   }
 
 
@@ -171,16 +169,15 @@ void Turn_CCW(int degrees){  //put in the angle you would like the bot to end up
 
 
       case 2:
-      if(current_orientation >= degrees){
+      if(bearing >= degrees + 10){
         navString_input = "Turning CCW";
         publishSpeedsAndState(Movement(TurnCCW), navString_input);
-        current_orientation = bearing;
       }
 
   else{
     navString_input = "Waiting";
     publishSpeedsAndState(Movement(Stop), navString_input);
-    event = 0;
+    event = 10;
   }
 
 
@@ -191,6 +188,71 @@ void Turn_CCW(int degrees){  //put in the angle you would like the bot to end up
 
     }
 }
+
+void Turn_CW(int degrees){  //put in the angle you would like the bot to end up facing on the board (in reference to starting position) 270 -> Left, 180 -> backwards, 360/0 -> straight ahead
+
+
+    if(desired_orientation + degrees > 360){
+      degrees = (desired_orientation + degrees) - 360;
+      option = 1;
+    }
+    else {
+      degrees = desired_orientation + degrees;
+      option = 2;
+    }
+
+    switch(option){
+
+      case 1:
+
+    if(bearing <= 360 && bearing >= 270){
+      navString_input = "Turning CW";
+      publishSpeedsAndState(Movement(TurnCW), navString_input);
+      
+    }
+    else if(current_orientation <= degrees + 10){
+      navString_input = "Turning CW";
+      publishSpeedsAndState(Movement(TurnCW), navString_input);
+        
+      }
+
+  else{
+    navString_input = "Waiting";
+    publishSpeedsAndState(Movement(Stop), navString_input);
+     event = 10;
+  }
+
+
+    break;
+
+
+    case 2:
+
+     if(bearing <= degrees + 10){
+      navString_input = "Turning CW";
+      publishSpeedsAndState(Movement(TurnCW), navString_input);
+        
+      }
+
+  else {
+    navString_input = "Waiting";
+    publishSpeedsAndState(Movement(Stop), navString_input);
+    event = 10;
+  }
+
+
+
+
+
+
+    break;
+
+    default:break;
+
+}
+}
+
+
 
 // Values are multiplied by 10
     void slopeDetect(int xVector) {
@@ -298,7 +360,7 @@ int main(int argc, char **argv) {
             std::cout<< "center: " << center << std::endl;
             
 
-            event++;
+            event = 3;
     }
    
             
