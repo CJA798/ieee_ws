@@ -2,6 +2,9 @@
 .catkin_workspace
 .catkin_tools/
 src/DynamixelSDK/
+src/rosserial
+src/state_machine/scripts/taskspace
+
 
 install/
 devel/
@@ -9,6 +12,7 @@ logs/
 build/
 bin/
 lib/
+ros_lib/
 msg_gen/
 srv_gen/
 msg/*Action.msg
