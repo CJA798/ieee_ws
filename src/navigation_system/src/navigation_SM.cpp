@@ -23,7 +23,7 @@ int gravVector;
 //variables for the movement arrays
 double Stop[] = {0, 0, 0};
 double Go[] = {0, 220, 0};
-double Backwards[] = {0, 0, 0};
+double Backwards[] = {0, -50, 0};
 double TurnCW[] = {0, 0, 1};
 double TurnCCW[] = {0, 0, -1};
 double Go_Right[] = {150, 150, 0};
@@ -336,6 +336,8 @@ int main(int argc, char **argv) {
     NavClass nav_obj(&nh);
     Timer timer;
 
+    int bottom_sensor = 0;
+
 
 
     
@@ -346,10 +348,10 @@ int main(int argc, char **argv) {
     while (ros::ok()) {
         // update publishing objects and publish them
         switch(event){
+          //Initial states for the bot
             case 0:
 
-            
-    // Do some work...
+     //timer for 5 seconds to let the sensors boot up 
     if (timer.elapsed() > 6.0) {
         std::cout << "5 seconds elapsed" << std::endl;
           //initial state
@@ -358,39 +360,28 @@ int main(int argc, char **argv) {
             //obtain desired direction which will be the initial heading of the bot
             desired_orientation = bearing;
             center = tofRight;
+            bottom_sensor = tofBack;
             std::cout<< "center: " << center << std::endl;
             
 
             event = 3;
     }
-   
-            
-    
-          
-
 
             break;  
             
             
-
+            //initial movement going straight, detects the right TOF sensor
             case 1:
             nav_obj.Go_Forward(tofRight);
             event++;
-            
-            
-           
-
-             
-
-
 
             break;
 
+
+            //going up the 2 slopes and arriving at blue area
             case 2:
             nav_obj.slopeDetect(gravVector);
-            std::cout << "slopeCount: " << slopeCount << std::endl;
-            std::cout << "onSlope : " << onSlope << std::endl;
-            
+
             
              if ((slopeCount == 2) && (tofFront < 150)) {
               navString_input = "Waiting";
@@ -399,17 +390,109 @@ int main(int argc, char **argv) {
                 event++;
                 break;
              }
+             
              event--;
             
 
 
             break;
 
+
+
+            //leaving blue area, block drop location
             case 3:
+
+            nav_obj.Turn_CCW(90); //input argument is the desired orientation?
+            event++;
+
+            break;
+            
+            //green area arrival, gas tank collection
+            case 4:
+            nav_obj.Go_Forward(tofRight);
+            if(tofFront < 260){ //check if its at the specific location for collection
+              navString_input = "Collection";
+              nav_obj.publishSpeedsAndState(nav_obj.Movement(Stop), navString_input);
+              event = 3;
+
+            }
+
+            break;
+
+
+            //prepare to go up the third ramp/leaving the green area
+            case 5:
             nav_obj.Turn_CCW(90);
+            event++;
+
+            break;
+
+            //go up the third slope
+            case 6:
+            if(slopeCount == 3){
+              navString_input = "Waiting";
+              nav_obj.publishSpeedsAndState(nav_obj.Movement(Stop), navString_input);
+              event++;
+            }
+
+            break;
+
+            //turn around for bridge drop
+            case 7:
+            nav_obj.Turn_CCW(180);
+            event++;
+
+            break;
+
+            //detect crater and drop bridge
+            case 8:
+            nav_obj.publishSpeedsAndState(nav_obj.Movement(Backwards), navString_input);
+            if(tofBack > bottom_sensor){
+              navString_input = "Crater";
+              nav_obj.publishSpeedsAndState(nav_obj.Movement(Stop), navString_input);
+              //drop bridge here
+              event++;
+            }
 
 
             break;
+
+            case 9:
+             nav_obj.publishSpeedsAndState(nav_obj.Movement(Go), navString_input);
+            if(tofBack <= bottom_sensor){
+              navString_input = "Turn Around";
+              nav_obj.publishSpeedsAndState(nav_obj.Movement(Stop), navString_input);
+              //drop bridge here
+              event++;
+            }
+            break;
+
+            case 10:
+            nav_obj.Turn_CW(180);
+            event++;
+
+            break;
+
+            case 11:
+            nav_obj.Go_Forward(tofRight);
+            if(slopeCount == 4 && tofFront < 200){
+              navString_input = "Push Button";
+              nav_obj.publishSpeedsAndState(nav_obj.Movement(Go_Right), navString_input);
+              event++;
+            }
+
+
+
+
+            break;
+
+            case 12:
+            nav_obj.publishSpeedsAndState(nav_obj.Movement(Stop), navString_input);
+            event = 20;
+            break;
+
+
+
             
 
             default:break;
