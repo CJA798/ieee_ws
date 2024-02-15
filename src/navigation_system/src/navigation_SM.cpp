@@ -354,6 +354,9 @@ int main(int argc, char **argv) {
     // Create a NavClass object
     NavClass nav_obj(&nh);
     Timer timer;
+    Timer timer2;
+    Timer timer3;
+
 
     int bottom_sensor = 0;
 
@@ -485,7 +488,7 @@ int main(int argc, char **argv) {
 
             //Go Forward for a ceratin amount of time in order to drop the bridge
             case 9:
-            Timer timer2;
+            
             //after time elapsed tell bot to stop
             if(timer2.elapsed() > 1.5){
               navString_input = "Waiting";
@@ -494,7 +497,7 @@ int main(int argc, char **argv) {
             } 
             //else keep going forward
             else{
-             nav_obj.publishSpeedsAndState(nav_obj.Movement(Go), navString_input)
+             nav_obj.publishSpeedsAndState(nav_obj.Movement(Go), navString_input);
             }
             break;
 
@@ -509,7 +512,7 @@ int main(int argc, char **argv) {
 
             //After a certain amount of time has passed, stop, turn around and go forward
             case 11:
-            Timer timer3;
+            
             if(timer3.elapsed() > 5.0){
               navString_input = "Waiting";
               nav_obj.publishSpeedsAndState(nav_obj.Movement(Stop), navString_input);
