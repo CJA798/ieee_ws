@@ -41,18 +41,18 @@ int desired_orientation = 0;
 int current_orientation = 0;
 
 // Initialize the event to wait until main SM is ready
-//int event = WAITING_FOR_SM; // event = 99
-int event = 0;
+int event = WAITING_FOR_SM; // event = 99
+//int event = 0;
 int onSlope = 0;
 int slopeCount = 0;
 int center = 0;
 std::string navString_input = "Waiting";
 
+std::string State_SM2Nav = "";
 
 class NavClass{
   public:
-  // Create state variable
-  std_msgs::String botState;
+
   NavClass(ros::NodeHandle* nodehandle){ 
         nh = *nodehandle;        
 
@@ -69,7 +69,7 @@ class NavClass{
     back_tof_sub = nh.subscribe("TOF_Back", 10, &NavClass::tofFourCallback, this);
     bearing_sub = nh.subscribe("IMU_Bearing", 10, &NavClass::imuBearCallback, this);
     grav_sub = nh.subscribe("IMU_Grav", 10, &NavClass::imuGravCallback, this);
-    bot_state_sub = nh.subscribe("State_SM2Nav", 10, &NavClass::stateCallback, this);
+    State_SM2Nav_sub = nh.subscribe("State_SM2Nav", 1, &NavClass::State_SM2Nav_cb, this);
 
     // create publisher objects
     nav_state_pub = nh.advertise<std_msgs::String>("State_Nav2SM", 10);
@@ -103,8 +103,8 @@ void imuGravCallback(const std_msgs::Int16::ConstPtr& msg){
     gravVector = msg->data;
 }
 
-void stateCallback(const std_msgs::String::ConstPtr& msg){
-    botState.data = msg->data;
+void State_SM2Nav_cb(const std_msgs::String::ConstPtr& msg){
+    State_SM2Nav = msg->data;
 }
 
 
@@ -308,13 +308,15 @@ private:
     ros::Subscriber back_tof_sub;
     ros::Subscriber bearing_sub;
     ros::Subscriber grav_sub;
-    ros::Subscriber bot_state_sub;
+    ros::Subscriber State_SM2Nav_sub;
     // create publisher objects
     ros::Publisher nav_state_pub;
     ros::Publisher wheel_speed_pub;
     // create variables for publishing
     std_msgs::Float32MultiArray wheelSpeeds;
     std_msgs::String navState;
+    // Create state variable
+    std_msgs::String botState;
 };
 
 class Timer {
@@ -532,7 +534,7 @@ int main(int argc, char **argv) {
 
 
             case WAITING_FOR_SM:
-            if (nav_obj.botState.data == "Start") {
+            if (State_SM2Nav == "Start") {
                 event = 0;
             }
             break;
