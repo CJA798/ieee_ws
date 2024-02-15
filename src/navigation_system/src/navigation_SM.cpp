@@ -142,6 +142,8 @@ float* Movement(double array[]) {
 
 }
 
+
+
 void Turn_CCW(int degrees){  //put in the angle you would like the bot to end up facing on the board (in reference to starting position) 270 -> Left, 180 -> backwards, 360/0 -> straight ahead
    // double difference = current_orientation - desired_orientation;
    int option =  0;
@@ -186,6 +188,8 @@ void Turn_CCW(int degrees){  //put in the angle you would like the bot to end up
   else{
     navString_input = "Waiting";
     publishSpeedsAndState(Movement(Stop), navString_input);
+    center = tofRight;
+    desired_orientation = bearing;
   }
 
 
@@ -388,7 +392,7 @@ int main(int argc, char **argv) {
             nav_obj.slopeDetect(gravVector);
 
             
-             if ((slopeCount == 2) && (tofFront < 150)) {
+             if ((slopeCount == 2) && (tofFront < 180)) {
               navString_input = "Waiting";
                 nav_obj.publishSpeedsAndState(nav_obj.Movement(Stop), navString_input);
                 current_orientation = bearing;
@@ -407,18 +411,21 @@ int main(int argc, char **argv) {
             //leaving blue area, block drop location
             case 3:
 
-            nav_obj.Turn_CCW(90); //input argument is the desired orientation?
+            nav_obj.Turn_CCW(90); 
+            //initialize values to keep straight, already inside of the Turn_CCW function
             event++;
 
             break;
             
             //green area arrival, gas tank collection
+            
             case 4:
+            
             nav_obj.Go_Forward(tofRight);
             if(tofFront < 260){ //check if its at the specific location for collection
               navString_input = "Collection";
               nav_obj.publishSpeedsAndState(nav_obj.Movement(Stop), navString_input);
-              event = 3;
+              event++;
 
             }
 
@@ -462,39 +469,65 @@ int main(int argc, char **argv) {
 
             break;
 
+            //Go Forward for a ceratin amount of time in order to drop the bridge
             case 9:
-             nav_obj.publishSpeedsAndState(nav_obj.Movement(Go), navString_input);
-            if(tofBack <= bottom_sensor){
-              navString_input = "Turn Around";
+            Timer timer2;
+            //after time elapsed tell bot to stop
+            if(timer2.elapsed() > 1.5){
+              navString_input = "Waiting";
               nav_obj.publishSpeedsAndState(nav_obj.Movement(Stop), navString_input);
-              //drop bridge here
               event++;
+            } 
+            //else keep going forward
+            else{
+             nav_obj.publishSpeedsAndState(nav_obj.Movement(Go), navString_input)
             }
             break;
 
+
+            //Go backwards on the bridge
             case 10:
-            nav_obj.Turn_CW(180);
+            nav_obj.publishSpeedsAndState(nav_obj.Movement(Backwards), navString_input);
             event++;
 
             break;
 
+
+            //After a certain amount of time has passed, stop, turn around and go forward
             case 11:
-            nav_obj.Go_Forward(tofRight);
-            if(slopeCount == 4 && tofFront < 200){
-              navString_input = "Push Button";
-              nav_obj.publishSpeedsAndState(nav_obj.Movement(Go_Right), navString_input);
+            Timer timer3;
+            if(timer3.elapsed() > 5.0){
+              navString_input = "Waiting";
+              nav_obj.publishSpeedsAndState(nav_obj.Movement(Stop), navString_input);
               event++;
+            } 
+            else{
+             nav_obj.publishSpeedsAndState(nav_obj.Movement(Backwards), navString_input);
+            }
+            break;
+
+            //turning around
+            case 12:
+            nav_obj.Turn_CW(180);
+            nav_obj.Go_Forward(tofRight);
+            event++;
+            break;
+
+            case 13:
+            if(tofFront < 270){
+              
+              if(tofFront > 10){
+              navString_input = "Going Right";
+              nav_obj.publishSpeedsAndState(nav_obj.Movement(Go_Right), navString_input);
+              }
+              else{
+                navString_input = "Waiting";
+                nav_obj.publishSpeedsAndState(nav_obj.Movement(Stop), navString_input);
+                event++;
+              }
+              
             }
 
-
-
-
-            break;
-
-            case 12:
-            nav_obj.publishSpeedsAndState(nav_obj.Movement(Stop), navString_input);
-            event = 20;
-            break;
 
 
 
