@@ -161,7 +161,6 @@ void Turn_CCW(int degrees){  //put in the angle you would like the bot to end up
   else{
     navString_input = "Waiting";
     publishSpeedsAndState(Movement(Stop), navString_input);
-    event = 10;
   }
 
 
@@ -177,7 +176,6 @@ void Turn_CCW(int degrees){  //put in the angle you would like the bot to end up
   else{
     navString_input = "Waiting";
     publishSpeedsAndState(Movement(Stop), navString_input);
-    event = 10;
   }
 
 
@@ -220,7 +218,6 @@ void Turn_CW(int degrees){  //put in the angle you would like the bot to end up 
   else{
     navString_input = "Waiting";
     publishSpeedsAndState(Movement(Stop), navString_input);
-     event = 10;
   }
 
 
@@ -238,7 +235,6 @@ void Turn_CW(int degrees){  //put in the angle you would like the bot to end up 
   else {
     navString_input = "Waiting";
     publishSpeedsAndState(Movement(Stop), navString_input);
-    event = 10;
   }
 
 
