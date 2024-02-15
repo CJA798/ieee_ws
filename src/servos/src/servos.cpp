@@ -306,7 +306,7 @@ void initializeServos(int arm){
         packetHandler->write2ByteTxOnly(portHandler, ARM_SECONDARY_ID, POS_D_GAIN_ADDR, POS_D_GAIN);            // Sets posistion D gain
 
         // Publish 8 starting servo angles to Arm_Angles
-        int Arm_Start_Angles[8] = { 2069.0, 2814.0, 2808.0, 1533.0, 2058.0, 884.0, 2134.0, 2050.0 };
+        int Arm_Start_Angles[8] = { 2069, 2814, 2808, 1533, 2058, 884, 2134, 2050 };
         for (int i = 0; i < 8; i++) {
             Arm_Angles.data[i] = Arm_Start_Angles[i];
         }
