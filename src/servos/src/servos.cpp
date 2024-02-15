@@ -318,8 +318,6 @@ private:
 
 // Main loop
 int main(int argc, char** argv){
-    // Starts communication and sets start vaules for servos
-    initializeServos(1);
 
     // Sets up ros node and stuff
     ros::init(argc, argv, "servos");
@@ -328,6 +326,8 @@ int main(int argc, char** argv){
 
     // Create main servo class
     ServoClass ServoObject(&nh);
+    // Starts communication and sets start vaules for servos
+    ServoObject.initializeServos(1);
 
     // Main loop
     while (ros::ok())
