@@ -6,6 +6,8 @@
 #include "std_msgs/Float32MultiArray.h"
 #include "std_msgs/String.h"
 
+#define WAITING_FOR_SM 99
+
 
 // global variables for wheel speed and robot state
 float wheelSpeedOne;
@@ -37,6 +39,9 @@ float Vlin[] = {0,0,0};
 //Variables for movement functions
 int desired_orientation = 0;
 int current_orientation = 0;
+
+// Initialize the event to wait until main SM is ready
+//int event = WAITING_FOR_SM; // event = 99
 int event = 0;
 int onSlope = 0;
 int slopeCount = 0;
@@ -46,17 +51,22 @@ std::string navString_input = "Waiting";
 
 class NavClass{
   public:
+  // Create state variable
+  std_msgs::String botState;
   NavClass(ros::NodeHandle* nodehandle){ 
         nh = *nodehandle;        
 
         // Resize Publisher Arrays
         wheelSpeeds.data.resize(3);
 
+        
+
+
         // create subscriber objects
     front_tof_sub = nh.subscribe("TOF_Front", 10, &NavClass::tofOneCallback, this);
     left_tof_sub = nh.subscribe("TOF_Left", 10, &NavClass::tofTwoCallback, this);
     right_tof_sub = nh.subscribe("TOF_Right", 10, &NavClass::tofThreeCallback, this);
-    back_tof_sub = nh.subscribe("TOF_Left", 10, &NavClass::tofFourCallback, this);
+    back_tof_sub = nh.subscribe("TOF_Back", 10, &NavClass::tofFourCallback, this);
     bearing_sub = nh.subscribe("IMU_Bearing", 10, &NavClass::imuBearCallback, this);
     grav_sub = nh.subscribe("IMU_Grav", 10, &NavClass::imuGravCallback, this);
     bot_state_sub = nh.subscribe("State_SM2Nav", 10, &NavClass::stateCallback, this);
@@ -301,7 +311,6 @@ private:
     // create variables for publishing
     std_msgs::Float32MultiArray wheelSpeeds;
     std_msgs::String navState;
-    std_msgs::String botState;
 };
 
 class Timer {
@@ -489,7 +498,11 @@ int main(int argc, char **argv) {
 
 
 
-            
+            case WAITING_FOR_SM:
+            if (nav_obj.botState.data == "Start") {
+                event = 0;
+            }
+            break;
 
             default:break;
         

@@ -44,7 +44,7 @@ cv2.createTrackbar('Blue', 'Image Preprocessing', thruster_color[0], 255, update
 
 # Initialize other variables and capture device
 lower_limit, upper_limit = get_limits(color=thruster_color)
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(2, cv2.CAP_V4L2)
 #cap.set(cv2.CAP_PROP_SETTINGS, 1)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)

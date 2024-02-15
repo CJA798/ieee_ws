@@ -49,7 +49,6 @@ def state_nav2arm_cb(data):
         rospy.logerr("Error in state_nav_cb: {}".format(e))
 
 # Create subscribers
-#state_Nav2SM_sub = rospy.Subscriber("State_Nav2SM", String, callback=state_nav_cb)
 start_led_state_sub = rospy.Subscriber("LED_State", Bool, callback=start_led_callback)
 arm_done_sub = rospy.Subscriber("Arm_Done", Int8, callback=state_arm2sm_cb)
 state_Nav2SM_sub = rospy.Subscriber("State_Nav2SM", String, callback=state_nav2arm_cb)
@@ -257,7 +256,12 @@ class Wait4Nav(smach.State):
         smach.State.__init__(self, outcomes=['succeeded','aborted'])
 
     def execute(self, userdata):
-        pass
+        # Publish 'Start' to Nav
+        state_SM2Nav = String()
+        state_SM2Nav.data = 'Start'
+        state_SM2Nav_pub.publish(state_SM2Nav)
+        rospy.loginfo('Executing state Wait4Nav')
+
 
 # define state DropOffBigPackages
 class DropOffBigPackages(smach.State):
@@ -283,6 +287,8 @@ class DropOffSmallPackages(smach.State):
             return 'packages_dropped_off'
         return 'packages_not_dropped_off'
 
+skip_pickup = True
+temp_state = lambda: 'GO_TO_DROP_OFF_AREA' if skip_pickup else 'PACKAGE_PICKUP'
 
 def main():
     rospy.init_node('STATE_MACHINE')
@@ -296,7 +302,7 @@ def main():
         smach.StateMachine.add('INITIALIZE', Initialize(), 
                                transitions={'succeeded':'READING_START_LED', 'aborted':'INITIALIZE'})
         smach.StateMachine.add('READING_START_LED', ReadingStartLED(), 
-                               transitions={'green_led_detected':'PACKAGE_PICKUP', 'green_led_not_detected':'READING_START_LED'})
+                               transitions={'green_led_detected': temp_state, 'green_led_not_detected':'READING_START_LED'})
 
 
         # Create the sub SMACH state machine
@@ -346,8 +352,10 @@ def main():
             smach.Concurrence.add('DROP_SMALL_PACKAGES', DropOffSmallPackages())
 
         smach.StateMachine.add('PACKAGE_DROP_OFF', package_drop_off_sm,
-                                transitions={'packages_dropped_off':'END', 'aborted':'PACKAGE_DROP_OFF'})
+                                transitions={'packages_dropped_off':'WAIT_4_NAV', 'aborted':'PACKAGE_DROP_OFF'})
 
+        smach.StateMachine.add('WAIT_4_NAV', Wait4Nav(),
+                                transitions={'succeeded':'END', 'aborted':'WAIT_4_NAV'})
     # Create and start the introspection server
     sis = smach_ros.IntrospectionServer('server_name', sm, '/START')
     sis.start()
