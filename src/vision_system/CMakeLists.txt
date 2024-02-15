@@ -175,6 +175,9 @@ catkin_install_python(PROGRAMS
 
   scripts/server/get_coords_server.py
   scripts/coords_image_subscriber.py
+
+  scripts/multi_camera_publisher.py
+  scripts/multi_camera_subscriber.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
