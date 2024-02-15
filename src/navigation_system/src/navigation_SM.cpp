@@ -58,6 +58,7 @@ class NavClass{
 
         // Resize Publisher Arrays
         wheelSpeeds.data.resize(3);
+        miscSpeeds.data.resize(8);
 
         
 
@@ -74,6 +75,7 @@ class NavClass{
     // create publisher objects
     nav_state_pub = nh.advertise<std_msgs::String>("State_Nav2SM", 10);
     wheel_speed_pub = nh.advertise<std_msgs::Float32MultiArray>("Wheel_Speeds", 10);
+    misc_speed_pub = nh.advertise<std_msgs::Float32MultiArray>("Misc_Speeds", 10);
 }
 
 // create subscriber callbacks
@@ -107,6 +109,11 @@ void State_SM2Nav_cb(const std_msgs::String::ConstPtr& msg){
     State_SM2Nav = msg->data;
 }
 
+
+void publishMiscSpeeds(int bridge){ // 2048 straigt up, 3250 for placing
+    miscSpeeds.data[0]= bridge;
+    misc_speed_pub.publish(miscSpeeds);
+  }
 
   void publishSpeedsAndState(float* V_ang, const std::string& str){
     wheelSpeeds.data[0]= V_ang[2];
@@ -312,8 +319,9 @@ private:
     // create publisher objects
     ros::Publisher nav_state_pub;
     ros::Publisher wheel_speed_pub;
+    ros::Publisher misc_speed_pub;
     // create variables for publishing
-    std_msgs::Float32MultiArray wheelSpeeds;
+    std_msgs::Float32MultiArray wheelSpeeds, miscSpeeds;
     std_msgs::String navState;
     // Create state variable
     std_msgs::String botState;
@@ -373,6 +381,7 @@ int main(int argc, char **argv) {
             center = tofRight;
             bottom_sensor = tofBack;
             std::cout<< "center: " << center << std::endl;
+            nav_obj.publishMiscSpeeds(3250);
             
 
             event++;
@@ -383,8 +392,9 @@ int main(int argc, char **argv) {
             
             //initial movement going straight, detects the right TOF sensor
             case 1:
-            nav_obj.Go_Forward(tofRight);
-            event++;
+            nav_obj.publishMiscSpeeds(2048);
+            //nav_obj.Go_Forward(tofRight);
+            //event++;
 
             break;
 
@@ -443,6 +453,8 @@ int main(int argc, char **argv) {
 
             //go up the third slope
             case 6:
+            nav_obj.Go_Forward(tofRight);
+            nav_obj.slopeDetect(gravVector);
             if(slopeCount == 3){
               navString_input = "Waiting";
               nav_obj.publishSpeedsAndState(nav_obj.Movement(Stop), navString_input);
