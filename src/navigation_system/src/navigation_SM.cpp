@@ -211,7 +211,7 @@ void Turn_CW(int degrees){  //put in the angle you would like the bot to end up 
       publishSpeedsAndState(Movement(TurnCW), navString_input);
       
     }
-    else if(current_orientation <= degrees + 10){
+    else if(current_orientation <= degrees - 10){
       navString_input = "Turning CW";
       publishSpeedsAndState(Movement(TurnCW), navString_input);
         
@@ -229,7 +229,7 @@ void Turn_CW(int degrees){  //put in the angle you would like the bot to end up 
 
     case 2:
 
-     if(bearing <= degrees + 10){
+     if(bearing <= degrees -10){
       navString_input = "Turning CW";
       publishSpeedsAndState(Movement(TurnCW), navString_input);
         
@@ -361,7 +361,7 @@ int main(int argc, char **argv) {
             std::cout<< "center: " << center << std::endl;
             
 
-            event = 3;
+            event++;
     }
    
             
@@ -374,8 +374,8 @@ int main(int argc, char **argv) {
             
 
             case 1:
-            nav_obj.Go_Forward(tofRight);
-            event++;
+            //nav_obj.Go_Forward(tofRight);
+            nav_obj.publishSpeedsAndState(nav_obj.Movement(Go), navString_input);
             
             
            
@@ -406,7 +406,7 @@ int main(int argc, char **argv) {
             break;
 
             case 3:
-            nav_obj.Turn_CCW(90);
+            nav_obj.Turn_CW(90);
 
 
             break;
