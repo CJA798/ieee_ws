@@ -24,28 +24,31 @@ int gravVector;
 
 //variables for the movement arrays
 double Stop[] = {0, 0, 0};
-double Go[] = {0, 220, 0};
-double Backwards[] = {0, -50, 0};
+double Go[] = {0, 250, 0};
+double Backwards[] = {0, -200, 0};
 double TurnCW[] = {0, 0, 1};
 double TurnCCW[] = {0, 0, -1};
-double Go_Right[] = {150, 150, 0};
-double Go_Left[] = {-150, 150, 0};
+double Go_Right[] = {150, 200, 0};
+double Go_Left[] = {-150, 200, 0};
+double Go_Slow[] ={0,100,0};
 
 //Arrays for Wheel Speeds
 float* V_ang;
 float VelocityBot[] = {0,0,0};
 float Vlin[] = {0,0,0};
 
+
 //Variables for movement functions
 int desired_orientation = 0;
 int current_orientation = 0;
 
 // Initialize the event to wait until main SM is ready
-int event = WAITING_FOR_SM; // event = 99
-//int event = 0;
+//int event = WAITING_FOR_SM; // event = 99
+int event = 0;
 int onSlope = 0;
 int slopeCount = 0;
 int center = 0;
+bool isDone = false;
 std::string navString_input = "Waiting";
 
 std::string State_SM2Nav = "";
@@ -58,7 +61,7 @@ class NavClass{
 
         // Resize Publisher Arrays
         wheelSpeeds.data.resize(3);
-        miscSpeeds.data.resize(8);
+        miscAngles.data.resize(8);
 
         
 
@@ -75,7 +78,7 @@ class NavClass{
     // create publisher objects
     nav_state_pub = nh.advertise<std_msgs::String>("State_Nav2SM", 10);
     wheel_speed_pub = nh.advertise<std_msgs::Float32MultiArray>("Wheel_Speeds", 10);
-    misc_speed_pub = nh.advertise<std_msgs::Float32MultiArray>("Misc_Speeds", 10);
+    misc_angles_pub = nh.advertise<std_msgs::Float32MultiArray>("Misc_Angles", 10);
 }
 
 // create subscriber callbacks
@@ -110,9 +113,9 @@ void State_SM2Nav_cb(const std_msgs::String::ConstPtr& msg){
 }
 
 
-void publishMiscSpeeds(int bridge){ // 2048 straigt up, 3250 for placing
-    miscSpeeds.data[0]= bridge;
-    misc_speed_pub.publish(miscSpeeds);
+void publishMiscAngles(int bridge){ // 2048 straigt up, 3250 for placing
+    miscAngles.data[0]= bridge;
+    misc_angles_pub.publish(miscAngles);
   }
 
   void publishSpeedsAndState(float* V_ang, const std::string& str){
@@ -151,7 +154,7 @@ float* Movement(double array[]) {
 
 
 
-void Turn_CCW(int degrees){  //put in the angle you would like the bot to end up facing on the board (in reference to starting position) 270 -> Left, 180 -> backwards, 360/0 -> straight ahead
+bool Turn_CCW(int degrees){  //put in the angle you would like the bot to end up facing on the board (in reference to starting position) 270 -> Left, 180 -> backwards, 360/0 -> straight ahead
    // double difference = current_orientation - desired_orientation;
    int option =  0;
 
@@ -174,12 +177,15 @@ void Turn_CCW(int degrees){  //put in the angle you would like the bot to end up
     else if(bearing >= degrees + 10){
         navString_input = "Turning CCW";
         publishSpeedsAndState(Movement(TurnCCW), navString_input);
+        
 
       }
 
   else{
     navString_input = "Waiting";
     publishSpeedsAndState(Movement(Stop), navString_input);
+    return isDone = true;
+    
   }
 
 
@@ -195,8 +201,8 @@ void Turn_CCW(int degrees){  //put in the angle you would like the bot to end up
   else{
     navString_input = "Waiting";
     publishSpeedsAndState(Movement(Stop), navString_input);
-    center = tofRight;
-    desired_orientation = bearing;
+    return isDone = true;
+
   }
 
 
@@ -206,7 +212,12 @@ void Turn_CCW(int degrees){  //put in the angle you would like the bot to end up
       default:break;
 
     }
+    return isDone = false;
 }
+
+
+
+
 
 void Turn_CW(int degrees){  //put in the angle you would like the bot to end up facing on the board (in reference to starting position) 270 -> Left, 180 -> backwards, 360/0 -> straight ahead
 
@@ -278,7 +289,7 @@ void Turn_CW(int degrees){  //put in the angle you would like the bot to end up 
   if ((xVector > 33) || (xVector < -32)) {
     onSlope = 1;
   }
-  if ((onSlope == 1) && (xVector < 3) && (xVector > -3)) {  //if we where just on the slope and are now flat
+  if ((onSlope == 1) && (xVector < 2) && (xVector > -2)) {  //if we where just on the slope and are now flat
     slopeCount++;
     onSlope = 0;
   }
@@ -319,9 +330,9 @@ private:
     // create publisher objects
     ros::Publisher nav_state_pub;
     ros::Publisher wheel_speed_pub;
-    ros::Publisher misc_speed_pub;
+    ros::Publisher misc_angles_pub;
     // create variables for publishing
-    std_msgs::Float32MultiArray wheelSpeeds, miscSpeeds;
+    std_msgs::Float32MultiArray wheelSpeeds, miscAngles;
     std_msgs::String navState;
     // Create state variable
     std_msgs::String botState;
@@ -356,6 +367,7 @@ int main(int argc, char **argv) {
     Timer timer;
     Timer timer2;
     Timer timer3;
+    Timer timer4;
 
 
     int bottom_sensor = 0;
@@ -384,7 +396,9 @@ int main(int argc, char **argv) {
             center = tofRight;
             bottom_sensor = tofBack;
             std::cout<< "center: " << center << std::endl;
-            nav_obj.publishMiscSpeeds(3250);
+            nav_obj.publishMiscAngles(2048);
+            timer.reset();
+    
             
 
             event++;
@@ -395,9 +409,10 @@ int main(int argc, char **argv) {
             
             //initial movement going straight, detects the right TOF sensor
             case 1:
-            nav_obj.publishMiscSpeeds(2048);
-            //nav_obj.Go_Forward(tofRight);
-            //event++;
+            
+            //nav_obj.publishSpeedsAndState(nav_obj.Movement(Backwards), navString_input); 
+            nav_obj.Go_Forward(tofRight);
+            event++;
 
             break;
 
@@ -407,10 +422,17 @@ int main(int argc, char **argv) {
             nav_obj.slopeDetect(gravVector);
 
             
-             if ((slopeCount == 2) && (tofFront < 180)) {
+             if ((slopeCount == 2) && (tofFront < 240)) {
               navString_input = "Waiting";
                 nav_obj.publishSpeedsAndState(nav_obj.Movement(Stop), navString_input);
-                current_orientation = bearing;
+                //current_orientation = bearing;
+                if(desired_orientation > current_orientation){
+                  nav_obj.Turn_CW(desired_orientation - current_orientation);
+                }
+                else{
+                  nav_obj.Turn_CCW(current_orientation - desired_orientation);
+                }
+                std::cout << "Reached small correction " << std::endl;
                 event++;
                 break;
              }
@@ -425,19 +447,36 @@ int main(int argc, char **argv) {
 
             //leaving blue area, block drop location
             case 3:
-
+            current_orientation = bearing;
+            if(isDone == false){
             nav_obj.Turn_CCW(90); 
+            }
+            else{
+          
+              std::cout << "Turned 90 degrees" << std::endl;
+              navString_input = "Waiting";
+              nav_obj.publishSpeedsAndState(nav_obj.Movement(Stop), navString_input);
+              current_orientation = bearing;
+              desired_orientation = bearing;
+              center = tofRight;
+              isDone = false;
+              event++;
+              break;
+            }
+            
             //initialize values to keep straight, already inside of the Turn_CCW function
-            event++;
+         
 
             break;
             
             //green area arrival, gas tank collection
             
             case 4:
+            std::cout << "isDone is :" << isDone << std::endl;
+            std::cout << "Go green" << std::endl;
             
             nav_obj.Go_Forward(tofRight);
-            if(tofFront < 260){ //check if its at the specific location for collection
+            if(tofFront < 220){ //check if its at the specific location for collection
               navString_input = "Collection";
               nav_obj.publishSpeedsAndState(nav_obj.Movement(Stop), navString_input);
               event++;
@@ -449,38 +488,71 @@ int main(int argc, char **argv) {
 
             //prepare to go up the third ramp/leaving the green area
             case 5:
-            nav_obj.Turn_CCW(90);
-            event++;
+            if(isDone == false){
+            nav_obj.Turn_CCW(90); 
+            }
+            else{
+              std::cout << "Turned 90 degrees again" << std::endl;
+              navString_input = "Waiting";
+              nav_obj.publishSpeedsAndState(nav_obj.Movement(Stop), navString_input);
+              current_orientation = bearing;
+              desired_orientation = current_orientation;
+              center = tofRight;
+              isDone = false;
+              timer4.reset();
+              event++;
+            }
+           
 
             break;
 
             //go up the third slope
             case 6:
+            if(slopeCount == 3 && onSlope == 0){
+              if(timer4.elapsed() > 7.0){
+                navString_input = "Waiting";
+                nav_obj.publishSpeedsAndState(nav_obj.Movement(Stop), navString_input);
+                event++;
+              }
+            }
+            else{
             nav_obj.Go_Forward(tofRight);
             nav_obj.slopeDetect(gravVector);
-            if(slopeCount == 3){
-              navString_input = "Waiting";
-              nav_obj.publishSpeedsAndState(nav_obj.Movement(Stop), navString_input);
-              event++;
+
             }
 
             break;
 
             //turn around for bridge drop
             case 7:
+            if(isDone == false){
             nav_obj.Turn_CCW(180);
-            event++;
+            }
+            else{
+              std::cout << "Turned 180 degrees" << std::endl;
+              navString_input = "Waiting";
+              nav_obj.publishSpeedsAndState(nav_obj.Movement(Stop), navString_input);
+              current_orientation = bearing;
+              desired_orientation = bearing;
+              center = tofRight;
+              isDone = false;
+              event++;
+            }
 
             break;
 
             //detect crater and drop bridge
             case 8:
             nav_obj.publishSpeedsAndState(nav_obj.Movement(Backwards), navString_input);
-            if(tofBack > bottom_sensor){
+            if(tofBack > 110){
               navString_input = "Crater";
               nav_obj.publishSpeedsAndState(nav_obj.Movement(Stop), navString_input);
               //drop bridge here
+              nav_obj.publishMiscAngles(3250);
               event++;
+              
+              timer.reset();
+              timer2.reset();
             }
 
 
@@ -490,21 +562,28 @@ int main(int argc, char **argv) {
             case 9:
             
             //after time elapsed tell bot to stop
-            if(timer2.elapsed() > 1.5){
+            //timer to allow bridge to drop
+            if(timer.elapsed() > 7.0){
+              
+              if(timer2.elapsed() > 11.0){
               navString_input = "Waiting";
               nav_obj.publishSpeedsAndState(nav_obj.Movement(Stop), navString_input);
               event++;
             } 
             //else keep going forward
             else{
-             nav_obj.publishSpeedsAndState(nav_obj.Movement(Go), navString_input);
+             nav_obj.publishSpeedsAndState(nav_obj.Movement(Go_Slow), navString_input);
+             std::cout << "Going slow" << std::endl;
             }
+            }
+      
             break;
 
 
             //Go backwards on the bridge
             case 10:
             nav_obj.publishSpeedsAndState(nav_obj.Movement(Backwards), navString_input);
+            timer3.reset();
             event++;
 
             break;
@@ -513,7 +592,7 @@ int main(int argc, char **argv) {
             //After a certain amount of time has passed, stop, turn around and go forward
             case 11:
             
-            if(timer3.elapsed() > 5.0){
+            if(timer3.elapsed() > 6.0){
               navString_input = "Waiting";
               nav_obj.publishSpeedsAndState(nav_obj.Movement(Stop), navString_input);
               event++;
@@ -525,7 +604,7 @@ int main(int argc, char **argv) {
 
             //turning around
             case 12:
-            nav_obj.Turn_CW(180);
+            nav_obj.Turn_CCW(180);
             nav_obj.Go_Forward(tofRight);
             event++;
             break;
