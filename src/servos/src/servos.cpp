@@ -99,7 +99,7 @@ public:
             packetHandler->write2ByteTxOnly(portHandler, ARM_SECONDARY_ID, POS_D_GAIN_ADDR, POS_D_GAIN);            // Sets posistion D gain
 
             // Publish 8 starting servo angles and speed to Arm_Angles
-            int Arm_Start_Angles[9] = { 2069, 2814, 2808, 1533, 2058, 884, 2134, 2050, 10 };
+            int Arm_Start_Angles[9] = { 2069, 2814, 2808, 1533, 2058, 884, 2134, 2050, 1 };
             for (int i = 0; i < 9; i++) {
                 Arm_Angles.data[i] = Arm_Start_Angles[i];
             }
