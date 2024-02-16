@@ -279,7 +279,7 @@ public:
 
         // Checks if current posistion and goal posistion are withen acceptable toleracne
         for (int i = 0; i < 8; i++){
-            if(abs(Arm_Angles.data[i] - groupBulkRead.getData((i + 1), 132, 4)) > 10){ // Used to use uint32_t pos[8]; for storing
+            if(abs(Arm_Angles.data[i] - groupBulkRead.getData((i + 1), 132, 4)) > 50){ // Used to use uint32_t pos[8]; for storing
                 arm_moving = 1;                 // Joint error is to large que up another check
                 Arm_Done.data = 0;              //  mark arm and not done moving
                 Arm_Done_pub.publish(Arm_Done); //  publish still moving result
