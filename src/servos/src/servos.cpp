@@ -30,8 +30,8 @@ using namespace dynamixel;
 
 // Defined values
 #define ARM_SECONDARY_ID  100   // Secondary ID for writing multiple servos at once
-#define MAX_VEL 100//100             // Max velocity of arm joints
-#define MAX_ACC 200//2               // Max acceleration of arm joints
+#define MAX_VEL 1000//100             // Max velocity of arm joints
+#define MAX_ACC 20//2               // Max acceleration of arm joints
 #define TORQUE_ENABLE 1         // Enable torque on servos
 #define CENTER_POSISTION  2048  // Center posistion for angle mode on servos
 #define POS_P_GAIN  640         // Angle mode P gain
