@@ -31,7 +31,7 @@ using namespace dynamixel;
 // Defined values
 #define ARM_SECONDARY_ID  100   // Secondary ID for writing multiple servos at once
 #define MAX_VEL 1000//100             // Max velocity of arm joints
-#define MAX_ACC 20//2               // Max acceleration of arm joints
+#define MAX_ACC 200//2               // Max acceleration of arm joints
 #define TORQUE_ENABLE 1         // Enable torque on servos
 #define CENTER_POSISTION  2048  // Center posistion for angle mode on servos
 #define POS_P_GAIN  640         // Angle mode P gain
@@ -63,7 +63,7 @@ public:
         nh = *nodehandle;        
 
         // Resize Publisher Arrays
-        Arm_Angles.data.resize(8);
+        Arm_Angles.data.resize(9);
         Feedback.data.resize(8);
 
         // Publishers
@@ -98,9 +98,9 @@ public:
             packetHandler->write2ByteTxOnly(portHandler, ARM_SECONDARY_ID, POS_I_GAIN_ADDR, POS_I_GAIN);            // Sets posistion I gain
             packetHandler->write2ByteTxOnly(portHandler, ARM_SECONDARY_ID, POS_D_GAIN_ADDR, POS_D_GAIN);            // Sets posistion D gain
 
-            // Publish 8 starting servo angles to Arm_Angles
-            int Arm_Start_Angles[8] = { 2069, 2814, 2808, 1533, 2058, 884, 2134, 2050 };
-            for (int i = 0; i < 8; i++) {
+            // Publish 8 starting servo angles and speed to Arm_Angles
+            int Arm_Start_Angles[9] = { 2069, 2814, 2808, 1533, 2058, 884, 2134, 2050, 10 };
+            for (int i = 0; i < 9; i++) {
                 Arm_Angles.data[i] = Arm_Start_Angles[i];
             }
             Arm_Angles_pub.publish(Arm_Angles);
@@ -108,7 +108,7 @@ public:
     }
 
 
-    // Takes global x, y, z, theta(wrist), phi(claw) and pubs servo values to Arm_Angles
+    // Takes global x, y, z, theta(wrist), phi(claw), and speed and pubs servo values to Arm_Angles
     void Task_SpaceCallback(const std_msgs::Float32MultiArray& Task_Space){
         // Declares variables and copies taskspace from topic
         float x, y, z, theta, phi;
@@ -123,7 +123,7 @@ public:
 
         // Creat arrays for calculations and predefined values
         float q[6] = { 0, 0, 0, 0, 0, 0 };                          // Major joint angles of robot
-        int Q[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };                      // Final joint angles for servos including duplicated j2 and claw
+        int Q[9] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };                      // Final joint angles for servos including duplicated j2 and claw
         float l[9] = { 32.5, 162, 24, 24, 148.5, 75.34, 17, 0, 0 }; // Predefined lengts of links for DH params
 
         // Reverse kinematics math
@@ -153,20 +153,24 @@ public:
         Q[5] = (int)(q[3] * 180 / M_PI * 11.3778 + 2048);
         Q[6] = (int)theta;
         Q[7] = (int)phi;
+        Q[8] = Task_Space.data[5];
 
         // Print final servo values to ros
         //ROS_INFO("%d, %d, %d, %d, %d, %d", (int)(q[0] * 180 / M_PI), (int)(q[1] * 180 / M_PI), (int)(q[2] * 180 / M_PI), (int)(q[3] * 180 / M_PI), (int)(q[4] * 180 / M_PI), (int)(q[5] * 180 / M_PI));
         
-        // Publish 8 servo angles to Arm_Angles
-        for (int i = 0; i < 8; i++){
+        // Publish 8 servo angles and speed to Arm_Angles
+        for (int i = 0; i < 9; i++){
             Arm_Angles.data[i] = Q[i];
         }
         Arm_Angles_pub.publish(Arm_Angles);
     }
 
 
-    // Takes 8 Arm_Angles and writes to servos ID 1-8
+    // Takes 8 Arm_Angles and speed and writes to servos ID 1-8
     void Arm_AnglesCallback(const std_msgs::Float32MultiArray& Arm_Angles){
+        // Write accel and speed for servos of arm
+        armSpeed(Arm_Angles.data[8]);
+
         // Clears bulk write stack
         groupBulkWrite.clearParam();
 
@@ -289,6 +293,28 @@ public:
         arm_moving = 0;                 // All joints in acceptable range so remove funtion for loop
         Arm_Done.data = 1;              //  mark arm as done moving
         Arm_Done_pub.publish(Arm_Done); //  publish done moving result
+    }
+
+
+    // Writes accels and velocity to the servos
+    void armSpeed(int speed){
+        // Clears bulk write stack
+        groupBulkWrite.clearParam();
+
+        // Scales speed of vel and acc
+        uint32_t max_acc = (unsigned_int)(MAX_ACC * 100 / speed);
+        uint32_t max_vel = (unsigned_int)(MAX_VEL * 100 / speed);
+
+        // Creates and assigns array with each byte of messages
+        uint8_t data_array_acc[4] = {DXL_LOBYTE(DXL_LOWORD(max_acc)), DXL_HIBYTE(DXL_LOWORD(max_acc)), DXL_LOBYTE(DXL_HIWORD(max_acc)), DXL_HIBYTE(DXL_HIWORD(max_acc))};
+        uint8_t data_array_vel[4] = {DXL_LOBYTE(DXL_LOWORD(max_vel)), DXL_HIBYTE(DXL_LOWORD(max_vel)), DXL_LOBYTE(DXL_HIWORD(max_vel)), DXL_HIBYTE(DXL_HIWORD(max_vel))};
+        
+        // Adds messages to stack to write
+        for (int i = 1; i < 9; i++){     // Do for all 8 servos
+            groupBulkWrite.addParam((i), MAX_ACC_ADDR, 4, data_array_acc);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
+            groupBulkWrite.addParam((i), MAX_VEL_ADDR, 4, data_array_vel);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
+        }
+        groupBulkWrite.txPacket();  // Write servos with prepared list all at once
     }
 
 
