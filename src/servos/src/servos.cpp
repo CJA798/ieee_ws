@@ -302,8 +302,8 @@ public:
         groupBulkWrite.clearParam();
 
         // Scales speed of vel and acc
-        uint32_t max_acc = (unsigned_int)(MAX_ACC * 100 / speed);
-        uint32_t max_vel = (unsigned_int)(MAX_VEL * 100 / speed);
+        uint32_t max_acc = (uint32_t)(MAX_ACC * 100 / speed);
+        uint32_t max_vel = (uint32_t)(MAX_VEL * 100 / speed);
 
         // Creates and assigns array with each byte of messages
         uint8_t data_array_acc[4] = {DXL_LOBYTE(DXL_LOWORD(max_acc)), DXL_HIBYTE(DXL_LOWORD(max_acc)), DXL_LOBYTE(DXL_HIWORD(max_acc)), DXL_HIBYTE(DXL_HIWORD(max_acc))};
