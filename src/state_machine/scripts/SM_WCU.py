@@ -4,24 +4,37 @@
 import rospy
 import smach
 import smach_ros
-import actionlib
+import crcmod
 import sys
 from std_msgs.msg import Int8, Int32, Bool, String, Float32MultiArray
 from image_utils.board_objects import BoardObjects
 from image_utils.poses import Poses
 from utils.states import *
 
-from vision_system.msg import GetCoordsAction, GetCoordsGoal, GetCoordsResult, GetCoordsFeedback
 
 # Global variables
 green_detected = False
 arm_done = False
 nav_state = None
 
+class Wait4Nav(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['succeeded','aborted'])
+
+    def execute(self, userdata):
+        global nav_state
+        #rospy.loginfo('Executing state Wait4Nav')
+        if nav_state == Nav2SMStates.DONE.value:
+            nav_state = Nav2SMStates.RESET.value
+            rospy.sleep(5)
+            return 'succeeded'
+        rospy.loginfo('nav_state: %s', nav_state)
+        return 'aborted'
+
 # Create publishers
 task_space_pub = rospy.Publisher('Task_Space', Float32MultiArray, queue_size=10)
 arm_angles_pub = rospy.Publisher('Arm_Angles', Float32MultiArray, queue_size=10)
-state_SM2Nav_pub = rospy.Publisher('State_SM2Nav', String, queue_size=10)
+state_SM2Nav_pub = rospy.Publisher('State_SM2Nav', Int8, queue_size=10)
 
 # Callback function to handle start green LED state updates
 def start_led_callback(data):
@@ -53,7 +66,7 @@ def state_nav2arm_cb(data):
 # Create subscribers
 start_led_state_sub = rospy.Subscriber("LED_State", Bool, callback=start_led_callback)
 arm_done_sub = rospy.Subscriber("Arm_Done", Int8, callback=state_arm2sm_cb)
-state_Nav2SM_sub = rospy.Subscriber("State_Nav2SM", String, callback=state_nav2arm_cb)
+state_Nav2SM_sub = rospy.Subscriber("State_Nav2SM", Int8, callback=state_nav2arm_cb)
 
 # Debug for navigation. This Enables/disables the package pickup states
 skip_pickup = True
@@ -106,25 +119,49 @@ def main():
                                 transitions={'packages_picked_up':'GO_TO_DROP_OFF_AREA',
                                             'aborted':'INITIALIZE'})
         
-        smach.StateMachine.add('GO_TO_DROP_OFF_AREA', GoToDropOffArea(state_SM2Nav_pub=state_SM2Nav_pub),
-                                transitions={'succeeded':'PACKAGE_DROP_OFF', 'aborted':'GO_TO_DROP_OFF_AREA'})
+        smach.StateMachine.add('GO_TO_DROP_OFF_AREA', GoTo(state_SM2Nav_pub=state_SM2Nav_pub, area=SM2NavStates.DROP_OFF_AREA.value),
+                                transitions={'succeeded':'DRIVING_TO_DROP_OFF_AREA', 'aborted':'GO_TO_DROP_OFF_AREA'})
         
+        smach.StateMachine.add('DRIVING_TO_DROP_OFF_AREA', Wait4Nav(),
+                                transitions={'succeeded':'PACKAGE_DROP_OFF', 'aborted':'DRIVING_TO_DROP_OFF_AREA'})
+
+
+        # Create the sub SMACH state machine
         package_drop_off_sm = smach.Concurrence(outcomes=['packages_dropped_off','aborted'],
                                     default_outcome='aborted',
                                     outcome_map={'packages_dropped_off':{
                                         'DROP_BIG_PACKAGES':'packages_dropped_off',
                                         'DROP_SMALL_PACKAGES':'packages_dropped_off'
                                     }})
-        
+
         with package_drop_off_sm:
             smach.Concurrence.add('DROP_BIG_PACKAGES', DropOffBigPackages())
             smach.Concurrence.add('DROP_SMALL_PACKAGES', DropOffSmallPackages())
 
         smach.StateMachine.add('PACKAGE_DROP_OFF', package_drop_off_sm,
-                                transitions={'packages_dropped_off':'WAIT_4_NAV', 'aborted':'PACKAGE_DROP_OFF'})
+                                transitions={'packages_dropped_off':'GO_TO_FUEL_TANK_AREA',
+                                            'aborted':'PACKAGE_DROP_OFF'})
+        
 
-        smach.StateMachine.add('WAIT_4_NAV', Wait4Nav(state_SM2Nav_pub=state_SM2Nav_pub),
-                                transitions={'succeeded':'END', 'aborted':'WAIT_4_NAV'})
+
+        smach.StateMachine.add('GO_TO_FUEL_TANK_AREA', GoTo(state_SM2Nav_pub=state_SM2Nav_pub, area=SM2NavStates.FUEL_TANK_AREA.value),
+                                transitions={'succeeded':'DRIVING_TO_FUEL_TANK_AREA', 'aborted':'GO_TO_FUEL_TANK_AREA'})
+        
+        smach.StateMachine.add('DRIVING_TO_FUEL_TANK_AREA', Wait4Nav(),
+                                transitions={'succeeded':'FUEL_TANKS_PICKUP', 'aborted':'DRIVING_TO_FUEL_TANK_AREA'})
+              
+
+        smach.StateMachine.add('FUEL_TANKS_PICKUP', PickUpFuelTanks(),
+                                transitions={'fuel_tanks_picked_up':'GO_TO_THRUSTER_AREA',
+                                             'fuel_tanks_not_picked_up':'FUEL_TANKS_PICKUP'})
+        
+        smach.StateMachine.add('GO_TO_THRUSTER_AREA', GoTo(state_SM2Nav_pub=state_SM2Nav_pub, area=SM2NavStates.THRUSTER_AREA.value),
+                                transitions={'succeeded':'DRIVING_TO_THRUSTER_AREA', 'aborted':'GO_TO_THRUSTER_AREA'})
+        
+        smach.StateMachine.add('DRIVING_TO_THRUSTER_AREA', Wait4Nav(),
+                                transitions={'succeeded':'END', 'aborted':'DRIVING_TO_THRUSTER_AREA'})
+
+        
     # Create and start the introspection server
     sis = smach_ros.IntrospectionServer('server_name', sm, '/START')
     sis.start()

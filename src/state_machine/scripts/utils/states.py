@@ -3,11 +3,25 @@
 import rospy
 import smach
 import smach_ros
+import crcmod
+from enum import Enum
 
 from std_msgs.msg import Int8, Int32, Bool, String, Float32MultiArray
 import actionlib
 
 from vision_system.msg import GetCoordsAction, GetCoordsGoal, GetCoordsResult, GetCoordsFeedback
+
+
+class SM2NavStates(Enum):
+    DROP_OFF_AREA = 0
+    FUEL_TANK_AREA = 1
+    THRUSTER_AREA = 2
+
+class Nav2SMStates(Enum):
+    RESET = 0
+    IN_PROGRESS = 0
+    DONE = 1
+
 
 # define state Initialize
 class Initialize(smach.State):
@@ -198,33 +212,35 @@ class PickUpBigPackages(smach.State):
         if True:
             return 'packages_picked_up'
         return 'packages_not_picked_up'
-    
-# define state GoToDropOffArea
-class GoToDropOffArea(smach.State):
-    def __init__(self, state_SM2Nav_pub):
-        smach.State.__init__(self, outcomes=['succeeded','aborted'])
-        self.state_SM2Nav_pub = state_SM2Nav_pub
+
+# define state PickUpFuelTanks
+class PickUpFuelTanks(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['fuel_tanks_picked_up','fuel_tanks_not_picked_up'])
 
     def execute(self, userdata):
-        state_SM2Nav = String()
-        state_SM2Nav.data = 'GoToDropOffArea'
+        rospy.loginfo('Executing state PickUpFuelTanks')
+        rospy.sleep(5)
+        if True:
+            return 'fuel_tanks_picked_up'
+        return 'fuel_tanks_not_picked_up'
+     
+# define state GoToDropOffArea
+class GoTo(smach.State):
+    def __init__(self, state_SM2Nav_pub, area):
+        smach.State.__init__(self, outcomes=['succeeded','aborted'])
+        self.state_SM2Nav_pub = state_SM2Nav_pub
+        self.area = area
+
+    def execute(self, userdata):
+        state_SM2Nav = Int8()
+        state_SM2Nav.data = self.area
+
+        rospy.sleep(7)
         self.state_SM2Nav_pub.publish(state_SM2Nav)
         rospy.loginfo('Executing state GoToDropOffArea')
         return 'succeeded'
         
-# define state DropOffSmallPackages
-class Wait4Nav(smach.State):
-    def __init__(self, state_SM2Nav_pub):
-        smach.State.__init__(self, outcomes=['succeeded','aborted'])
-        self.state_SM2Nav_pub = state_SM2Nav_pub
-
-    def execute(self, userdata):
-        # Publish 'Start' to Nav
-        state_SM2Nav = String()
-        state_SM2Nav.data = 'Start'
-        self.state_SM2Nav_pub.publish(state_SM2Nav)
-        rospy.loginfo('Executing state Wait4Nav')
-        return 'succeeded'
 
 
 # define state DropOffBigPackages

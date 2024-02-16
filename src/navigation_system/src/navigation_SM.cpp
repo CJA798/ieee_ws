@@ -1,13 +1,18 @@
 #include <string>
 #include <cstring>
 #include "ros/ros.h"
+#include "std_msgs/Int8.h"
 #include "std_msgs/Int16.h"
 //#include "std_msgs/Float64MultiArray.h"
 #include "std_msgs/Float32MultiArray.h"
 #include "std_msgs/String.h"
 
-#define WAITING_FOR_SM 99
+#include <boost/crc.hpp>
 
+#define WAITING_FOR_SM 99
+#define AT_DROP_OFF_AREA 1
+#define AT_FUEL_TANK_AREA 1
+#define RESET 99
 
 // global variables for wheel speed and robot state
 float wheelSpeedOne;
@@ -43,15 +48,15 @@ int desired_orientation = 0;
 int current_orientation = 0;
 
 // Initialize the event to wait until main SM is ready
-//int event = WAITING_FOR_SM; // event = 99
-int event = 0;
+int event = WAITING_FOR_SM; // event = 99
+//int event = 0;
 int onSlope = 0;
 int slopeCount = 0;
 int center = 0;
 bool isDone = false;
 std::string navString_input = "Waiting";
 
-std::string State_SM2Nav = "";
+int State_SM2Nav = WAITING_FOR_SM;
 
 class NavClass{
   public:
@@ -73,13 +78,17 @@ class NavClass{
     back_tof_sub = nh.subscribe("TOF_Back", 10, &NavClass::tofFourCallback, this);
     bearing_sub = nh.subscribe("IMU_Bearing", 10, &NavClass::imuBearCallback, this);
     grav_sub = nh.subscribe("IMU_Grav", 10, &NavClass::imuGravCallback, this);
-    State_SM2Nav_sub = nh.subscribe("State_SM2Nav", 1, &NavClass::State_SM2Nav_cb, this);
+    State_SM2Nav_sub = nh.subscribe("State_SM2Nav", 10, &NavClass::State_SM2Nav_cb, this);
 
     // create publisher objects
-    nav_state_pub = nh.advertise<std_msgs::String>("State_Nav2SM", 10);
+    nav_state_pub = nh.advertise<std_msgs::String>("nav_state_pub", 10);
     wheel_speed_pub = nh.advertise<std_msgs::Float32MultiArray>("Wheel_Speeds", 10);
     misc_angles_pub = nh.advertise<std_msgs::Float32MultiArray>("Misc_Angles", 10);
+    State_Nav2SM_pub = nh.advertise<std_msgs::Int8>("State_Nav2SM", 10);
 }
+
+ros::Publisher State_Nav2SM_pub;
+
 
 // create subscriber callbacks
 void tofOneCallback(const std_msgs::Int16::ConstPtr& msg){
@@ -108,8 +117,9 @@ void imuGravCallback(const std_msgs::Int16::ConstPtr& msg){
     gravVector = msg->data;
 }
 
-void State_SM2Nav_cb(const std_msgs::String::ConstPtr& msg){
-    State_SM2Nav = msg->data;
+void State_SM2Nav_cb(const std_msgs::Int8::ConstPtr& msg) {
+  State_SM2Nav = msg->data;
+
 }
 
 
@@ -382,6 +392,22 @@ int main(int argc, char **argv) {
     while (ros::ok()) {
         // update publishing objects and publish them
         switch(event){
+          case WAITING_FOR_SM:
+            if (State_SM2Nav == 0) {
+                event = 0;
+            }
+            else if (State_SM2Nav == 1)
+            {
+                event = 3;
+            }
+            else if (State_SM2Nav == 2)
+            {
+                event = 5;
+
+            }
+            
+            break;
+
           //Initial states for the bot
             case 0:
 
@@ -433,11 +459,20 @@ int main(int argc, char **argv) {
                   nav_obj.Turn_CCW(current_orientation - desired_orientation);
                 }
                 std::cout << "Reached small correction " << std::endl;
-                event++;
+
+                // Tell SM that we are ready to drop the blocks
+                // by publishing to State_Nav2SM
+                std_msgs::Int8 state;
+                state.data = AT_DROP_OFF_AREA;
+                nav_obj.State_Nav2SM_pub.publish(state);
+                State_SM2Nav = WAITING_FOR_SM;
+                event = WAITING_FOR_SM;
+                nav_obj.publishSpeedsAndState(nav_obj.Movement(Stop), navString_input);
+                
                 break;
              }
-             
-             event--;
+
+             else event--;
             
 
 
@@ -479,8 +514,14 @@ int main(int argc, char **argv) {
             if(tofFront < 220){ //check if its at the specific location for collection
               navString_input = "Collection";
               nav_obj.publishSpeedsAndState(nav_obj.Movement(Stop), navString_input);
-              event++;
 
+              // Tell SM that we are ready to drop the blocks
+              // by publishing to State_Nav2SM
+              std_msgs::Int8 state;
+              state.data = AT_FUEL_TANK_AREA;
+              nav_obj.State_Nav2SM_pub.publish(state);
+              State_SM2Nav = WAITING_FOR_SM;
+              event = WAITING_FOR_SM;
             }
 
             break;
@@ -623,15 +664,6 @@ int main(int argc, char **argv) {
               }
               
             }
-
-
-
-
-            case WAITING_FOR_SM:
-            if (State_SM2Nav == "Start") {
-                event = 0;
-            }
-            break;
 
             default:break;
         
