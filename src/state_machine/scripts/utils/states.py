@@ -41,46 +41,9 @@ class Initialize(smach.State):
         return 'aborted'
     
 
-# define state ReadingStartLED
-class ReadingStartLED(smach.State):
-    def __init__(self):
-        smach.State.__init__(self, outcomes=['green_led_detected','green_led_not_detected'])
-        rospy.loginfo('Executing state ReadingStartLED')
-
-    def execute(self, userdata):
-        global green_detected
-        #rospy.sleep(0.1)
-
-        #TODO
-        #if green_detected:
-        if True:
-            rospy.sleep(0.2)
-            return 'green_led_detected'
-        return 'green_led_not_detected'
 
 
-# define state SetPose
-class ScanPose(smach.State):
-    def __init__(self, arm_angles_pub):
-        smach.State.__init__(self, outcomes=['pose_reached','pose_not_reached'])
-        rospy.loginfo(f'Executing state ScanPose')
-        global arm_done
-        self.arm_angles_pub = arm_angles_pub
-        arm_done = False
 
-    def execute(self, userdata):
-        global arm_done
-        angles_ = Float32MultiArray()
-        
-        angles_.data = [2164.0, 1776.0, 1776.0, 2787.0, 2048.0, 556.0, 3147782.0, 1446.0]
-        self.arm_angles_pub.publish(angles_)
-        #rospy.sleep(5)
-
-        while not arm_done:
-            rospy.sleep(5)
-            arm_done = False
-            return 'pose_reached'
-        return 'pose_not_reached'
     
 # define state GetCoords
 class GetCoords(smach.State):
@@ -127,65 +90,6 @@ class GetCoords(smach.State):
         return 'coords_not_received'
     
 
-# define state VerifyPose
-class VerifyPose(smach.State):
-    def __init__(self, task_space_pub):
-        smach.State.__init__(self, outcomes=['pose_reached','pose_not_reached'],
-                             input_keys=['coordinates'])
-        rospy.loginfo(f'Executing state VerifyPose')
-        rospy.loginfo(f'Executing state VerifyPose')
-
-        global arm_done
-        arm_done = False
-        self.task_space_pub = task_space_pub
-
-    def execute(self, userdata):
-        global arm_done
-        # store the coordinates list: CoordinatesList -> coordinates[coordinates]
-        coordinates = userdata.coordinates.coordinates
-        rospy.loginfo(f'Coordinates: {coordinates}')
-        # Go to first coordinate
-        task_space = Float32MultiArray()
-        target = coordinates[0]
-        task_space.data = [target.x, target.y, target.z, 2048, 1700]
-        self.task_space_pub.publish(task_space)
-        # wait 5 seconds and go to next state
-        rospy.sleep(3)
-
-        #while not arm_done:
-        #    rospy.sleep(10)
-        #    arm_done = False
-        #    return 'pose_reached'
-        return 'pose_reached'
-    
-# define state PickUp
-class PickUp(smach.State):
-    def __init__(self, task_space_pub):
-        smach.State.__init__(self, outcomes=['packages_picked_up','packages_not_picked_up'],
-                             input_keys=['coordinates'],)
-        global arm_done
-        arm_done = False
-        self.task_space_pub = task_space_pub
-
-    def execute(self, userdata):
-        global arm_done
-        # store the coordinates list: CoordinatesList -> coordinates[coordinates]
-        coordinates = userdata.coordinates.coordinates
-        rospy.loginfo(f'Coordinates: {coordinates}')
-        # Go to first coordinate
-        task_space = Float32MultiArray()
-        target = coordinates[0]
-        task_space.data = [target.x, target.y, target.z, 2048, 2100]
-        self.task_space_pub.publish(task_space)
-        # wait 5 seconds and go to next state
-        rospy.sleep(2)
-
-        #while not arm_done:
-        #    rospy.sleep(10)
-        #    arm_done = False
-        #    return 'pose_reached'
-        return 'packages_picked_up'
-
 # define state Store
 class Store(smach.State):
     def __init__(self, task_space_pub):
@@ -224,6 +128,7 @@ class PickUpFuelTanks(smach.State):
         if True:
             return 'fuel_tanks_picked_up'
         return 'fuel_tanks_not_picked_up'
+    
      
 # define state GoToDropOffArea
 class GoTo(smach.State):
@@ -236,7 +141,7 @@ class GoTo(smach.State):
         state_SM2Nav = Int8()
         state_SM2Nav.data = self.area
 
-        rospy.sleep(7)
+        rospy.sleep(0.2)
         self.state_SM2Nav_pub.publish(state_SM2Nav)
         rospy.loginfo('Executing state GoToDropOffArea')
         return 'succeeded'

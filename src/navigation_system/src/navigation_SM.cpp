@@ -305,17 +305,17 @@ void Turn_CW(int degrees){  //put in the angle you would like the bot to end up 
   }
 }
 
-void Go_Forward(int sensor) {  //go forward specified distance from wall
-  if (center - 20 < tofRight < center + 20) {                     //if robot with chosen wall range then go forward
+void Go_Forward(int sensor, int offset = 20) {  //go forward specified distance from wall
+  if (center - offset < tofRight < center + offset) {                     //if robot with chosen wall range then go forward
     navString_input = "Going Forward";
     publishSpeedsAndState(Movement(Go), navString_input);
   }
 
-  if (center +20  < tofRight) {        //if robot is too far away from wall move closer
+  if (center + offset  < tofRight) {        //if robot is too far away from wall move closer
     navString_input = "Moving Right";
     publishSpeedsAndState(Movement(Go_Right), navString_input);  //This variable may be too quick, watch it.
   }
-  if (center -20 > tofRight) {  //if robot is too close to wall move away
+  if (center - offset > tofRight) {  //if robot is too close to wall move away
     navString_input = "Moving Left";
     publishSpeedsAndState(Movement(Go_Left), navString_input);
   }
@@ -510,8 +510,8 @@ int main(int argc, char **argv) {
             std::cout << "isDone is :" << isDone << std::endl;
             std::cout << "Go green" << std::endl;
             
-            nav_obj.Go_Forward(tofRight);
-            if(tofFront < 220){ //check if its at the specific location for collection
+            nav_obj.Go_Forward(tofRight, 40);
+            if(tofFront < 280){ //check if its at the specific location for collection
               navString_input = "Collection";
               nav_obj.publishSpeedsAndState(nav_obj.Movement(Stop), navString_input);
 
