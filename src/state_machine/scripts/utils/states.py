@@ -33,61 +33,12 @@ class Initialize(smach.State):
         rospy.loginfo('Executing state Initialize')
         # Run initialization logic
         self.bot_initialized = True
-        rospy.sleep(0.2)
+        rospy.sleep(5)
 
         if self.bot_initialized:
             return 'succeeded'
         
         return 'aborted'
-    
-
-
-
-
-    
-# define state GetCoords
-class GetCoords(smach.State):
-    def __init__(self, object_type, pose):
-        smach.State.__init__(self, outcomes=['coords_received','coords_not_received'],
-                             output_keys=['coordinates'])
-        self.object_type = object_type
-        self.pose = pose
-        #TODO for some reason, removing this sleep brings back the fucking
-        # raise ValueError(f"Object type {object_type} not recognized.")
-        # ValueError: Object type SMALL_PACKAGE not recognized.
-
-        #rospy.sleep(5)
-
-    def feedback_callback(self, feedback):
-        rospy.loginfo(f'Current Coordinates List: {feedback.current_coordinates}')
-
-    def execute(self, userdata):
-        rospy.loginfo('Executing state GetCoords(small_packages, scan)')
-        
-        client = actionlib.SimpleActionClient('get_coords', GetCoordsAction)
-        client.wait_for_server()
-
-        goal = GetCoordsGoal()
-        goal.timeout.data = 5.0
-        goal.expected_pairs.data = 3
-        goal.object_type.data = self.object_type
-        goal.arm_pose.data = self.pose
-
-        client.send_goal(goal, feedback_cb=self.feedback_callback)
-
-        client.wait_for_result()
-        result = client.get_result()
-        #rospy.loginfo(f'Final Elapsed Time: {result.elapsed_time}')
-        #print(result)
-        rospy.loginfo(f'Final Coordinates List: {result.coordinates}    |    Total time: {result.elapsed_time.data}')
-
-        if result.coordinates:
-            userdata.coordinates = result.coordinates
-
-        if True:
-            #rospy.sleep(5)
-            return 'coords_received'
-        return 'coords_not_received'
     
 
 # define state Store
@@ -98,10 +49,11 @@ class Store(smach.State):
 
     def execute(self, userdata):
         task_space = Float32MultiArray()
-        task_space.data = [100, 100, 0, 2048, 2100]
+        task_space.data = [100, 100, 0, 2048, 2200, 10]
         self.task_space_pub.publish(task_space)
 
         if True:
+            rospy.sleep(5)
             return 'packages_stored'
         return 'packages_not_stored'
     

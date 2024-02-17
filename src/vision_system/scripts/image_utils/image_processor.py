@@ -85,8 +85,8 @@ class ImageProcessor():
                 # Convert to grayscale
                 gray = cv2.cvtColor(color_mask, cv2.COLOR_BGR2GRAY)
                 # Apply morphological operations to remove noise
-                opening = cv2.morphologyEx(gray, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
-                closing = cv2.morphologyEx(opening, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
+                #opening = cv2.morphologyEx(gray, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
+                closing = cv2.morphologyEx(gray, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
                 # Find the contours in the image
                 coordinates, coords_image = self.find_contours(closing, pose, area_range_factor=(0.1, 0.4))
                 output_img = np.hstack([median, color_mask, cv2.cvtColor(closing, cv2.COLOR_GRAY2BGR), coords_image])
@@ -238,13 +238,13 @@ class ImageProcessor():
 
                 cv2.drawContours(self.image, [cv2.convexHull(contour)], -1, (0, 255, 0), 2)
                 cv2.circle(self.image, (cX, cY), 2, (0, 255, 0), -1)
-                x_coord, z_coord, _ = self.coordinate_frame_conversion(cX, self.image_height - cY, 0, pose)
+                x_img, y_img, z_img = self.coordinate_frame_conversion(cX, self.image_height - cY, 0, pose)
                 coords = Point()
-                coords.x = x_coord
-                coords.z = z_coord
-                coords.y = -35.0
+                coords.x = z_img    # Z-img = X-arm
+                coords.z = x_img    # X-img = Z-arm
+                coords.y = y_img
                 coords_list.append(coords)
-                coords_text = "(%.1f, %.1f)"  % (x_coord, z_coord) 
+                coords_text = "(%.1f, %.1f)"  % (x_img, y_img) 
                 cv2.putText(self.image, coords_text, (cX - 15, cY - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)    
                 output_img = np.hstack([self.image, cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)])
         return (coords_list, output_img)
@@ -266,10 +266,10 @@ class ImageProcessor():
             # TODO: find and add the conversion factor for the verify pose
             return x*self.PX2MMX, y*self.PX2MMZ, z
         elif pose == Poses.FRONT.value:
-            #x = 55 * x*
-            #y = 0
-            #z = 0
-            return x, y, z
+            x_img = x*70/160
+            y_img = -35
+            z_img = 260 #TODO: make this variable depend on the TOF_Front reading
+            return x_img, y_img, z_img
         else:
             raise ValueError(f"Arm pose {pose} not recognized.")
         

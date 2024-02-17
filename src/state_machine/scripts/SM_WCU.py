@@ -72,7 +72,7 @@ class ScanPose(smach.State):
 
 # define state VerifyPose
 class VerifyPose(smach.State):
-    def __init__(self, task_space_pub):
+    def __init__(self, task_space_pub, offset=0.0):
         smach.State.__init__(self, outcomes=['pose_reached','pose_not_reached'],
                              input_keys=['coordinates'])
         rospy.loginfo(f'Executing state VerifyPose')
@@ -81,6 +81,7 @@ class VerifyPose(smach.State):
         global arm_done
         arm_done = False
         self.task_space_pub = task_space_pub
+        self.x_offset = offset
 
     def execute(self, userdata):
         global arm_done
@@ -90,10 +91,11 @@ class VerifyPose(smach.State):
         # Go to first coordinate
         task_space = Float32MultiArray()
         target = coordinates[0]
-        task_space.data = [target.x, target.y, target.z, 2048, 1700]
+        quickness = 10
+        task_space.data = [target.x + self.x_offset, target.y, target.z, 2048, 1700, quickness]
         self.task_space_pub.publish(task_space)
         # wait 5 seconds and go to next state
-        rospy.sleep(3)
+        rospy.sleep(2)
 
         #while not arm_done:
         #    rospy.sleep(10)
@@ -104,12 +106,13 @@ class VerifyPose(smach.State):
 
 # define state PickUp
 class PickUp(smach.State):
-    def __init__(self, task_space_pub):
+    def __init__(self, task_space_pub, offset=0.0):
         smach.State.__init__(self, outcomes=['packages_picked_up','packages_not_picked_up'],
                              input_keys=['coordinates'],)
         global arm_done
         arm_done = False
         self.task_space_pub = task_space_pub
+        self.x_offset = offset
 
     def execute(self, userdata):
         global arm_done
@@ -119,7 +122,7 @@ class PickUp(smach.State):
         # Go to first coordinate
         task_space = Float32MultiArray()
         target = coordinates[0]
-        task_space.data = [target.x, target.y, target.z, 2048, 2100]
+        task_space.data = [target.x + self.x_offset, target.y, target.z, 2048, 2200, 10]
         self.task_space_pub.publish(task_space)
         # wait 5 seconds and go to next state
         rospy.sleep(2)
@@ -130,6 +133,53 @@ class PickUp(smach.State):
         #    return 'pose_reached'
         return 'packages_picked_up'
 
+# define state GetCoords
+class GetCoords(smach.State):
+    def __init__(self, object_type, pose):
+        smach.State.__init__(self, outcomes=['coords_received','coords_not_received'],
+                             output_keys=['coordinates'])
+        self.object_type = object_type
+        self.pose = pose
+        #TODO for some reason, removing this sleep brings back the fucking
+        # raise ValueError(f"Object type {object_type} not recognized.")
+        # ValueError: Object type SMALL_PACKAGE not recognized.
+
+        #rospy.sleep(5)
+
+    def feedback_callback(self, feedback):
+        rospy.loginfo(f'Current Coordinates List: {feedback.current_coordinates}')
+
+    def execute(self, userdata):
+        rospy.loginfo('Executing state GetCoords(small_packages, scan)')
+        
+        client = actionlib.SimpleActionClient('get_coords', GetCoordsAction)
+        client.wait_for_server()
+
+        goal = GetCoordsGoal()
+        goal.timeout.data = 5.0
+        if self.pose == Poses.FRONT.value and self.object_type == BoardObjects.FUEL_TANK.value:
+            goal.expected_pairs.data = 1
+        else:
+            goal.expected_pairs.data = 3
+        goal.object_type.data = self.object_type
+        goal.arm_pose.data = self.pose
+
+        client.send_goal(goal, feedback_cb=self.feedback_callback)
+
+        client.wait_for_result()
+        result = client.get_result()
+        #rospy.loginfo(f'Final Elapsed Time: {result.elapsed_time}')
+        #print(result)
+        rospy.loginfo(f'Final Coordinates List: {result.coordinates}    |    Total time: {result.elapsed_time.data}')
+
+        if result.coordinates:
+            userdata.coordinates = result.coordinates
+
+        if True:
+            #rospy.sleep(5)
+            return 'coords_received'
+        return 'coords_not_received'
+    
 
 # Create publishers
 task_space_pub = rospy.Publisher('Task_Space', Float32MultiArray, queue_size=10)
@@ -170,7 +220,7 @@ state_Nav2SM_sub = rospy.Subscriber("State_Nav2SM", Int8, callback=state_nav2arm
 
 # Debug for navigation. This Enables/disables the package pickup states
 skip_pickup = True
-test_cv = True
+test_cv = False
 
 def main():
     rospy.init_node('STATE_MACHINE')
@@ -254,19 +304,41 @@ def main():
 
         fuel_tank_pickup_sm = smach.StateMachine(outcomes=['packages_picked_up','packages_not_picked_up'])
         with fuel_tank_pickup_sm:
-            smach.StateMachine.add('GET_FT_COORDS', GetCoords(object_type=BoardObjects.FUEL_TANK.value, pose=Poses.FRONT.value),
-                                transitions={'coords_received':'VERIFY_POSE', 'coords_not_received':'GET_FT_COORDS'})
-            smach.StateMachine.add('VERIFY_POSE', VerifyPose(task_space_pub=task_space_pub),
-                                transitions={'pose_reached':'FUEL_TANK_PICKUP', 'pose_not_reached':'VERIFY_POSE'})
-            smach.StateMachine.add('PICK_UP', PickUp(task_space_pub=task_space_pub),
-                                transitions={'packages_picked_up':'STORE',
-                                             'packages_not_picked_up':'PICK_UP'})
-            smach.StateMachine.add('STORE', Store(task_space_pub=task_space_pub),
+            smach.StateMachine.add('GET_FT_COORDS1', GetCoords(object_type=BoardObjects.FUEL_TANK.value, pose=Poses.FRONT.value),
+                                transitions={'coords_received':'VERIFY_POSE1', 'coords_not_received':'GET_FT_COORDS1'})
+            smach.StateMachine.add('VERIFY_POSE1', VerifyPose(task_space_pub=task_space_pub),
+                                transitions={'pose_reached':'PICK_UP1', 'pose_not_reached':'VERIFY_POSE1'})
+            smach.StateMachine.add('PICK_UP1', PickUp(task_space_pub=task_space_pub),
+                                transitions={'packages_picked_up':'STORE1',
+                                             'packages_not_picked_up':'PICK_UP1'})
+            smach.StateMachine.add('STORE1', Store(task_space_pub=task_space_pub),
+                                        transitions={'packages_stored':'GET_FT_COORDS2',
+                                             'packages_not_stored':'STORE1'})
+            
+            smach.StateMachine.add('GET_FT_COORDS2', GetCoords(object_type=BoardObjects.FUEL_TANK.value, pose=Poses.FRONT.value),
+                                transitions={'coords_received':'VERIFY_POSE2', 'coords_not_received':'GET_FT_COORDS2'})
+            smach.StateMachine.add('VERIFY_POSE2', VerifyPose(task_space_pub=task_space_pub, offset = -25.4*1.5),
+                                transitions={'pose_reached':'PICK_UP2', 'pose_not_reached':'VERIFY_POSE2'})
+            smach.StateMachine.add('PICK_UP2', PickUp(task_space_pub=task_space_pub, offset = -25.4*1.5),
+                                transitions={'packages_picked_up':'STORE2',
+                                             'packages_not_picked_up':'PICK_UP2'})
+            smach.StateMachine.add('STORE2', Store(task_space_pub=task_space_pub),
+                                        transitions={'packages_stored':'GET_FT_COORDS3',
+                                             'packages_not_stored':'STORE2'})
+            
+            smach.StateMachine.add('GET_FT_COORDS3', GetCoords(object_type=BoardObjects.FUEL_TANK.value, pose=Poses.FRONT.value),
+                                transitions={'coords_received':'VERIFY_POSE3', 'coords_not_received':'GET_FT_COORDS3'})
+            smach.StateMachine.add('VERIFY_POSE3', VerifyPose(task_space_pub=task_space_pub, offset = -25.4*2.75),
+                                transitions={'pose_reached':'PICK_UP3', 'pose_not_reached':'VERIFY_POSE3'})
+            smach.StateMachine.add('PICK_UP3', PickUp(task_space_pub=task_space_pub, offset = -25.4*2.75),
+                                transitions={'packages_picked_up':'STORE3',
+                                             'packages_not_picked_up':'PICK_UP3'})
+            smach.StateMachine.add('STORE3', Store(task_space_pub=task_space_pub),
                                         transitions={'packages_stored':'packages_picked_up',
-                                             'packages_not_stored':'packages_not_picked_up'})
+                                             'packages_not_stored':'STORE3'})
             
         smach.StateMachine.add('FUEL_TANK_PICKUP', fuel_tank_pickup_sm,
-                                transitions={'packages_picked_up':'GO_TO_THRUSTER_AREA',
+                                transitions={'packages_picked_up':'END' if test_cv else 'GO_TO_THRUSTER_AREA',
                                              'packages_not_picked_up':'FUEL_TANK_PICKUP'})
         
         smach.StateMachine.add('GO_TO_THRUSTER_AREA', GoTo(state_SM2Nav_pub=state_SM2Nav_pub, area=SM2NavStates.THRUSTER_AREA.value),
