@@ -29,7 +29,9 @@ int gravVector;
 
 //variables for the movement arrays
 double Stop[] = {0, 0, 0};
-double Go[] = {0, 250, 0};
+
+//double Go[] = {0, 250, 0}; //right now this value isnt used as I am testing the heading functions
+
 double Backwards[] = {0, -200, 0};
 double TurnCW[] = {0, 0, 1};
 double TurnCCW[] = {0, 0, -1};
@@ -72,7 +74,7 @@ class NavClass{
 
 
         // create subscriber objects
-    front_tof_sub = nh.subscribe("TOF_Front", 10, &NavClass::tofOneCallback, this);
+    front_tof_sub = nh.subscribe("TOF_Front", 1, &NavClass::tofOneCallback, this);
     left_tof_sub = nh.subscribe("TOF_Left", 10, &NavClass::tofTwoCallback, this);
     right_tof_sub = nh.subscribe("TOF_Right", 10, &NavClass::tofThreeCallback, this);
     back_tof_sub = nh.subscribe("TOF_Back", 10, &NavClass::tofFourCallback, this);
@@ -305,7 +307,9 @@ void Turn_CW(int degrees){  //put in the angle you would like the bot to end up 
   }
 }
 
-void Go_Forward(int sensor, int offset = 20) {  //go forward specified distance from wall
+void Go_Forward(int sensor, int offset = 40) {  //go forward specified distance from wall
+  double HeadTheta = Heading(desired_orientation);
+  double Go[] = {0, 250, HeadTheta};//change 2nd value to 10 when debugging PID so it is easy to see whats happening
   if (center - offset < tofRight < center + offset) {                     //if robot with chosen wall range then go forward
     navString_input = "Going Forward";
     publishSpeedsAndState(Movement(Go), navString_input);
@@ -321,7 +325,27 @@ void Go_Forward(int sensor, int offset = 20) {  //go forward specified distance 
   }
 }
 
+double Heading(int desired_orientation) {
+  double Omega = 0;
+  double Kp_z = .1;
+  double Ki_z = 0;
+  double Kd_z = 0;
+  double error_z_prev = 0; //This may fill it with garbage, we will see
+  double errorIntegral_z = 0;
+  double error_z = desired_orientation - bearing;
 
+  if(error_z > 180){
+    error_z = error_z - 360;
+  }
+  if(error_z < -180){
+    error_z = error_z + 360;
+  }
+  errorIntegral_z = errorIntegral_z + error_z;
+  Omega = Kp_z * error_z + Ki_z * errorIntegral_z + (Kd_z * (error_z - error_z_prev));
+  error_z_prev = error_z;
+
+  return Omega;
+}
 
 
 
@@ -447,7 +471,7 @@ int main(int argc, char **argv) {
             case 2:
             nav_obj.slopeDetect(gravVector);
 
-            
+            std::cout << "Slope count: " << slopeCount << std::endl;
              if ((slopeCount == 2) && (tofFront < 240)) {
               navString_input = "Waiting";
                 nav_obj.publishSpeedsAndState(nav_obj.Movement(Stop), navString_input);
@@ -511,7 +535,7 @@ int main(int argc, char **argv) {
             std::cout << "Go green" << std::endl;
             
             nav_obj.Go_Forward(tofRight, 40);
-            if(tofFront < 280){ //check if its at the specific location for collection
+            if(tofFront < 180){ //check if its at the specific location for collection
               navString_input = "Collection";
               nav_obj.publishSpeedsAndState(nav_obj.Movement(Stop), navString_input);
 

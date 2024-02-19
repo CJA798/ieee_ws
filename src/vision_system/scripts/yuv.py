@@ -44,12 +44,14 @@ dilation_kernel_size = 15
 
 while True:
     ret, frame = cap.read()
+    half = cv2.resize(frame, (0, 0), fx = 0.2, fy = 0.2)
 
-    blur = cv2.GaussianBlur(frame, (7, 7), 0)
+    blur = cv2.GaussianBlur(half, (7, 7), 0)
     blur = cv2.medianBlur(blur, 15)
     yuvImage = cv2.cvtColor(blur, cv2.COLOR_BGR2YUV)
     
-    cv2.imshow("YUV", yuvImage)
+    cv2.imshow("Original", half)
+    #cv2.imshow("YUV", yuvImage)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break

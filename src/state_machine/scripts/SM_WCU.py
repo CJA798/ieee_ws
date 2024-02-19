@@ -299,7 +299,7 @@ def main():
                                 transitions={'succeeded':'DRIVING_TO_FUEL_TANK_AREA', 'aborted':'GO_TO_FUEL_TANK_AREA'})
         
         smach.StateMachine.add('DRIVING_TO_FUEL_TANK_AREA', Wait4Nav(),
-                                transitions={'succeeded':'FUEL_TANK_PICKUP', 'aborted':'DRIVING_TO_FUEL_TANK_AREA'})
+                                transitions={'succeeded':'FUEL_TANK_PICKUP' if test_cv else 'GO_TO_THRUSTER_AREA', 'aborted':'DRIVING_TO_FUEL_TANK_AREA'})
               
 
         fuel_tank_pickup_sm = smach.StateMachine(outcomes=['packages_picked_up','packages_not_picked_up'])

@@ -46,7 +46,15 @@ def update_erosion_kernel_size(value):
     erosion_kernel_size = value
 
 yellow = [0, 255, 255]  # yellow in BGR colorspace
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
+
+
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+
+print('WIDTH: %d HEIGHT: %d',cap.get(cv2.CAP_PROP_FRAME_WIDTH), cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+
 
 frame_width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
 frame_height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
@@ -76,6 +84,8 @@ cv2.createTrackbar('Erosion Kernel Size', 'Trackbars', erosion_kernel_size, 20, 
 
 while True:
     ret, frame = cap.read()
+    frame = cv2.resize(frame, (0, 0), fx = 0.2, fy = 0.2)
+
 
     blur = cv2.GaussianBlur(frame, (7, 7), 0)
     blur = cv2.medianBlur(blur, 15)
