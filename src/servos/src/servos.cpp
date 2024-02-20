@@ -41,20 +41,20 @@ using namespace dynamixel;
 #define STOP  0                 // Velocity mode stop
 
 // PID's
-#define KP_X    5.0
-#define KI_X    0.0
-#define KD_X    0.0
+#define KP_X    4.0
+#define KI_X    0.01
+#define KD_X    0.5
 
-#define KP_Y    5.0
-#define KI_Y    0.0
-#define KD_Y    0.0
+#define KP_Y    4.0
+#define KI_Y    0.01
+#define KD_Y    0.5
 
-#define KP_Z    10.0
-#define KI_Z    0.0
-#define KD_Z    0.0
+#define KP_Z    6.0
+#define KI_Z    0.01
+#define KD_Z    0.3
 
 #define TS      10
-#define MAX_SPEED   25.5
+#define MAX_SPEED   5
 
 // Default dynamixel setting
 #define BAUDRATE              57600           // Default Baudrate of DYNAMIXEL X series
@@ -411,7 +411,10 @@ public:
 
     // 
     void IMU_BearingCallback(const std_msgs::Int16& IMU_Bearing){
-        double error_z = desired_z - IMU_Bearing.data;
+        if(bearing_offset == -1)
+            bearing_offset = IMU_Bearing.data;
+        
+        double error_z = desired_z - (IMU_Bearing.data - bearing_offset);
 
         if(error_z > 180)
             error_z -= 360;
@@ -457,12 +460,16 @@ public:
         Wheel_Speeds.data[1] = speed * cos(theta + (2.0 / 3.0 * 3.1415)) + linear_z;
         Wheel_Speeds.data[2] = speed * cos(theta - (2.0 / 3.0 * 3.1415)) + linear_z;
         
-        for(int i = 0; i < 3; i++){
-            if(Wheel_Speeds.data[i] > 255)
-                Wheel_Speeds.data[i] = 255;
-            else if(Wheel_Speeds.data[i] < -255)
-                Wheel_Speeds.data[i] = -255;
-        }
+        double max = abs(Wheel_Speeds.data[0]);
+        if(abs(Wheel_Speeds.data[1]) > max)
+            max = abs(Wheel_Speeds.data[1]); 
+        if(abs(Wheel_Speeds.data[2]) > max) 
+            max = abs(Wheel_Speeds.data[2]); 
+        if(max > 255){
+            Wheel_Speeds.data[0] = Wheel_Speeds.data[0] / max * 255;
+            Wheel_Speeds.data[1] = Wheel_Speeds.data[1] / max * 255;
+            Wheel_Speeds.data[2] = Wheel_Speeds.data[2] / max * 255;
+        };
 
         Wheel_Speeds_pub.publish(Wheel_Speeds); 
     }
@@ -494,14 +501,15 @@ private:
     // Publisher variable declarations
     std_msgs::Float32MultiArray Feedback;
     std_msgs::Float32MultiArray Arm_Angles;
+    
     std_msgs::Float32MultiArray Wheel_Speeds;
     std_msgs::Int8 Arm_Done;
 
     // Variables for functions
-    double  desired_x = 0, error_x_prev = 0, error_x_cumulative = 0, linear_x = 0, 
-            desired_y = 0, error_y_prev = 0, error_y_cumulative = 0, linear_y = 0, 
-            desired_z = 0, error_z_prev = 0, error_z_cumulative = 0, linear_z = 0,
-            max_speed = 0;
+    double  desired_x = 0, error_x_prev = 0, error_x_cumulative = 0, linear_x = 0, arrived_x = 0,
+            desired_y = 0, error_y_prev = 0, error_y_cumulative = 0, linear_y = 0, arrived_y = 0,
+            desired_z = 0, error_z_prev = 0, error_z_cumulative = 0, linear_z = 0, arrived_y = 0,
+            max_speed = 0, bearing_offset = -1;
 };
 
 

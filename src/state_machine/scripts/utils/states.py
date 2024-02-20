@@ -135,7 +135,7 @@ class GoTo_(smach.State):
 
         # Publish the move command to go forward with an x offset of 40
         message = Float32MultiArray()
-        message.data = [40, 0, 0, 100]
+        message.data = [200, 0, 0, 100]
         self.move_pub.publish(message)
 
         rate = rospy.Rate(10)  # Adjust the rate as needed
@@ -149,7 +149,7 @@ class GoTo_(smach.State):
             rate.sleep()
 
         # Publish the move command to go forward with an x-offset and a y-offset
-        message.data = [40, 40, 0, 100]
+        message.data = [200, 200, 0, 100]
         self.move_pub.publish(message)
 
     def GoToFuelTankArea(self):
