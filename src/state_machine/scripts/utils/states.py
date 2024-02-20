@@ -42,20 +42,32 @@ class Initialize(smach.State):
         return 'aborted'
 
 class ReadingStartLED(smach.State):
+    '''State to read the start green LED status'''
     def __init__(self):
         smach.State.__init__(self, outcomes=['green_led_detected','green_led_not_detected'])
         rospy.loginfo('Executing state ReadingStartLED')
-        rospy.sleep(0.2)
 
     def execute(self, userdata):
-        rate = rospy.Rate(10)  # 10 Hz
-        while not globals['green_detected'] and not rospy.is_shutdown():
-            rate.sleep()
-
-        #while not globals['green_detected']:
-         #   continue
-        return 'green_led_detected'
+        '''Execute the state logic to read the start green LED status
         
+        Args:
+            userdata: The data passed to the state (Not used)
+        
+        Returns:
+            str: The outcome of the state ('green_led_detected' or 'green_led_not_detected')
+                
+        Raises:
+            Exception: Any exception that occurs during the state execution'''
+        
+        rate = rospy.Rate(20)  # 10 Hz
+        try:
+            while not globals['green_detected'] and not rospy.is_shutdown():
+                rate.sleep()
+            return 'green_led_detected'
+        
+        except Exception as e:
+            rospy.logerr("Error in ReadingStartLED: {}".format(e))
+            return 'green_led_not_detected'
         
         #if globals['green_detected']:
         #    rospy.sleep(0.2)
