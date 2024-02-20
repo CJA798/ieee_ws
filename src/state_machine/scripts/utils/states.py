@@ -3,7 +3,6 @@
 import rospy
 import smach
 import smach_ros
-import crcmod
 from enum import Enum
 
 from std_msgs.msg import Int8, Int32, Bool, String, Float32MultiArray
@@ -11,6 +10,8 @@ import actionlib
 
 from vision_system.msg import GetCoordsAction, GetCoordsGoal, GetCoordsResult, GetCoordsFeedback
 
+from utils.areas import Areas
+from utils.globals import gravity_vector
 
 class SM2NavStates(Enum):
     DROP_OFF_AREA = 0
@@ -97,8 +98,67 @@ class GoTo(smach.State):
         self.state_SM2Nav_pub.publish(state_SM2Nav)
         rospy.loginfo('Executing state GoToDropOffArea')
         return 'succeeded'
-        
 
+
+class GoTo_(smach.State):
+    # Dictionary mapping Areas enum values to method names
+    AREA_METHODS = {
+        Areas.DROP_OFF: "GoToDropOffArea",
+        Areas.FUEL_TANK: "GoToFuelTankArea",
+        Areas.THRUSTER: "GoToThrusterArea"
+    }
+
+    def __init__(self, area, move_publisher):
+        # Initialize the state with outcomes 'arrived' and 'not_arrived'
+        smach.State.__init__(self, outcomes=['arrived', 'not_arrived'])
+        self.area = area
+        self.move_pub = move_publisher
+
+    def execute(self, userdata):
+        # Check if the area is valid and has a corresponding action
+        if self.area in self.AREA_METHODS:
+            # Get the action name corresponding to the area
+            method_name = self.AREA_METHODS[self.area]
+            # Log the execution of the state
+            rospy.loginfo(f"Executing state {method_name}")
+            # Call the corresponding method dynamically using getattr
+            getattr(self, method_name)()
+            
+            return 'arrived'
+        else:
+            # Log that the area is invalid
+            rospy.loginfo('Invalid area')
+            return 'not_arrived'
+    
+    def GoToDropOffArea(self):
+        global gravity_vector
+
+        # Publish the move command to go forward with an x offset of 40
+        message = Float32MultiArray()
+        message.data = [40, 0, 0, 100]
+        self.move_pub.publish(message)
+
+        rate = rospy.Rate(10)  # Adjust the rate as needed
+
+        # Wait until the robot reaches the second slope
+        while gravity_vector > -20:
+            rate.sleep()
+
+        # Keep moving forward with an x-offset until the second slope ends
+        while gravity_vector < 0:
+            rate.sleep()
+
+        # Publish the move command to go forward with an x-offset and a y-offset
+        message.data = [40, 40, 0, 100]
+        self.move_pub.publish(message)
+
+    def GoToFuelTankArea(self):
+        # Placeholder method for handling the Fuel Tank area
+        pass
+
+    def GoToThrusterArea(self):
+        # Placeholder method for handling the Thruster area
+        pass
 
 # define state DropOffBigPackages
 class DropOffBigPackages(smach.State):

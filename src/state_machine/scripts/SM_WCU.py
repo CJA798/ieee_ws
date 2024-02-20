@@ -9,6 +9,8 @@ from std_msgs.msg import Int8, Int16, Bool, Float32MultiArray
 from image_utils.board_objects import BoardObjects
 from image_utils.poses import Poses
 from utils.states import *
+from utils.globals import *
+from utils.areas import Areas
 
 
 # Global variables
@@ -244,7 +246,6 @@ class Chris(smach.State):
         smach.State.__init__(self, outcomes=['succeeded','aborted'])
 
     def execute(self, userdata):
-        global front_reading
         global move_done
         rospy.loginfo('Executing state Chris')
         # Publish to move the robot
@@ -283,15 +284,14 @@ def main():
     with sm:
         # Add states to the container
         smach.StateMachine.add('INITIALIZE', Initialize(), 
-                               transitions={'succeeded':'FUEL_TANK_PICKUP' if test_cv else 'READING_START_LED', 'aborted':'INITIALIZE'})
+                               transitions={'succeeded':'FUEL_TANK_PICKUP' if test_cv else 'GO_TO_DROP_OFF_AREA_', 'aborted':'INITIALIZE'})
         smach.StateMachine.add('READING_START_LED', ReadingStartLED(), 
-                               transitions={'green_led_detected': 'CHRIS' if skip_pickup else 'PACKAGE_PICKUP',
+                               transitions={'green_led_detected': 'GO_TO_DROP_OFF_AREA_' if skip_pickup else 'PACKAGE_PICKUP',
                                             'green_led_not_detected':'READING_START_LED'})
 
-        smach.StateMachine.add('CHRIS', Chris(), 
-                               transitions={'succeeded':'WAIT_FOR_CHRIS', 'aborted':'CHRIS'})
-        smach.StateMachine.add('WAIT_FOR_CHRIS', Wait4Chris(),
-                                 transitions={'succeeded':'GO_TO_DROP_OFF_AREA', 'aborted':'WAIT_FOR_CHRIS'})
+        
+        smach.StateMachine.add('GO_TO_DROP_OFF_AREA_', GoTo_(Areas.DROP_OFF, move_publisher=move_pub),
+                               transitions={'arrived': 'PACKAGE_DROP_OFF', 'not_arrived':'GO_TO_DROP_OFF_AREA_'})
         
 
         # Create the sub SMACH state machine
