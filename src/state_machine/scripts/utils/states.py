@@ -137,15 +137,15 @@ class GoTo_(smach.State):
         message = Float32MultiArray()
         message.data = [200, 0, 0, 100]
         self.move_pub.publish(message)
-
-        rate = rospy.Rate(10)  # Adjust the rate as needed
-
+        #TODO: while loops block callbacks. Figure it out.
         # Wait until the robot reaches the second slope
         while gravity_vector > -20:
-            rate.sleep()
+            print(gravity_vector)
+            rospy.sleep(0.1)
 
         # Keep moving forward with an x-offset until the second slope ends
         while gravity_vector < 0:
+            rospy.spinOnce()
             rate.sleep()
 
         # Publish the move command to go forward with an x-offset and a y-offset

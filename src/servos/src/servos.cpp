@@ -501,14 +501,14 @@ private:
     // Publisher variable declarations
     std_msgs::Float32MultiArray Feedback;
     std_msgs::Float32MultiArray Arm_Angles;
-    
+
     std_msgs::Float32MultiArray Wheel_Speeds;
     std_msgs::Int8 Arm_Done;
 
     // Variables for functions
     double  desired_x = 0, error_x_prev = 0, error_x_cumulative = 0, linear_x = 0, arrived_x = 0,
             desired_y = 0, error_y_prev = 0, error_y_cumulative = 0, linear_y = 0, arrived_y = 0,
-            desired_z = 0, error_z_prev = 0, error_z_cumulative = 0, linear_z = 0, arrived_y = 0,
+            desired_z = 0, error_z_prev = 0, error_z_cumulative = 0, linear_z = 0, arrived_z = 0,
             max_speed = 0, bearing_offset = -1;
 };
 

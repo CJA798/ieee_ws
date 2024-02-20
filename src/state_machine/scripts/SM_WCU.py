@@ -233,12 +233,21 @@ def move_done_cb(data):
     except Exception as e:
         rospy.logerr("Error in move_done_cb: {}".format(e))
 
+def gravity_vector_cb(data):
+    global gravity_vector
+    try:
+        gravity_vector = data.data
+        rospy.loginfo("Gravity Vector: %s", gravity_vector)
+    except Exception as e:
+        rospy.logerr("Error in gravity_vector_cb: {}".format(e))
+
 # Create subscribers
 start_led_state_sub = rospy.Subscriber("LED_State", Bool, callback=start_led_callback)
 arm_done_sub = rospy.Subscriber("Arm_Done", Int8, callback=state_arm2sm_cb)
 state_Nav2SM_sub = rospy.Subscriber("State_Nav2SM", Int8, callback=state_nav2arm_cb)
 TOF_Front = rospy.Subscriber("TOF_Front", Int16, callback=tof_front_cb)
 move_done_sub = rospy.Subscriber("Move_Done", Int8, callback=move_done_cb)
+gravity_vector_sub = rospy.Subscriber("Gravity_Vector", Int16, callback=gravity_vector_cb)
 
 
 class Chris(smach.State):
