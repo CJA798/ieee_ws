@@ -525,7 +525,7 @@ public:
         }
 
         // If max_Speed 0 overide all orders with stop
-        if(max_speed != 0){
+        if(max_speed == 0){
             Wheel_Speeds.data[0] = 0;
             Wheel_Speeds.data[1] = 0;
             Wheel_Speeds.data[2] = 0;
