@@ -363,7 +363,7 @@ public:
             linear_y = (KP_Y * error_y) + (KI_Y * error_y_cumulative / TS) + (KD_Y * TS * (error_y - error_y_prev));
             error_y_prev = error_y;
 
-            if(error_y <= ALLOWABLE_ERROR)
+            if(abs(error_y) <= ALLOWABLE_ERROR)
                 arrived_y++;
             else
                 arrived_y = 0;
@@ -389,7 +389,7 @@ public:
             linear_x = (KP_X * error_x) + (KI_X * error_x_cumulative / TS) + (KD_X * TS * (error_x - error_x_prev));
             error_x_prev = error_x;
 
-            if(error_x <= ALLOWABLE_ERROR)
+            if(abs(error_x) <= ALLOWABLE_ERROR)
                 arrived_x++;
             else
                 arrived_x = 0;
@@ -414,7 +414,7 @@ public:
             linear_x = (KP_X * error_x) + (KI_X * error_x_cumulative / TS) + (KD_X * TS * (error_x - error_x_prev));
             error_x_prev = error_x;
 
-            if(error_x <= ALLOWABLE_ERROR)
+            if(abs(error_x) <= ALLOWABLE_ERROR)
                 arrived_x++;
             else
                 arrived_x = 0;
@@ -439,7 +439,7 @@ public:
         linear_z = (KP_Z * error_z) + (KI_Z * error_z_cumulative / TS) + (KD_Z * TS * (error_z - error_z_prev));
         error_z_prev = error_z;
 
-        if(error_z <= ALLOWABLE_ERROR)
+        if(abs(error_z) <= ALLOWABLE_ERROR)
                 arrived_z++;
             else
                 arrived_z = 0;
