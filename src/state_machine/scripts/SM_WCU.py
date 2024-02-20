@@ -9,7 +9,7 @@ from std_msgs.msg import Int8, Int16, Bool, Float32MultiArray
 from image_utils.board_objects import BoardObjects
 from image_utils.poses import Poses
 from utils.states import *
-#from utils.globals import *
+from utils.globals import globals
 from utils.areas import Areas
 
 
@@ -258,6 +258,8 @@ def start_led_callback(data):
     global green_detected
     try:
         green_detected = data.data
+        globals['test_global'] += 1
+        print(globals['test_global'])
     except Exception as e:
         rospy.logerr("Error in start_led_callback: {}".format(e))
 
@@ -291,8 +293,9 @@ def tof_front_cb(data):
 def move_done_cb(data):
     global move_done
     try:
-        move_done = data.data
-        #rospy.loginfo("Move Done: %s", move_done)
+        if not move_done:
+            move_done = data.data
+            #rospy.loginfo("Move Done: %s", move_done)
     except Exception as e:
         rospy.logerr("Error in move_done_cb: {}".format(e))
 
@@ -303,6 +306,8 @@ def gravity_vector_cb(data):
         #rospy.loginfo("Gravity Vector: %s", gravity_vector)
     except Exception as e:
         rospy.logerr("Error in gravity_vector_cb: {}".format(e))
+
+
 
 # Create subscribers
 start_led_state_sub = rospy.Subscriber("LED_State", Bool, callback=start_led_callback)
@@ -356,17 +361,17 @@ def main():
     with sm:
         # Add states to the container
         smach.StateMachine.add('INITIALIZE', Initialize(), 
-                               transitions={'succeeded':'FUEL_TANK_PICKUP' if test_cv else 'GO_TO_SECOND_SLOPE', 'aborted':'INITIALIZE'})
+                               transitions={'succeeded':'FUEL_TANK_PICKUP' if test_cv else 'READING_START_LED', 'aborted':'INITIALIZE'})
         smach.StateMachine.add('READING_START_LED', ReadingStartLED(), 
                                transitions={'green_led_detected': 'GO_TO_SECOND_SLOPE' if skip_pickup else 'PACKAGE_PICKUP',
                                             'green_led_not_detected':'READING_START_LED'})
 
-        
+    
         smach.StateMachine.add('GO_TO_SECOND_SLOPE', GoTo_(Areas.SECOND_SLOPE, move_publisher=move_pub),
-                               transitions={'arrived': 'GO_TO_DROP_OFF_AREA_', 'not_arrived':'GO_TO_SECOND_SLOPE'})
+                            transitions={'arrived': 'GO_TO_DROP_OFF_AREA_', 'not_arrived':'GO_TO_SECOND_SLOPE'})
         
         smach.StateMachine.add('GO_TO_DROP_OFF_AREA_', GoTo_(Areas.DROP_OFF, move_publisher=move_pub),
-                               transitions={'arrived': 'PACKAGE_DROP_OFF', 'not_arrived':'GO_TO_DROP_OFF_AREA_'})
+                            transitions={'arrived': 'PACKAGE_DROP_OFF', 'not_arrived':'GO_TO_DROP_OFF_AREA_'})
         
 
         # Create the sub SMACH state machine

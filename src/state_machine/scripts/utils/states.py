@@ -11,7 +11,7 @@ import actionlib
 from vision_system.msg import GetCoordsAction, GetCoordsGoal, GetCoordsResult, GetCoordsFeedback
 
 from utils.areas import Areas
-from utils.globals import gravity_vector
+from utils.globals import globals
 
 class SM2NavStates(Enum):
     DROP_OFF_AREA = 0
@@ -40,7 +40,28 @@ class Initialize(smach.State):
             return 'succeeded'
         
         return 'aborted'
-    
+
+class ReadingStartLED(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['green_led_detected','green_led_not_detected'])
+        rospy.loginfo('Executing state ReadingStartLED')
+        rospy.sleep(0.2)
+
+    def execute(self, userdata):
+        rate = rospy.Rate(10)  # 10 Hz
+        while not globals['green_detected'] and not rospy.is_shutdown():
+            rate.sleep()
+
+        #while not globals['green_detected']:
+         #   continue
+        return 'green_led_detected'
+        
+        
+        #if globals['green_detected']:
+        #    rospy.sleep(0.2)
+        #    return 'green_led_detected'
+        #return 'green_led_not_detected'
+
 
 # define state Store
 class Store(smach.State):

@@ -500,7 +500,7 @@ public:
             Wheel_Speeds.data[2] = Wheel_Speeds.data[2] / max * 255;
         }
 
-        ROS_INFO("Arrived array: %f, %f, %f", arrived_x, arrived_y, arrived_z);
+        //ROS_INFO("Arrived array: %f, %f, %f", arrived_x, arrived_y, arrived_z);
 
         if(max_speed != 0 && arrived_x >= SEQUENTIAL_READS && arrived_y >= SEQUENTIAL_READS && arrived_z >= SEQUENTIAL_READS){
             Wheel_Speeds.data[0] = 0;

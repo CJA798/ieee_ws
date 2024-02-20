@@ -1,6 +1,7 @@
 <?xml version="1.0"?>
 <launch>
     <!-- NAVIGATION SYSTEM -->
+    <!-- ARDUINO NODE -->
     <node pkg="serial_node" 
     type="serial_node_1.py" 
     name="serial_node_1" 
@@ -8,12 +9,14 @@
     <param name="port" value="/dev/serial/by-id/usb-1a86_USB2.0-Serial-if00-port0"/>
     </node>
 
+    <!-- NAVIGATION STATE MACHINE NODE -->
     <node pkg="navigation_system" 
     type="navigation_SM" 
     name="Nav" 
     output="screen">
     </node>
 
+    <!-- SERVOS NODE -->
     <node pkg="servos" 
     type="servos_node" 
     name="servos" 
@@ -22,18 +25,21 @@
     </node>
 
     <!-- VISION SYSTEM -->
+    <!-- RAW IMAGE PUBLISHER -->
     <node pkg="vision_system" 
     type="raw_image_publisher.py" 
     name="raw_image" 
     output="screen">
     </node>
 
+    <!-- COORDS IMAGE SUBSCRIBER -->
     <node pkg="vision_system" 
     type="coords_image_subscriber.py" 
     name="coords_image_subscriber" 
     output="screen">
     </node>
 
+    <!-- GET COORDS ACTION SERVER -->
     <node pkg="vision_system" 
     type="get_coords_server.py" 
     name="get_coords_server" 
@@ -44,7 +50,7 @@
 
     <!-- STATE MACHINE -->
     <node pkg="state_machine" 
-    type="SM_WCU.py" 
+    type="FINAL_SM.py" 
     name="STATE" 
     output="screen">
     </node>
