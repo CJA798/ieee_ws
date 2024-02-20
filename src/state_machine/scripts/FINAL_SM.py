@@ -17,7 +17,7 @@ from utils.callbacks import *
 #task_space_pub = rospy.Publisher('Task_Space', Float32MultiArray, queue_size=10)
 #arm_angles_pub = rospy.Publisher('Arm_Angles', Float32MultiArray, queue_size=10)
 #state_SM2Nav_pub = rospy.Publisher('State_SM2Nav', Int8, queue_size=10)
-#move_pub = rospy.Publisher('Move', Float32MultiArray, queue_size=10)
+move_pub = rospy.Publisher('Move', Float32MultiArray, queue_size=10)
 
 # Create subscribers
 start_led_state_sub = rospy.Subscriber("LED_State", Bool, callback=start_led_callback)
@@ -25,7 +25,7 @@ start_led_state_sub = rospy.Subscriber("LED_State", Bool, callback=start_led_cal
 #state_Nav2SM_sub = rospy.Subscriber("State_Nav2SM", Int8, callback=state_nav2arm_cb)
 #TOF_Front = rospy.Subscriber("TOF_Front", Int16, callback=tof_front_cb)
 #move_done_sub = rospy.Subscriber("Move_Done", Int8, callback=move_done_cb)
-#gravity_vector_sub = rospy.Subscriber("IMU_Grav", Int16, callback=gravity_vector_cb)
+gravity_vector_sub = rospy.Subscriber("IMU_Grav", Int16, callback=gravity_vector_cb)
 
 
 def main():
@@ -37,14 +37,22 @@ def main():
     # Open the container
     with sm:
         # Add states to the container
-        
+
         # Initialize all devices, variables, windows, etc.
         smach.StateMachine.add('INITIALIZE', Initialize(), 
                                transitions={'succeeded':'READING_START_LED', 'aborted':'INITIALIZE'})
         
+        # Read the start green LED and wait for it to be detected
         smach.StateMachine.add('READING_START_LED', ReadingStartLED(), 
-                               transitions={'green_led_detected': 'END',
+                               transitions={'green_led_detected': 'GO_TO_DROP_OFF_AREA',
                                             'green_led_not_detected':'READING_START_LED'})
+        
+        # TODO: Add pickup states
+
+        # Go to dropoff area
+        smach.StateMachine.add('GO_TO_DROP_OFF_AREA', GoTo_(Areas.DROP_OFF, move_publisher=move_pub), 
+                                   transitions={'arrived':'END', 'not_arrived':'GO_TO_DROP_OFF_AREA'})
+        
 
 
 

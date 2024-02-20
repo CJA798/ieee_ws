@@ -19,3 +19,10 @@ def start_led_callback(data):
             rospy.loginfo("LED state updated: {}".format(globals['green_detected']))
     except Exception as e:
         rospy.logerr("Error in start_led_callback: {}".format(e))
+
+def gravity_vector_cb(data):
+    try:
+        globals['gravity_vector'] = data.data
+        #rospy.loginfo("Gravity Vector: %s", globals['gravity_vector'])
+    except Exception as e:
+        rospy.logerr("Error in gravity_vector_cb: {}".format(e))

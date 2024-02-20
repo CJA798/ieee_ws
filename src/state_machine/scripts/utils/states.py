@@ -69,10 +69,82 @@ class ReadingStartLED(smach.State):
             rospy.logerr("Error in ReadingStartLED: {}".format(e))
             return 'green_led_not_detected'
         
-        #if globals['green_detected']:
-        #    rospy.sleep(0.2)
-        #    return 'green_led_detected'
-        #return 'green_led_not_detected'
+
+class GoTo_(smach.State):
+    # Dictionary mapping Areas enum values to method names
+    AREA_METHODS = {
+        Areas.SECOND_SLOPE: "GoToSecondSlope",
+        Areas.DROP_OFF: "GoToDropOffArea",
+        Areas.FUEL_TANK: "GoToFuelTankArea",
+        Areas.THRUSTER: "GoToThrusterArea"
+    }
+
+    def __init__(self, area, move_publisher):
+        # Initialize the state with outcomes 'arrived' and 'not_arrived'
+        smach.State.__init__(self, outcomes=['arrived', 'not_arrived'])
+        self.area = area
+        self.move_pub = move_publisher
+
+    def execute(self, userdata):
+        # Check if the area is valid and has a corresponding action
+        if self.area in self.AREA_METHODS:
+            # Get the action name corresponding to the area
+            method_name = self.AREA_METHODS[self.area]
+            # Log the execution of the state
+            rospy.loginfo(f"Executing state {method_name}")
+            # Call the corresponding method dynamically using getattr
+            outcome = getattr(self, method_name)()
+            
+            return outcome
+        else:
+            # Log that the area is invalid
+            rospy.loginfo('Invalid area')
+            return 'not_arrived'
+        
+    def GoToSecondSlope(self):
+        # Publish the move command to go forward with an x offset of 40
+        message = Float32MultiArray()
+        message.data = [200, 1, 0, 100]
+        self.move_pub.publish(message)
+        
+        return 'arrived'
+    
+    def GoToDropOffArea(self):
+        rate = rospy.Rate(20)
+
+        message = Float32MultiArray()
+        message.data = [200, 1, 0, 100]
+        self.move_pub.publish(message)
+
+        while globals['gravity_vector'] > -25:
+            rate.sleep()
+
+        rospy.loginfo('Second slope reached')
+
+        while globals['gravity_vector'] < -10:
+            rate.sleep()
+
+        message.data = [200, 200, 0, 100]
+        self.move_pub.publish(message)
+
+        while not globals['move_done']:
+            rate.sleep()
+        
+        return 'arrived'
+
+        
+
+
+    def GoToFuelTankArea(self):
+        # Placeholder method for handling the Fuel Tank area
+        pass
+
+    def GoToThrusterArea(self):
+        # Placeholder method for handling the Thruster area
+        pass
+
+
+
 
 
 # define state Store
