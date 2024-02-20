@@ -14,6 +14,7 @@
 #include "dynamixel_sdk/dynamixel_sdk.h"
 #include "std_msgs/Float32MultiArray.h"
 #include "std_msgs/Int8.h"
+#include "std_msgs/Int16.h"
 
 using namespace dynamixel;
 
@@ -40,19 +41,20 @@ using namespace dynamixel;
 #define STOP  0                 // Velocity mode stop
 
 // PID's
-#define KP_X    0.1;
-#define KI_X    0.0;
-#define KD_X    0.0;
+#define KP_X    5.0
+#define KI_X    0.0
+#define KD_X    0.0
 
-#define KP_Y    0.1;
-#define KI_Y    0.0;
-#define KD_Y    0.0;
+#define KP_Y    5.0
+#define KI_Y    0.0
+#define KD_Y    0.0
 
-#define KP_Z    0.1;
-#define KI_Z    0.0;
-#define KD_Z    0.0;
+#define KP_Z    10.0
+#define KI_Z    0.0
+#define KD_Z    0.0
 
-#define TS      10;
+#define TS      10
+#define MAX_SPEED   25.5
 
 // Default dynamixel setting
 #define BAUDRATE              57600           // Default Baudrate of DYNAMIXEL X series
@@ -359,6 +361,9 @@ public:
             linear_y = (KP_Y * error_y) + (KI_Y * error_y_cumulative / TS) + (KD_Y * TS * (error_y - error_y_prev));
             error_y_prev = error_y;
         }
+        botKinematics();
+
+        ROS_INFO("Y velocity : %f", linear_y);
     }
 
 
@@ -367,7 +372,7 @@ public:
         if(desired_x == 0)
             linear_x = 0;
         else if(desired_x < 0){
-            double error_x = TOF_Left.data - desired_x;
+            double error_x = -desired_x - TOF_Left.data;
             /*
             if(error_x > 180)
                 error_x -= 360;
@@ -378,6 +383,7 @@ public:
             linear_x = (KP_X * error_x) + (KI_X * error_x_cumulative / TS) + (KD_X * TS * (error_x - error_x_prev));
             error_x_prev = error_x;
         }
+        botKinematics();
     }
 
 
@@ -386,7 +392,7 @@ public:
         if(desired_x == 0)
             linear_x = 0;
         else if(desired_x > 0){
-            double error_x = desired_x - TOF_Right.data;
+            double error_x = -1 * (desired_x - TOF_Right.data);
             /*
             if(error_x > 180)
                 error_x -= 360;
@@ -397,6 +403,9 @@ public:
             linear_x = (KP_X * error_x) + (KI_X * error_x_cumulative / TS) + (KD_X * TS * (error_x - error_x_prev));
             error_x_prev = error_x;
         }
+        botKinematics();
+
+        ROS_INFO("X velocity : %f", linear_x);
     }
 
 
@@ -412,6 +421,9 @@ public:
         error_z_cumulative += error_z;
         linear_z = (KP_Z * error_z) + (KI_Z * error_z_cumulative / TS) + (KD_Z * TS * (error_z - error_z_prev));
         error_z_prev = error_z;
+        botKinematics();
+
+        ROS_INFO("Rotational velocity: %f", linear_z);
     }
 
 
@@ -420,7 +432,7 @@ public:
         desired_x = Move.data[0];
         desired_y = Move.data[1];
         desired_z = Move.data[2];
-        max_speed = Move.data[3];
+        max_speed = Move.data[3] * MAX_SPEED;
     }
 
 
@@ -428,21 +440,31 @@ public:
     void botKinematics(){
         // linear_xyz, max_speed
 
-        double theta = atan(linear_y/linear_x);
-        if(linear_x < 0 && linear_y >= 0)
+        double theta = atan2(linear_y, linear_x);
+        /*if(linear_x < 0 && linear_y >= 0)
             theta += 3.1415;
         else if(linear_x < 0 && linear_y < 0)
             theta += -3.1415;
+            */
         if(theta < 0)
             theta += 6.28;
 
-        double speed = sqrt(linear_x^2 + linear_y^2);
+        double speed = sqrt(linear_x * linear_x + linear_y * linear_y);
         if(speed > max_speed)
             speed = max_speed;
 
         Wheel_Speeds.data[0] = speed * cos(theta) + linear_z;
         Wheel_Speeds.data[1] = speed * cos(theta + (2.0 / 3.0 * 3.1415)) + linear_z;
         Wheel_Speeds.data[2] = speed * cos(theta - (2.0 / 3.0 * 3.1415)) + linear_z;
+        
+        for(int i = 0; i < 3; i++){
+            if(Wheel_Speeds.data[i] > 255)
+                Wheel_Speeds.data[i] = 255;
+            else if(Wheel_Speeds.data[i] < -255)
+                Wheel_Speeds.data[i] = -255;
+        }
+
+        Wheel_Speeds_pub.publish(Wheel_Speeds); 
     }
 
 
@@ -464,10 +486,10 @@ private:
     ros::Subscriber Wheel_Speeds_sub;
     ros::Subscriber Arm_Angles_sub;
     ros::Subscriber Move_sub;
-    ros::Subscriber TOF_Front;
-    ros::Subscriber TOF_Left;
-    ros::Subscriber TOF_Right;
-    ros::Subscriber IMU_Bearing;
+    ros::Subscriber TOF_Front_sub;
+    ros::Subscriber TOF_Left_sub;
+    ros::Subscriber TOF_Right_sub;
+    ros::Subscriber IMU_Bearing_sub;
 
     // Publisher variable declarations
     std_msgs::Float32MultiArray Feedback;

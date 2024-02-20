@@ -4,9 +4,8 @@
 import rospy
 import smach
 import smach_ros
-import crcmod
 import sys
-from std_msgs.msg import Int8, Int32, Bool, String, Float32MultiArray
+from std_msgs.msg import Int8, Int16, Bool, Float32MultiArray
 from image_utils.board_objects import BoardObjects
 from image_utils.poses import Poses
 from utils.states import *
@@ -16,6 +15,8 @@ from utils.states import *
 green_detected = False
 arm_done = False
 nav_state = None
+front_reading = None
+move_done = False
 
 class Wait4Nav(smach.State):
     def __init__(self):
@@ -185,6 +186,7 @@ class GetCoords(smach.State):
 task_space_pub = rospy.Publisher('Task_Space', Float32MultiArray, queue_size=10)
 arm_angles_pub = rospy.Publisher('Arm_Angles', Float32MultiArray, queue_size=10)
 state_SM2Nav_pub = rospy.Publisher('State_SM2Nav', Int8, queue_size=10)
+move_pub = rospy.Publisher('Move', Float32MultiArray, queue_size=10)
 
 # Callback function to handle start green LED state updates
 def start_led_callback(data):
@@ -213,11 +215,60 @@ def state_nav2arm_cb(data):
     except Exception as e:
         rospy.logerr("Error in state_nav_cb: {}".format(e))
 
+def tof_front_cb(data):
+    global front_reading
+    try:
+        #rospy.loginfo("TOF Front: %s", data.data)
+        front_reading = data.data
+    except Exception as e:
+        rospy.logerr("Error in tof_front_cb: {}".format(e))
+
+def move_done_cb(data):
+    global move_done
+    try:
+        move_done = data.data
+        #rospy.loginfo("Move Done: %s", move_done)
+    except Exception as e:
+        rospy.logerr("Error in move_done_cb: {}".format(e))
+
 # Create subscribers
 start_led_state_sub = rospy.Subscriber("LED_State", Bool, callback=start_led_callback)
 arm_done_sub = rospy.Subscriber("Arm_Done", Int8, callback=state_arm2sm_cb)
 state_Nav2SM_sub = rospy.Subscriber("State_Nav2SM", Int8, callback=state_nav2arm_cb)
+TOF_Front = rospy.Subscriber("TOF_Front", Int16, callback=tof_front_cb)
+move_done_sub = rospy.Subscriber("Move_Done", Int8, callback=move_done_cb)
 
+
+class Chris(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['succeeded','aborted'])
+
+    def execute(self, userdata):
+        global front_reading
+        global move_done
+        rospy.loginfo('Executing state Chris')
+        # Publish to move the robot
+        move = Float32MultiArray()
+        move.data = [40, 0, 0, 100]
+        move_pub.publish(move)
+        rospy.sleep(0.2)
+        return 'succeeded'
+    
+class Wait4Chris(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['succeeded','aborted'])
+
+    def execute(self, userdata):
+        global move_done
+        
+        #rospy.loginfo('Executing state Wait4Nav')
+        rospy.loginfo('move_done: %s', move_done)
+        if move_done:
+            move_done = False
+            rospy.sleep(2)
+            return 'succeeded'
+        return 'aborted'
+    
 # Debug for navigation. This Enables/disables the package pickup states
 skip_pickup = True
 test_cv = False
@@ -234,9 +285,14 @@ def main():
         smach.StateMachine.add('INITIALIZE', Initialize(), 
                                transitions={'succeeded':'FUEL_TANK_PICKUP' if test_cv else 'READING_START_LED', 'aborted':'INITIALIZE'})
         smach.StateMachine.add('READING_START_LED', ReadingStartLED(), 
-                               transitions={'green_led_detected': 'GO_TO_DROP_OFF_AREA' if skip_pickup else 'PACKAGE_PICKUP',
+                               transitions={'green_led_detected': 'CHRIS' if skip_pickup else 'PACKAGE_PICKUP',
                                             'green_led_not_detected':'READING_START_LED'})
 
+        smach.StateMachine.add('CHRIS', Chris(), 
+                               transitions={'succeeded':'WAIT_FOR_CHRIS', 'aborted':'CHRIS'})
+        smach.StateMachine.add('WAIT_FOR_CHRIS', Wait4Chris(),
+                                 transitions={'succeeded':'GO_TO_DROP_OFF_AREA', 'aborted':'WAIT_FOR_CHRIS'})
+        
 
         # Create the sub SMACH state machine
         package_pickup_sm = smach.Concurrence(outcomes=['packages_picked_up','aborted'],
