@@ -99,67 +99,6 @@ class GoTo(smach.State):
         rospy.loginfo('Executing state GoToDropOffArea')
         return 'succeeded'
 
-
-class GoTo_(smach.State):
-    # Dictionary mapping Areas enum values to method names
-    AREA_METHODS = {
-        Areas.DROP_OFF: "GoToDropOffArea",
-        Areas.FUEL_TANK: "GoToFuelTankArea",
-        Areas.THRUSTER: "GoToThrusterArea"
-    }
-
-    def __init__(self, area, move_publisher):
-        # Initialize the state with outcomes 'arrived' and 'not_arrived'
-        smach.State.__init__(self, outcomes=['arrived', 'not_arrived'])
-        self.area = area
-        self.move_pub = move_publisher
-
-    def execute(self, userdata):
-        # Check if the area is valid and has a corresponding action
-        if self.area in self.AREA_METHODS:
-            # Get the action name corresponding to the area
-            method_name = self.AREA_METHODS[self.area]
-            # Log the execution of the state
-            rospy.loginfo(f"Executing state {method_name}")
-            # Call the corresponding method dynamically using getattr
-            getattr(self, method_name)()
-            
-            return 'arrived'
-        else:
-            # Log that the area is invalid
-            rospy.loginfo('Invalid area')
-            return 'not_arrived'
-    
-    def GoToDropOffArea(self):
-        global gravity_vector
-
-        # Publish the move command to go forward with an x offset of 40
-        message = Float32MultiArray()
-        message.data = [200, 0, 0, 100]
-        self.move_pub.publish(message)
-        #TODO: while loops block callbacks. Figure it out.
-        # Wait until the robot reaches the second slope
-        while gravity_vector > -20:
-            print(gravity_vector)
-            rospy.sleep(0.1)
-
-        # Keep moving forward with an x-offset until the second slope ends
-        while gravity_vector < 0:
-            rospy.spinOnce()
-            rate.sleep()
-
-        # Publish the move command to go forward with an x-offset and a y-offset
-        message.data = [200, 200, 0, 100]
-        self.move_pub.publish(message)
-
-    def GoToFuelTankArea(self):
-        # Placeholder method for handling the Fuel Tank area
-        pass
-
-    def GoToThrusterArea(self):
-        # Placeholder method for handling the Thruster area
-        pass
-
 # define state DropOffBigPackages
 class DropOffBigPackages(smach.State):
     def __init__(self):

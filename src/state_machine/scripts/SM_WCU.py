@@ -9,7 +9,7 @@ from std_msgs.msg import Int8, Int16, Bool, Float32MultiArray
 from image_utils.board_objects import BoardObjects
 from image_utils.poses import Poses
 from utils.states import *
-from utils.globals import *
+#from utils.globals import *
 from utils.areas import Areas
 
 
@@ -19,6 +19,7 @@ arm_done = False
 nav_state = None
 front_reading = None
 move_done = False
+gravity_vector = 0
 
 class Wait4Nav(smach.State):
     def __init__(self):
@@ -184,6 +185,68 @@ class GetCoords(smach.State):
         return 'coords_not_received'
     
 
+class GoTo_(smach.State):
+    # Dictionary mapping Areas enum values to method names
+    AREA_METHODS = {
+        Areas.SECOND_SLOPE: "GoToSecondSlope",
+        Areas.DROP_OFF: "GoToDropOffArea",
+        Areas.FUEL_TANK: "GoToFuelTankArea",
+        Areas.THRUSTER: "GoToThrusterArea"
+    }
+
+    def __init__(self, area, move_publisher):
+        # Initialize the state with outcomes 'arrived' and 'not_arrived'
+        smach.State.__init__(self, outcomes=['arrived', 'not_arrived'])
+        self.area = area
+        self.move_pub = move_publisher
+
+    def execute(self, userdata):
+        # Check if the area is valid and has a corresponding action
+        if self.area in self.AREA_METHODS:
+            # Get the action name corresponding to the area
+            method_name = self.AREA_METHODS[self.area]
+            # Log the execution of the state
+            rospy.loginfo(f"Executing state {method_name}")
+            # Call the corresponding method dynamically using getattr
+            outcome = getattr(self, method_name)()
+            
+            return outcome
+        else:
+            # Log that the area is invalid
+            rospy.loginfo('Invalid area')
+            return 'not_arrived'
+        
+    def GoToSecondSlope(self):
+        # Publish the move command to go forward with an x offset of 40
+        message = Float32MultiArray()
+        message.data = [200, 1, 0, 100]
+        self.move_pub.publish(message)
+        
+        return 'arrived'
+    
+    def GoToDropOffArea(self):
+        global gravity_vector
+
+        # Wait until the robot reaches the second slope
+        if gravity_vector > -25:
+            return 'not_arrived'
+        
+        # Publish the move command to go forward with an x offset of 40
+        message = Float32MultiArray()
+        message.data = [0, 0, 0, 0]
+        self.move_pub.publish(message)
+        return 'arrived'
+
+
+    def GoToFuelTankArea(self):
+        # Placeholder method for handling the Fuel Tank area
+        pass
+
+    def GoToThrusterArea(self):
+        # Placeholder method for handling the Thruster area
+        pass
+
+
 # Create publishers
 task_space_pub = rospy.Publisher('Task_Space', Float32MultiArray, queue_size=10)
 arm_angles_pub = rospy.Publisher('Arm_Angles', Float32MultiArray, queue_size=10)
@@ -237,7 +300,7 @@ def gravity_vector_cb(data):
     global gravity_vector
     try:
         gravity_vector = data.data
-        rospy.loginfo("Gravity Vector: %s", gravity_vector)
+        #rospy.loginfo("Gravity Vector: %s", gravity_vector)
     except Exception as e:
         rospy.logerr("Error in gravity_vector_cb: {}".format(e))
 
@@ -247,7 +310,7 @@ arm_done_sub = rospy.Subscriber("Arm_Done", Int8, callback=state_arm2sm_cb)
 state_Nav2SM_sub = rospy.Subscriber("State_Nav2SM", Int8, callback=state_nav2arm_cb)
 TOF_Front = rospy.Subscriber("TOF_Front", Int16, callback=tof_front_cb)
 move_done_sub = rospy.Subscriber("Move_Done", Int8, callback=move_done_cb)
-gravity_vector_sub = rospy.Subscriber("Gravity_Vector", Int16, callback=gravity_vector_cb)
+gravity_vector_sub = rospy.Subscriber("IMU_Grav", Int16, callback=gravity_vector_cb)
 
 
 class Chris(smach.State):
@@ -293,11 +356,14 @@ def main():
     with sm:
         # Add states to the container
         smach.StateMachine.add('INITIALIZE', Initialize(), 
-                               transitions={'succeeded':'FUEL_TANK_PICKUP' if test_cv else 'GO_TO_DROP_OFF_AREA_', 'aborted':'INITIALIZE'})
+                               transitions={'succeeded':'FUEL_TANK_PICKUP' if test_cv else 'GO_TO_SECOND_SLOPE', 'aborted':'INITIALIZE'})
         smach.StateMachine.add('READING_START_LED', ReadingStartLED(), 
-                               transitions={'green_led_detected': 'GO_TO_DROP_OFF_AREA_' if skip_pickup else 'PACKAGE_PICKUP',
+                               transitions={'green_led_detected': 'GO_TO_SECOND_SLOPE' if skip_pickup else 'PACKAGE_PICKUP',
                                             'green_led_not_detected':'READING_START_LED'})
 
+        
+        smach.StateMachine.add('GO_TO_SECOND_SLOPE', GoTo_(Areas.SECOND_SLOPE, move_publisher=move_pub),
+                               transitions={'arrived': 'GO_TO_DROP_OFF_AREA_', 'not_arrived':'GO_TO_SECOND_SLOPE'})
         
         smach.StateMachine.add('GO_TO_DROP_OFF_AREA_', GoTo_(Areas.DROP_OFF, move_publisher=move_pub),
                                transitions={'arrived': 'PACKAGE_DROP_OFF', 'not_arrived':'GO_TO_DROP_OFF_AREA_'})

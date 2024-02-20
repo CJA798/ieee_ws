@@ -1,2 +1,2 @@
-gravity_vector = 0
+gravity_vector = None
 tof_front = None

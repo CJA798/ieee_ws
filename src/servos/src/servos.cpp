@@ -347,8 +347,10 @@ public:
 
     // 
     void TOF_FrontCallback(const std_msgs::Int16& TOF_Front){
-        if(desired_y == 0)
+        if(desired_y == 0){
             linear_y = 0;
+            arrived_y = SEQUENTIAL_READS;
+        }
         else if(desired_y < 0)
             linear_y = TOF_Front.data;
         else{
@@ -375,8 +377,10 @@ public:
 
     // 
     void TOF_LeftCallback(const std_msgs::Int16& TOF_Left){
-        if(desired_x == 0)
+        if(desired_x == 0){
             linear_x = 0;
+            arrived_x = SEQUENTIAL_READS;
+        }
         else if(desired_x < 0){
             double error_x = -desired_x - TOF_Left.data;
             /*
@@ -400,8 +404,10 @@ public:
 
     // 
     void TOF_RightCallback(const std_msgs::Int16& TOF_Right){
-        if(desired_x == 0)
+        if(desired_x == 0){
             linear_x = 0;
+            arrived_x = SEQUENTIAL_READS;
+        }
         else if(desired_x > 0){
             double error_x = -1 * (desired_x - TOF_Right.data);
             /*
@@ -439,10 +445,12 @@ public:
         linear_z = (KP_Z * error_z) + (KI_Z * error_z_cumulative / TS) + (KD_Z * TS * (error_z - error_z_prev));
         error_z_prev = error_z;
 
-        if(abs(error_z) <= ALLOWABLE_ERROR)
+        if(abs(error_z) <= ALLOWABLE_ERROR){
+            if(arrived_z < SEQUENTIAL_READS)
                 arrived_z++;
-            else
-                arrived_z = 0;
+        }
+        else
+            arrived_z = 0;
 
         botKinematics();
     }
@@ -454,6 +462,9 @@ public:
         desired_y = Move.data[1];
         desired_z = Move.data[2];
         max_speed = Move.data[3] * MAX_SPEED;
+        arrived_x = 0;
+        arrived_y = 0;
+        arrived_z = 0;
     }
 
 
@@ -491,14 +502,14 @@ public:
 
         ROS_INFO("Arrived array: %f, %f, %f", arrived_x, arrived_y, arrived_z);
 
-        if(arrived_x > SEQUENTIAL_READS && arrived_y < SEQUENTIAL_READS && arrived_z < SEQUENTIAL_READS){
+        if(max_speed != 0 && arrived_x >= SEQUENTIAL_READS && arrived_y >= SEQUENTIAL_READS && arrived_z >= SEQUENTIAL_READS){
             Wheel_Speeds.data[0] = 0;
             Wheel_Speeds.data[1] = 0;
             Wheel_Speeds.data[2] = 0;
             
             desired_x = 0;
             desired_y = 0;
-            desired_z = 0;
+            //desired_z = 0;
             max_speed = 0;
 
             Move_Done.data = 1;
