@@ -39,6 +39,21 @@ using namespace dynamixel;
 #define POS_D_GAIN  4000        // Angle mode D gain
 #define STOP  0                 // Velocity mode stop
 
+// PID's
+#define KP_X    0.1;
+#define KI_X    0.0;
+#define KD_X    0.0;
+
+#define KP_Y    0.1;
+#define KI_Y    0.0;
+#define KD_Y    0.0;
+
+#define KP_Z    0.1;
+#define KI_Z    0.0;
+#define KD_Z    0.0;
+
+#define TS      10;
+
 // Default dynamixel setting
 #define BAUDRATE              57600           // Default Baudrate of DYNAMIXEL X series
 #define DEVICE_NAME           "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT89FKZ2-if00-port0"  // [Linux] To find assigned port, use "$ ls /dev/ttyUSB*" command
@@ -65,11 +80,14 @@ public:
         // Resize Publisher Arrays
         Arm_Angles.data.resize(9);
         Feedback.data.resize(8);
+        Wheel_Speeds.data.resize(3);
 
         // Publishers
         Feedback_pub = nh.advertise<std_msgs::Float32MultiArray>("/Feedback", 1);
         Arm_Angles_pub = nh.advertise<std_msgs::Float32MultiArray>("/Arm_Angles", 1);
         Arm_Done_pub = nh.advertise<std_msgs::Int8>("/Arm_Done", 1);
+        Move_Done_pub = nh.advertise<std_msgs::Int8>("/Move_Done", 1);
+        Wheel_Speeds_pub = nh.advertise<std_msgs::Float32MultiArray>("/Wheel_Speeds", 1);
 
         // Subscribers
         Get_Feedback_sub = nh.subscribe("/Get_Feedback", 1, &ServoClass::Get_FeedbackCallback, this);
@@ -77,6 +95,11 @@ public:
         Misc_Angles_sub = nh.subscribe("/Misc_Angles", 1, &ServoClass::Misc_AnglesCallback, this);
         Wheel_Speeds_sub = nh.subscribe("/Wheel_Speeds", 1, &ServoClass::Wheel_SpeedsCallback, this);
         Arm_Angles_sub = nh.subscribe("/Arm_Angles", 1, &ServoClass::Arm_AnglesCallback, this);
+        Move_sub = nh.subscribe("/Move", 1, &ServoClass::MoveCallback, this);
+        TOF_Front_sub = nh.subscribe("/TOF_Front", 1, &ServoClass::TOF_FrontCallback, this);
+        TOF_Left_sub = nh.subscribe("/TOF_Left", 1, &ServoClass::TOF_LeftCallback, this);
+        TOF_Right_sub = nh.subscribe("/TOF_Right", 1, &ServoClass::TOF_RightCallback, this);
+        IMU_Bearing_sub = nh.subscribe("/IMU_Bearing", 1, &ServoClass::IMU_BearingCallback, this);
     }
 
 
@@ -318,6 +341,111 @@ public:
     }
 
 
+    // 
+    void TOF_FrontCallback(const std_msgs::Int16& TOF_Front){
+        if(desired_y == 0)
+            linear_y = 0;
+        else if(desired_y < 0)
+            linear_y = TOF_Front.data;
+        else{
+            double error_y = desired_y - TOF_Front.data;
+            /*
+            if(error_y > 180)
+                error_y -= 360;
+            if(error_y < -180)
+                error_y += 360;
+            */
+            error_y_cumulative += error_y;
+            linear_y = (KP_Y * error_y) + (KI_Y * error_y_cumulative / TS) + (KD_Y * TS * (error_y - error_y_prev));
+            error_y_prev = error_y;
+        }
+    }
+
+
+    // 
+    void TOF_LeftCallback(const std_msgs::Int16& TOF_Left){
+        if(desired_x == 0)
+            linear_x = 0;
+        else if(desired_x < 0){
+            double error_x = TOF_Left.data - desired_x;
+            /*
+            if(error_x > 180)
+                error_x -= 360;
+            if(error_x < -180)
+                error_x += 360;
+            */
+            error_x_cumulative += error_x;
+            linear_x = (KP_X * error_x) + (KI_X * error_x_cumulative / TS) + (KD_X * TS * (error_x - error_x_prev));
+            error_x_prev = error_x;
+        }
+    }
+
+
+    // 
+    void TOF_RightCallback(const std_msgs::Int16& TOF_Right){
+        if(desired_x == 0)
+            linear_x = 0;
+        else if(desired_x > 0){
+            double error_x = desired_x - TOF_Right.data;
+            /*
+            if(error_x > 180)
+                error_x -= 360;
+            if(error_x < -180)
+                error_x += 360;
+            */
+            error_x_cumulative += error_x;
+            linear_x = (KP_X * error_x) + (KI_X * error_x_cumulative / TS) + (KD_X * TS * (error_x - error_x_prev));
+            error_x_prev = error_x;
+        }
+    }
+
+
+    // 
+    void IMU_BearingCallback(const std_msgs::Int16& IMU_Bearing){
+        double error_z = desired_z - IMU_Bearing.data;
+
+        if(error_z > 180)
+            error_z -= 360;
+        if(error_z < -180)
+            error_z += 360;
+
+        error_z_cumulative += error_z;
+        linear_z = (KP_Z * error_z) + (KI_Z * error_z_cumulative / TS) + (KD_Z * TS * (error_z - error_z_prev));
+        error_z_prev = error_z;
+    }
+
+
+    // Accepts move instructions for bot x, y, z, speed and follows those values.
+    void MoveCallback(const std_msgs::Float32MultiArray& Move){
+        desired_x = Move.data[0];
+        desired_y = Move.data[1];
+        desired_z = Move.data[2];
+        max_speed = Move.data[3];
+    }
+
+
+    // 
+    void botKinematics(){
+        // linear_xyz, max_speed
+
+        double theta = atan(linear_y/linear_x);
+        if(linear_x < 0 && linear_y >= 0)
+            theta += 3.1415;
+        else if(linear_x < 0 && linear_y < 0)
+            theta += -3.1415;
+        if(theta < 0)
+            theta += 6.28;
+
+        double speed = sqrt(linear_x^2 + linear_y^2);
+        if(speed > max_speed)
+            speed = max_speed;
+
+        Wheel_Speeds.data[0] = speed * cos(theta) + linear_z;
+        Wheel_Speeds.data[1] = speed * cos(theta + (2.0 / 3.0 * 3.1415)) + linear_z;
+        Wheel_Speeds.data[2] = speed * cos(theta - (2.0 / 3.0 * 3.1415)) + linear_z;
+    }
+
+
 // Pub, sub, and ros declarations
 private: 
     ros::NodeHandle nh;
@@ -326,6 +454,8 @@ private:
     ros::Publisher Feedback_pub;
     ros::Publisher Arm_Angles_pub;
     ros::Publisher Arm_Done_pub;
+    ros::Publisher Move_Done_pub;
+    ros::Publisher Wheel_Speeds_pub;
 
     // Subscriber ros declarations
     ros::Subscriber Get_Feedback_sub;
@@ -333,11 +463,23 @@ private:
     ros::Subscriber Misc_Angles_sub;
     ros::Subscriber Wheel_Speeds_sub;
     ros::Subscriber Arm_Angles_sub;
+    ros::Subscriber Move_sub;
+    ros::Subscriber TOF_Front;
+    ros::Subscriber TOF_Left;
+    ros::Subscriber TOF_Right;
+    ros::Subscriber IMU_Bearing;
 
     // Publisher variable declarations
     std_msgs::Float32MultiArray Feedback;
     std_msgs::Float32MultiArray Arm_Angles;
+    std_msgs::Float32MultiArray Wheel_Speeds;
     std_msgs::Int8 Arm_Done;
+
+    // Variables for functions
+    double  desired_x = 0, error_x_prev = 0, error_x_cumulative = 0, linear_x = 0, 
+            desired_y = 0, error_y_prev = 0, error_y_cumulative = 0, linear_y = 0, 
+            desired_z = 0, error_z_prev = 0, error_z_cumulative = 0, linear_z = 0,
+            max_speed = 0;
 };
 
 
