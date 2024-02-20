@@ -498,7 +498,7 @@ public:
             desired_y = 0;
             desired_z = 0;
             max_speed = 0;
-            
+
             Move_Done.data = 1;
             Move_Done_pub.publish(Move_Done);
         }
@@ -536,6 +536,7 @@ private:
 
     std_msgs::Float32MultiArray Wheel_Speeds;
     std_msgs::Int8 Arm_Done;
+    std_msgs::Int8 Move_Done;
 
     // Variables for functions
     double  desired_x = 0, error_x_prev = 0, error_x_cumulative = 0, linear_x = 0, arrived_x = 0,
