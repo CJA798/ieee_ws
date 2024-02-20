@@ -55,6 +55,8 @@ using namespace dynamixel;
 
 #define TS      10
 #define MAX_SPEED   5
+#define ALLOWABLE_ERROR 20
+#define SEQUENTIAL_READS 10
 
 // Default dynamixel setting
 #define BAUDRATE              57600           // Default Baudrate of DYNAMIXEL X series
@@ -360,10 +362,14 @@ public:
             error_y_cumulative += error_y;
             linear_y = (KP_Y * error_y) + (KI_Y * error_y_cumulative / TS) + (KD_Y * TS * (error_y - error_y_prev));
             error_y_prev = error_y;
+
+            if(error_y <= ALLOWABLE_ERROR)
+                arrived_y++;
+            else
+                arrived_y = 0;
+
         }
         botKinematics();
-
-        ROS_INFO("Y velocity : %f", linear_y);
     }
 
 
@@ -382,6 +388,11 @@ public:
             error_x_cumulative += error_x;
             linear_x = (KP_X * error_x) + (KI_X * error_x_cumulative / TS) + (KD_X * TS * (error_x - error_x_prev));
             error_x_prev = error_x;
+
+            if(error_x <= ALLOWABLE_ERROR)
+                arrived_x++;
+            else
+                arrived_x = 0;
         }
         botKinematics();
     }
@@ -402,10 +413,13 @@ public:
             error_x_cumulative += error_x;
             linear_x = (KP_X * error_x) + (KI_X * error_x_cumulative / TS) + (KD_X * TS * (error_x - error_x_prev));
             error_x_prev = error_x;
+
+            if(error_x <= ALLOWABLE_ERROR)
+                arrived_x++;
+            else
+                arrived_x = 0;
         }
         botKinematics();
-
-        ROS_INFO("X velocity : %f", linear_x);
     }
 
 
@@ -424,9 +438,13 @@ public:
         error_z_cumulative += error_z;
         linear_z = (KP_Z * error_z) + (KI_Z * error_z_cumulative / TS) + (KD_Z * TS * (error_z - error_z_prev));
         error_z_prev = error_z;
-        botKinematics();
 
-        ROS_INFO("Rotational velocity: %f", linear_z);
+        if(error_z <= ALLOWABLE_ERROR)
+                arrived_z++;
+            else
+                arrived_z = 0;
+
+        botKinematics();
     }
 
 
@@ -469,7 +487,21 @@ public:
             Wheel_Speeds.data[0] = Wheel_Speeds.data[0] / max * 255;
             Wheel_Speeds.data[1] = Wheel_Speeds.data[1] / max * 255;
             Wheel_Speeds.data[2] = Wheel_Speeds.data[2] / max * 255;
-        };
+        }
+
+        if(arrived_x > SEQUENTIAL_READS && arrived_y < SEQUENTIAL_READS && arrived_z < SEQUENTIAL_READS){
+            Wheel_Speeds.data[0] = 0;
+            Wheel_Speeds.data[1] = 0;
+            Wheel_Speeds.data[2] = 0;
+            
+            desired_x = 0;
+            desired_y = 0;
+            desired_z = 0;
+            max_speed = 0;
+            
+            Move_Done.data = 1;
+            Move_Done_pub.publish(Move_Done);
+        }
 
         Wheel_Speeds_pub.publish(Wheel_Speeds); 
     }
@@ -508,7 +540,7 @@ private:
     // Variables for functions
     double  desired_x = 0, error_x_prev = 0, error_x_cumulative = 0, linear_x = 0, arrived_x = 0,
             desired_y = 0, error_y_prev = 0, error_y_cumulative = 0, linear_y = 0, arrived_y = 0,
-            desired_z = 0, error_z_prev = 0, error_z_cumulative = 0, linear_z = 0, arrived_y = 0,
+            desired_z = 0, error_z_prev = 0, error_z_cumulative = 0, linear_z = 0, arrived_z = 0,
             max_speed = 0, bearing_offset = -1;
 };
 
