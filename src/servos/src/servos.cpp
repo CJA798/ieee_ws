@@ -3,8 +3,9 @@
 * Chris Bass
 * 2/4/24
 *
-* This program takes input from ros topics and writes to dynamixel servos
-* it also provides a arm moving state and feed back of arm torque.
+* This program takes input from ros topics and writes to dynamixel servos,
+* it provides a arm moving state and feed back of arm torque,
+* it also accepts a Move function and does the kinematics and PIDs
 */
 
 #include <ros/ros.h>
@@ -40,7 +41,7 @@ using namespace dynamixel;
 #define POS_D_GAIN  4000        // Angle mode D gain
 #define STOP  0                 // Velocity mode stop
 
-// PID's
+// PID's and Move constants
 #define KP_X    4.0
 #define KI_X    0.01
 #define KD_X    0.5
@@ -53,10 +54,10 @@ using namespace dynamixel;
 #define KI_Z    0.01
 #define KD_Z    0.3
 
-#define TS      10
-#define MAX_SPEED   5
-#define ALLOWABLE_ERROR 20
-#define SEQUENTIAL_READS 10
+#define TS                  10  // Estimation of TOF samples per sec
+#define MAX_SPEED           5   // Scaler for max_speed of wheels
+#define ALLOWABLE_ERROR     20  // How close we need to be to bot posistions
+#define SEQUENTIAL_READS    10  // How many readings we need to be in posistion before declaring arrival
 
 // Default dynamixel setting
 #define BAUDRATE              57600           // Default Baudrate of DYNAMIXEL X series
@@ -272,7 +273,7 @@ public:
         //ROS_INFO("Angles: %f, %f, %f, %f, %f, %f, %f, %f", Misc_Angles.data[0], Misc_Angles.data[1], Misc_Angles.data[2], Misc_Angles.data[3], Misc_Angles.data[4], Misc_Angles.data[5], Misc_Angles.data[6], Misc_Angles.data[7]);
     }
 
-    //*******// Curently sending arm angles instead
+    //// Curently sending arm angles instead
     // Read present loads and publishes to feedback
     void Get_FeedbackCallback(const std_msgs::Int8& Get_Feedback){
         // Clears bulk read stack
@@ -345,155 +346,163 @@ public:
     }
 
 
-    // 
+    // Triggers on /TOF_Front post sets linear y speed based on pids
     void TOF_FrontCallback(const std_msgs::Int16& TOF_Front){
+        // If desired_y = 0 stop y movement, ingore y sensor, declare arrived
         if(desired_y == 0){
             linear_y = 0;
             arrived_y = SEQUENTIAL_READS;
         }
+
+        // If desired y is negative move backwards at that speed
         else if(desired_y < 0)
             linear_y = TOF_Front.data;
+
+        // If desired y is positive use sensor data to calculate pid for y velocity
         else{
             double error_y = desired_y - TOF_Front.data;
-            /*
-            if(error_y > 180)
-                error_y -= 360;
-            if(error_y < -180)
-                error_y += 360;
-            */
             error_y_cumulative += error_y;
             linear_y = (KP_Y * error_y) + (KI_Y * error_y_cumulative / TS) + (KD_Y * TS * (error_y - error_y_prev));
             error_y_prev = error_y;
 
+            // If we are close enough to desired value tally up how long we are here
             if(abs(error_y) <= ALLOWABLE_ERROR)
                 arrived_y++;
-            else
+            else// If we have moved to far or overshoot, reset tally
                 arrived_y = 0;
 
         }
+        // Call kinematics with updated linear_y value
         botKinematics();
     }
 
 
-    // 
+    // Triggers on /TOF_Left post sets linear x speed based on pids
     void TOF_LeftCallback(const std_msgs::Int16& TOF_Left){
+        // If desired_x = 0 stop x movement, ingore x sensor, declare arrived
         if(desired_x == 0){
             linear_x = 0;
             arrived_x = SEQUENTIAL_READS;
-        }
+        } 
+
+        // If desired x is negative use sensor data to calculate pid for x velocity from left sensor
         else if(desired_x < 0){
             double error_x = -desired_x - TOF_Left.data;
-            /*
-            if(error_x > 180)
-                error_x -= 360;
-            if(error_x < -180)
-                error_x += 360;
-            */
             error_x_cumulative += error_x;
             linear_x = (KP_X * error_x) + (KI_X * error_x_cumulative / TS) + (KD_X * TS * (error_x - error_x_prev));
             error_x_prev = error_x;
 
+            // If we are close enough to desired value tally up how long we are here
             if(abs(error_x) <= ALLOWABLE_ERROR)
                 arrived_x++;
-            else
+            else// If we have moved to far or overshoot, reset tally
                 arrived_x = 0;
         }
+        // Call kinematics with updated linear_x value
         botKinematics();
     }
 
 
-    // 
+    // Triggers on /TOF_Right post sets linear x speed based on pids
     void TOF_RightCallback(const std_msgs::Int16& TOF_Right){
+        // If desired_x = 0 stop x movement, ingore x sensor, declare arrived
         if(desired_x == 0){
             linear_x = 0;
             arrived_x = SEQUENTIAL_READS;
         }
+
+        // If desired x is positive use sensor data to calculate pid for x velocity from right sensor
         else if(desired_x > 0){
             double error_x = -1 * (desired_x - TOF_Right.data);
-            /*
-            if(error_x > 180)
-                error_x -= 360;
-            if(error_x < -180)
-                error_x += 360;
-            */
             error_x_cumulative += error_x;
             linear_x = (KP_X * error_x) + (KI_X * error_x_cumulative / TS) + (KD_X * TS * (error_x - error_x_prev));
             error_x_prev = error_x;
 
+            // If we are close enough to desired value tally up how long we are here
             if(abs(error_x) <= ALLOWABLE_ERROR)
                 arrived_x++;
-            else
+            else// If we have moved to far or overshoot, reset tally
                 arrived_x = 0;
         }
+        // Call kinematics with updated linear_x value
         botKinematics();
     }
 
 
-    // 
+    // Triggers on /IMU_Bearing post sets rotation z spead based on pids and offset
     void IMU_BearingCallback(const std_msgs::Int16& IMU_Bearing){
+        // If bearing_offset is negative it is uninitialized, so set it as offset
         if(bearing_offset == -1)
             bearing_offset = IMU_Bearing.data;
         
+        // Find difference or errot between desired and actual
         double error_z = desired_z - (IMU_Bearing.data - bearing_offset);
 
+        // Constrain error to plus or minus 180 deg
         if(error_z > 180)
             error_z -= 360;
         if(error_z < -180)
             error_z += 360;
 
+        // Calculate pid error based on K's and error
         error_z_cumulative += error_z;
         linear_z = (KP_Z * error_z) + (KI_Z * error_z_cumulative / TS) + (KD_Z * TS * (error_z - error_z_prev));
         error_z_prev = error_z;
 
+        // If we are close enough to desired value tally up how long we are here
         if(abs(error_z) <= ALLOWABLE_ERROR){
-            if(arrived_z < SEQUENTIAL_READS)
+            if(arrived_z < SEQUENTIAL_READS)    // prevent overflow in counting
                 arrived_z++;
         }
-        else
+        else// If we have moved to far or overshoot, reset tally
             arrived_z = 0;
 
+        // Call kinematics with updated linear_z value
         botKinematics();
     }
 
 
-    // Accepts move instructions for bot x, y, z, speed and follows those values.
+    // Accepts move instructions for bot x, y, z, speed and sets local values to trigger on sensor callbacks
     void MoveCallback(const std_msgs::Float32MultiArray& Move){
+        // Copy x&y offset, desired z bearing, and max speed allowed to locals for callback pids
         desired_x = Move.data[0];
         desired_y = Move.data[1];
         desired_z = Move.data[2];
         max_speed = Move.data[3] * MAX_SPEED;
+
+        // Reset arrived tally to not trigger imediatly
         arrived_x = 0;
         arrived_y = 0;
         arrived_z = 0;
     }
 
 
-    // 
+    // Takes xy velocity and z rotation and calculates wheel speeds scaled to max speed
     void botKinematics(){
-        // linear_xyz, max_speed
-
+        // Find angle of linear movement for kinematics
         double theta = atan2(linear_y, linear_x);
-        /*if(linear_x < 0 && linear_y >= 0)
-            theta += 3.1415;
-        else if(linear_x < 0 && linear_y < 0)
-            theta += -3.1415;
-            */
+        // Make angle positive
         if(theta < 0)
             theta += 6.28;
 
+        // Scale speed based on x, y, and max speeds
         double speed = sqrt(linear_x * linear_x + linear_y * linear_y);
         if(speed > max_speed)
             speed = max_speed;
 
+        // Inverse wheel kinematics
         Wheel_Speeds.data[0] = speed * cos(theta) + linear_z;
         Wheel_Speeds.data[1] = speed * cos(theta + (2.0 / 3.0 * 3.1415)) + linear_z;
         Wheel_Speeds.data[2] = speed * cos(theta - (2.0 / 3.0 * 3.1415)) + linear_z;
         
+        // Find max value of wheels
         double max = abs(Wheel_Speeds.data[0]);
         if(abs(Wheel_Speeds.data[1]) > max)
             max = abs(Wheel_Speeds.data[1]); 
         if(abs(Wheel_Speeds.data[2]) > max) 
             max = abs(Wheel_Speeds.data[2]); 
+
+        // If max value greater than fastest wheel speeds scale all speeds down
         if(max > 255){
             Wheel_Speeds.data[0] = Wheel_Speeds.data[0] / max * 255;
             Wheel_Speeds.data[1] = Wheel_Speeds.data[1] / max * 255;
@@ -502,20 +511,27 @@ public:
 
         //ROS_INFO("Arrived array: %f, %f, %f", arrived_x, arrived_y, arrived_z);
 
+        // Checks to see if xyz are all stable and happy
         if(max_speed != 0 && arrived_x >= SEQUENTIAL_READS && arrived_y >= SEQUENTIAL_READS && arrived_z >= SEQUENTIAL_READS){
-            Wheel_Speeds.data[0] = 0;
-            Wheel_Speeds.data[1] = 0;
-            Wheel_Speeds.data[2] = 0;
-            
+            // Ignore sensors and set speed to 0
             desired_x = 0;
             desired_y = 0;
             //desired_z = 0;
             max_speed = 0;
 
+            // Publish move done
             Move_Done.data = 1;
             Move_Done_pub.publish(Move_Done);
         }
 
+        // If max_Speed 0 overide all orders with stop
+        if(max_speed != 0){
+            Wheel_Speeds.data[0] = 0;
+            Wheel_Speeds.data[1] = 0;
+            Wheel_Speeds.data[2] = 0;
+        }
+
+        // Publish speed to wheels
         Wheel_Speeds_pub.publish(Wheel_Speeds); 
     }
 
@@ -547,11 +563,12 @@ private:
     std_msgs::Float32MultiArray Feedback;
     std_msgs::Float32MultiArray Arm_Angles;
 
+    // Local publisher variables
     std_msgs::Float32MultiArray Wheel_Speeds;
     std_msgs::Int8 Arm_Done;
     std_msgs::Int8 Move_Done;
 
-    // Variables for functions
+    // Variables for bot movement functions
     double  desired_x = 0, error_x_prev = 0, error_x_cumulative = 0, linear_x = 0, arrived_x = 0,
             desired_y = 0, error_y_prev = 0, error_y_cumulative = 0, linear_y = 0, arrived_y = 0,
             desired_z = 0, error_z_prev = 0, error_z_cumulative = 0, linear_z = 0, arrived_z = 0,
