@@ -58,7 +58,7 @@ using namespace dynamixel;
 #define MAX_SPEED           5   // Scaler for max_speed of wheels
 #define ALLOWABLE_ERROR     20  // How close we need to be to bot posistions
 #define SEQUENTIAL_READS    10  // How many readings we need to be in posistion before declaring arrival
-
+#define CUMULATIVE_CAP      1000 // Cap on cumlative error for pid
 // Default dynamixel setting
 #define BAUDRATE              57600           // Default Baudrate of DYNAMIXEL X series
 #define DEVICE_NAME           "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT89FKZ2-if00-port0"  // [Linux] To find assigned port, use "$ ls /dev/ttyUSB*" command
@@ -362,12 +362,22 @@ public:
         else{
             double error_y = desired_y - TOF_Front.data;
             error_y_cumulative += error_y;
+
+            // Constrain error to plus or minus CUMLATIVE_CAP
+            if(error_y_cumulative > CUMULATIVE_CAP)
+                error_y_cumulative = CUMULATIVE_CAP;
+            if(error_y_cumulative < -CUMULATIVE_CAP)    
+                error_y_cumulative = -CUMULATIVE_CAP;
+
+            // Calculate pid error based on K's and error     
             linear_y = (KP_Y * error_y) + (KI_Y * error_y_cumulative / TS) + (KD_Y * TS * (error_y - error_y_prev));
             error_y_prev = error_y;
 
             // If we are close enough to desired value tally up how long we are here
-            if(abs(error_y) <= ALLOWABLE_ERROR)
-                arrived_y++;
+            if(abs(error_y) <= ALLOWABLE_ERROR){
+                if(arrived_y < SEQUENTIAL_READS)    // prevent overflow in counting
+                    arrived_y++;
+            }
             else// If we have moved to far or overshoot, reset tally
                 arrived_y = 0;
 
@@ -389,12 +399,22 @@ public:
         else if(desired_x < 0){
             double error_x = -desired_x - TOF_Left.data;
             error_x_cumulative += error_x;
+
+            // Constrain error to plus or minus CUMLATIVE_CAP
+            if(error_x_cumulative > CUMULATIVE_CAP)
+                error_x_cumulative = CUMULATIVE_CAP;
+            if(error_x_cumulative < -CUMULATIVE_CAP)    
+                error_x_cumulative = -CUMULATIVE_CAP;
+
+            // Calculate pid error based on K's and error 
             linear_x = (KP_X * error_x) + (KI_X * error_x_cumulative / TS) + (KD_X * TS * (error_x - error_x_prev));
             error_x_prev = error_x;
 
             // If we are close enough to desired value tally up how long we are here
-            if(abs(error_x) <= ALLOWABLE_ERROR)
-                arrived_x++;
+            if(abs(error_x) <= ALLOWABLE_ERROR){
+                if(arrived_x < SEQUENTIAL_READS)    // prevent overflow in counting
+                    arrived_x++;
+            }
             else// If we have moved to far or overshoot, reset tally
                 arrived_x = 0;
         }
@@ -415,12 +435,22 @@ public:
         else if(desired_x > 0){
             double error_x = -1 * (desired_x - TOF_Right.data);
             error_x_cumulative += error_x;
+
+            // Constrain error to plus or minus CUMLATIVE_CAP
+            if(error_x_cumulative > CUMULATIVE_CAP)
+                error_x_cumulative = CUMULATIVE_CAP;
+            if(error_x_cumulative < -CUMULATIVE_CAP)    
+                error_x_cumulative = -CUMULATIVE_CAP;
+
+            // Calculate pid error based on K's and error
             linear_x = (KP_X * error_x) + (KI_X * error_x_cumulative / TS) + (KD_X * TS * (error_x - error_x_prev));
             error_x_prev = error_x;
 
             // If we are close enough to desired value tally up how long we are here
-            if(abs(error_x) <= ALLOWABLE_ERROR)
-                arrived_x++;
+            if(abs(error_x) <= ALLOWABLE_ERROR){
+                if(arrived_x < SEQUENTIAL_READS)    // prevent overflow in counting
+                    arrived_x++;
+            }
             else// If we have moved to far or overshoot, reset tally
                 arrived_x = 0;
         }
@@ -446,6 +476,14 @@ public:
 
         // Calculate pid error based on K's and error
         error_z_cumulative += error_z;
+
+        // Constrain error to plus or minus CUMLATIVE_CAP
+        if(error_z_cumulative > CUMULATIVE_CAP)
+            error_z_cumulative = CUMULATIVE_CAP;
+        if(error_z_cumulative < -CUMULATIVE_CAP)    
+            error_z_cumulative = -CUMULATIVE_CAP;
+
+        // Calculate pid error based on K's and error
         linear_z = (KP_Z * error_z) + (KI_Z * error_z_cumulative / TS) + (KD_Z * TS * (error_z - error_z_prev));
         error_z_prev = error_z;
 
@@ -509,13 +547,13 @@ public:
             Wheel_Speeds.data[2] = Wheel_Speeds.data[2] / max * 255;
         }
 
-        //ROS_INFO("Arrived array: %f, %f, %f", arrived_x, arrived_y, arrived_z);
+        ROS_INFO("Arrived array: %f, %f, %f", arrived_x, arrived_y, arrived_z);
 
         // Checks to see if xyz are all stable and happy
         if(max_speed != 0 && arrived_x >= SEQUENTIAL_READS && arrived_y >= SEQUENTIAL_READS && arrived_z >= SEQUENTIAL_READS){
             // Ignore sensors and set speed to 0
-            desired_x = 0;
-            desired_y = 0;
+            //desired_x = 0;
+            //desired_y = 0;
             //desired_z = 0;
             max_speed = 0;
 
