@@ -24,8 +24,9 @@ start_led_state_sub = rospy.Subscriber("LED_State", Bool, callback=start_led_cal
 #arm_done_sub = rospy.Subscriber("Arm_Done", Int8, callback=state_arm2sm_cb)
 #state_Nav2SM_sub = rospy.Subscriber("State_Nav2SM", Int8, callback=state_nav2arm_cb)
 #TOF_Front = rospy.Subscriber("TOF_Front", Int16, callback=tof_front_cb)
-#move_done_sub = rospy.Subscriber("Move_Done", Int8, callback=move_done_cb)
+move_done_sub = rospy.Subscriber("Move_Done", Int8, callback=move_done_cb)
 gravity_vector_sub = rospy.Subscriber("IMU_Grav", Int16, callback=gravity_vector_cb)
+bearing_sub = rospy.Subscriber("IMU_Bearing", Int16, callback=bearing_cb)
 
 
 def main():
@@ -48,12 +49,34 @@ def main():
                                             'green_led_not_detected':'READING_START_LED'})
         
         # TODO: Add pickup states
+        # concurrent state machine object
+        # with new_sm:....
+        # add states
+        # make sure the transitions match
 
         # Go to dropoff area
         smach.StateMachine.add('GO_TO_DROP_OFF_AREA', GoTo_(Areas.DROP_OFF, move_publisher=move_pub), 
-                                   transitions={'arrived':'END', 'not_arrived':'GO_TO_DROP_OFF_AREA'})
+                                   transitions={'arrived':'GO_TO_FUEL_TANK_AREA', 'not_arrived':'GO_TO_DROP_OFF_AREA'})
         
+        # TODO: Add dropoff states
 
+        # Go to fuel tank area
+        smach.StateMachine.add('GO_TO_FUEL_TANK_AREA', GoTo_(Areas.FUEL_TANK, move_publisher=move_pub), 
+                                   transitions={'arrived':'END', 'not_arrived':'GO_TO_FUEL_TANK_AREA'})
+
+        # TODO: Add fuel tank pickup states
+
+        # Go to thruster area
+        # TODO:
+        # 1) Rotate facing towards the thruster area
+        # 2) Go up the ramp and stop when the gravity vector returns ~ 0
+        # 3) Rotate 180°
+        # 4) Go backwards until the back tof detects the gap
+        # 5) Deploy the bridge
+        # 6) Go forward a bit
+        # 7) Go backwards
+        # 7.5) Add logic for gravity vector
+        # 8) Reached thruster area in reverse?
 
 
     # Create and start the introspection server
