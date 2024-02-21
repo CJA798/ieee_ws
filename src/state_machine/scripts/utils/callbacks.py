@@ -90,3 +90,26 @@ def move_done_cb(data):
     # Handle any exceptions that occur during the state execution
     except Exception as e:
         rospy.logerr("Error in move_done_cb: {}".format(e))
+
+
+def tof_back_cb(data):
+    '''Callback function to handle TOF back updates
+    
+    Args:
+        data (std_msgs.Int16): The new TOF back value
+
+    Returns:
+        None
+
+    Raises:
+        Exception: Any exception that occurs during the callback
+    '''
+    
+    # Update the global TOF back value
+    try:
+        globals['tof_back'] = data.data
+        #rospy.loginfo("TOF Back: %s", globals['tof_back'])
+    
+    # Handle any exceptions that occur during the state execution
+    except Exception as e:
+        rospy.logerr("Error in tof_back_cb: {}".format(e))

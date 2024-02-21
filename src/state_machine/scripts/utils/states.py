@@ -87,17 +87,18 @@ class ReadingStartLED(smach.State):
 class GoTo_(smach.State):
     # Dictionary mapping areas to method names
     AREA_METHODS = {
-        Areas.SECOND_SLOPE: "GoToSecondSlope",
         Areas.DROP_OFF: "GoToDropOffArea",
         Areas.FUEL_TANK: "GoToFuelTankArea",
-        Areas.THRUSTER: "GoToThrusterArea"
+        Areas.CRATER: "GoToCraterArea",
     }
 
-    def __init__(self, area, move_publisher):
+    def __init__(self, area, move_publisher, misc_angles_publisher=None):
         # Initialize the state with outcomes 'arrived' and 'not_arrived'
         smach.State.__init__(self, outcomes=['arrived', 'not_arrived'])
         self.area = area
         self.move_pub = move_publisher
+        self.misc_angles_pub = misc_angles_publisher
+
         rospy.loginfo(f"Executing state GoTo{self.area}")
 
     def execute(self, userdata):
@@ -207,9 +208,99 @@ class GoTo_(smach.State):
             rospy.logerr(f"Error in GoToFuelTankArea: {e}")
             return 'not_arrived'
         
-    def GoToThrusterArea(self):
-        # Placeholder method for handling the Thruster area
-        pass
+    def GoToCraterArea(self):
+        rate = rospy.Rate(20)
+        angle = 180
+        try:
+            # Reset the move_done global variable
+            globals['move_done'] = False
+
+            # Rotate
+            message = Float32MultiArray() # create an instance of the Float32MultiArray message
+            message.data = [0, 0, angle, 100]
+            self.move_pub.publish(message)
+
+            # Wait for the move to complete
+            while not globals['move_done']  and not rospy.is_shutdown():
+                rate.sleep()
+            
+            rospy.loginfo('Rotated 180 degrees')
+
+            # Reset the move_done global variable 
+            globals['move_done'] = False
+
+            # Move to the top second ramp
+            message.data = [200, 1, angle, 100]
+            self.move_pub.publish(message)
+
+            # Wait for the move to complete
+            while globals['gravity_vector'] < 15  and not rospy.is_shutdown():
+                rate.sleep()
+            
+            rospy.loginfo('Half second ramp reached')
+            while globals['gravity_vector'] > 2  and not rospy.is_shutdown():
+                rate.sleep()
+
+
+            rate2 = rospy.Rate(1)
+            rate2.sleep()
+            # Move to the top second ramp
+            message.data = [0, 0, angle, 0]
+            self.move_pub.publish(message)
+
+            rospy.loginfo('Top second ramp reached')
+
+            # Reset the move_done global variable
+            globals['move_done'] = False
+
+            # Rotate to place bridge
+            message.data = [0, 0, 0, 100]
+            self.move_pub.publish(message)
+
+            # Wait for the move to complete
+            while not globals['move_done']  and not rospy.is_shutdown():
+                rate.sleep()
+
+            rospy.loginfo('Rotated to place bridge')
+
+            # Reset the move_done global variable
+            globals['move_done'] = False
+
+            # Back up until back tof reads over 70
+            message.data = [0, -1, 0, 40]
+            self.move_pub.publish(message)
+
+            # Wait for the move to complete
+            while globals['tof_back'] < 70  and not rospy.is_shutdown():
+                rate.sleep()
+
+            rospy.loginfo('Backed up')
+
+            # Stop
+            message.data = [0, 0, 0, 0]
+            self.move_pub.publish(message)
+            
+            # Reset the move_done global variable
+            globals['move_done'] = False
+            
+            # Drop bridge
+            bridge_message = Float32MultiArray()
+            bridge_message.data = [3150, -1, -1, -1, -1, -1, -1, -1]
+            self.misc_angles_pub.publish(bridge_message)
+
+            # Wait for the move to complete
+            bridge_rate = rospy.Rate(1/3)
+            bridge_rate.sleep()
+
+            # Forward for ~2 seconds
+
+
+
+            return 'arrived'
+
+        except Exception as e:
+            rospy.logerr(f"Error in GoToCraterArea: {e}")
+            return 'not_arrived'
 
 
 

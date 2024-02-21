@@ -18,6 +18,7 @@ from utils.callbacks import *
 #arm_angles_pub = rospy.Publisher('Arm_Angles', Float32MultiArray, queue_size=10)
 #state_SM2Nav_pub = rospy.Publisher('State_SM2Nav', Int8, queue_size=10)
 move_pub = rospy.Publisher('Move', Float32MultiArray, queue_size=10)
+misc_angles_pub = rospy.Publisher('Misc_Angles', Float32MultiArray, queue_size=10)
 
 # Create subscribers
 start_led_state_sub = rospy.Subscriber("LED_State", Bool, callback=start_led_callback)
@@ -27,6 +28,7 @@ start_led_state_sub = rospy.Subscriber("LED_State", Bool, callback=start_led_cal
 move_done_sub = rospy.Subscriber("Move_Done", Int8, callback=move_done_cb)
 gravity_vector_sub = rospy.Subscriber("IMU_Grav", Int16, callback=gravity_vector_cb)
 bearing_sub = rospy.Subscriber("IMU_Bearing", Int16, callback=bearing_cb)
+tof_back_sub = rospy.Subscriber("TOF_Back", Int16, callback=tof_back_cb)
 
 
 def main():
@@ -62,9 +64,16 @@ def main():
 
         # Go to fuel tank area
         smach.StateMachine.add('GO_TO_FUEL_TANK_AREA', GoTo_(Areas.FUEL_TANK, move_publisher=move_pub), 
-                                   transitions={'arrived':'END', 'not_arrived':'GO_TO_FUEL_TANK_AREA'})
+                                   transitions={'arrived':'GO_TO_CRATER_AREA', 'not_arrived':'GO_TO_FUEL_TANK_AREA'})
 
         # TODO: Add fuel tank pickup states
+
+
+        # Go to crater
+        smach.StateMachine.add('GO_TO_CRATER_AREA', GoTo_(Areas.CRATER, move_publisher=move_pub, misc_angles_publisher=misc_angles_pub), 
+                                   transitions={'arrived':'END', 'not_arrived':'GO_TO_CRATER_AREA'})
+
+
 
         # Go to thruster area
         # TODO:
