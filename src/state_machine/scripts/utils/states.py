@@ -26,11 +26,22 @@ class Nav2SMStates(Enum):
 
 # define state Initialize
 class Initialize(smach.State):
+    ''' State to initialize the robot'''
     def __init__(self):
         smach.State.__init__(self, outcomes=['succeeded','aborted'])
         self.bot_initialized = False
 
     def execute(self, userdata):
+        '''Delay for 5 seconds to simulate the initialization of the robot
+        
+        Args:
+            userdata: The data passed to the state (Not used)
+        
+        Returns:
+            str: The outcome of the state ('succeeded' or 'aborted')
+        
+        Raises:
+            Exception: Any exception that occurs during the state execution'''
         rospy.loginfo('Executing state Initialize')
         # Run initialization logic
         self.bot_initialized = True
@@ -61,18 +72,20 @@ class ReadingStartLED(smach.State):
             Exception: Any exception that occurs during the state execution'''
         
         rate = rospy.Rate(20)  # 10 Hz
+        # Wait for the green LED to be detected
         try:
             while not globals['green_detected'] and not rospy.is_shutdown():
                 rate.sleep()
             return 'green_led_detected'
         
+        # Handle any exceptions that occur during the state execution
         except Exception as e:
             rospy.logerr("Error in ReadingStartLED: {}".format(e))
             return 'green_led_not_detected'
         
 
 class GoTo_(smach.State):
-    # Dictionary mapping Areas enum values to method names
+    # Dictionary mapping areas to method names
     AREA_METHODS = {
         Areas.SECOND_SLOPE: "GoToSecondSlope",
         Areas.DROP_OFF: "GoToDropOffArea",
@@ -88,6 +101,16 @@ class GoTo_(smach.State):
         rospy.loginfo(f"Executing state GoTo{self.area}")
 
     def execute(self, userdata):
+        '''Execute the state logic to move the robot to the specified area
+        
+        Args:
+            userdata: The data passed to the state (Not used)
+            
+        Returns:
+            str: The outcome of the state ('arrived' or 'not_arrived')
+            
+        Raises:
+            Exception: Any exception that occurs during the state execution'''
         # Check if the area is valid and has a corresponding action
         if self.area in self.AREA_METHODS:
             # Get the action name corresponding to the area
@@ -104,59 +127,82 @@ class GoTo_(smach.State):
             return 'not_arrived'
     
     def GoToDropOffArea(self):
+        '''State to move the robot to the drop off area'''
         rate = rospy.Rate(20)
         try:
+            # Reset the move_done global variable
+            globals['move_done'] = False
+
+            # Move to the second slope
             message = Float32MultiArray()
             message.data = [200, 1, 0, 100]
             self.move_pub.publish(message)
 
-            while globals['gravity_vector'] > -25:
+            # Wait for the move to complete
+            while globals['gravity_vector'] > -25  and not rospy.is_shutdown():
                 rate.sleep()
 
             rospy.loginfo('Second slope reached')
 
-            while globals['gravity_vector'] < -10:
+            # Keep moving until the robot crosses the second slope
+            while globals['gravity_vector'] < -10  and not rospy.is_shutdown():
                 rate.sleep()
 
+            # Reset the move_done global variable
+            globals['move_done'] = False
+
+            # Move to the drop off area
             message.data = [200, 200, 0, 100]
             self.move_pub.publish(message)
 
-            while not globals['move_done']:
+            # Wait for the move to complete
+            while not globals['move_done']  and not rospy.is_shutdown():
                 rate.sleep()
             
             # Reset the move_done global variable
             globals['move_done'] = False
             return 'arrived'
         
+        # Handle any exceptions that occur during the state execution
         except Exception as e:
             rospy.logerr(f"Error in GoToDropOffArea: {e}")
             return 'not_arrived'
 
 
     def GoToFuelTankArea(self):
+        '''State to move the robot to the fuel tank area'''
         rate = rospy.Rate(20)
         try:
+            # Reset the move_done global variable
             globals['move_done'] = False
+            
+            # Turn 90 degrees
             message = Float32MultiArray()
             message.data = [0, 0, -90, 100]
             self.move_pub.publish(message)
 
-            while not globals['move_done']:
+            # Wait for the move to complete
+            while not globals['move_done']  and not rospy.is_shutdown():
                 rate.sleep()
-            
+        
             rospy.loginfo('Turned 90 degrees')
 
+            # Reset the move_done global variable
             globals['move_done'] = False
+
+            # Move to the fuel tank area
             message.data = [100, 270, -90, 100]
             self.move_pub.publish(message)
 
-            while not globals['move_done']:
+            # Wait for the move to complete
+            while not globals['move_done']  and not rospy.is_shutdown():
                 rate.sleep()
 
             # Reset the move_done global variable
             globals['move_done'] = False
             return 'arrived'
 
+        # Handle any exceptions that occur during the state execution
         except Exception as e:
             rospy.logerr(f"Error in GoToFuelTankArea: {e}")
             return 'not_arrived'
@@ -166,6 +212,14 @@ class GoTo_(smach.State):
         pass
 
 
+
+####################################################################################################
+#    
+####################################################################################################
+#                                    O L D  C O D E   B E L O W
+####################################################################################################
+#    
+####################################################################################################
 
 
 
