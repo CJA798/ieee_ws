@@ -551,13 +551,23 @@ class SpiritCelebration(smach.State):
         self.misc_angles_pub = misc_angles_publisher
 
     def execute(self, userdata):
+        '''Execute the state logic to celebrate the spirit
+        
+        Args:
+            userdata: The data passed to the state (Not used)
+            
+        Returns:
+            str: The outcome of the state ('succeeded' or 'aborted')
+
+        Raises:
+            Exception: Any exception that occurs during the state execution'''
+        
         try:
             flag = Float32MultiArray()
             flag.data = [-1,-1,-1,2048,-1,-1,-1,-1]
             self.misc_angles_pub.publish(flag)
-
-
             return 'succeeded'
+        
          # Handle any exceptions that occur during the state execution
         except Exception as e:
             rospy.logerr(f"Error in SpiritCelebration: {e}")
