@@ -616,7 +616,24 @@ class ButtonPress(smach.State):
 
 
     
+# define state SetPose
+class ScanPose(smach.State):
+    def __init__(self, arm_angles_pub):
+        smach.State.__init__(self, outcomes=['pose_reached','pose_not_reached'])
+        rospy.loginfo(f'Executing state ScanPose')
+        self.arm_angles_pub = arm_angles_pub
 
+    def execute(self, userdata):
+        angles_ = Float32MultiArray()
+        angles_.data = [1940.0, 2125.0, 2120.0, 2443.0, 2179.0, 716.0, 2003.0, 2040.0]
+        self.arm_angles_pub.publish(angles_)
+        rate = rospy.Rate(100)
+
+        while not globals['arm_done']:
+            rate.sleep()
+            globals ['arm_done'] = False
+            return 'pose_reached'
+        return 'pose_not_reached'
 
 
 ####################################################################################################
