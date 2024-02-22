@@ -85,10 +85,16 @@ def main():
                                    transitions={'arrived':'GO_TO_FINAL', 'not_arrived':'GO_TO_CRATER_AREA'})
         
         smach.StateMachine.add('GO_TO_FINAL', GoTo_(Areas.BUTTON, move_publisher=move_pub), 
-                               transitions={'arrived':'BUTTON_PRESS', 'not_arrived':'GO_TO_FINAL'})
+                               transitions={'arrived':'SPIRIT_CELEBRATION', 'not_arrived':'GO_TO_FINAL'})
+        
+        
+        smach.StateMachine.add('SPIRIT_CELEBRATION', SpiritCelebration(misc_angles_publisher = misc_angles_pub),
+                               transitions = {'succeeded':'BUTTON_PRESS', 'aborted':'SPIRIT_CELEBRATION'})
+
         
         smach.StateMachine.add('BUTTON_PRESS', ButtonPress(move_publisher=move_pub), 
                                transitions={'succeeded':'END', 'aborted':'BUTTON_PRESS'})
+        
 
 
     # Create and start the introspection server

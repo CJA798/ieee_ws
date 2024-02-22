@@ -545,6 +545,23 @@ class PickUp(smach.State):
         pass
 
 
+class SpiritCelebration(smach.State):
+    def __init__(self, misc_angles_publisher = None):
+        smach.State.__init__(self, outcomes = ['succeeded','aborted'])
+        self.misc_angles_pub = misc_angles_publisher
+
+    def execute(self, userdata):
+        try:
+            flag = Float32MultiArray()
+            flag.data = [-1,-1,-1,2048,-1,-1,-1,-1]
+            self.misc_angles_pub.publish(flag)
+
+
+            return 'succeeded'
+         # Handle any exceptions that occur during the state execution
+        except Exception as e:
+            rospy.logerr(f"Error in SpiritCelebration: {e}")
+            return 'aborted'
 
 # define state ButtonPress
 class ButtonPress(smach.State):
@@ -596,6 +613,7 @@ class ButtonPress(smach.State):
             rospy.logerr(f"Error in ButtonPress: {e}")
             return 'aborted'
         
+
 
     
 
