@@ -40,6 +40,8 @@ using namespace dynamixel;
 #define POS_I_GAIN  0           // Angle mode I gain
 #define POS_D_GAIN  4000        // Angle mode D gain
 #define STOP  0                 // Velocity mode stop
+#define MISC_COUNT  1          // Number of misc servos hooked up
+#define MISC_ANGLE_TOLERANCE    50 // Counts we need to be off to count as arrived
 
 // PID's and Move constants
 #define KP_X    4.0
@@ -59,6 +61,7 @@ using namespace dynamixel;
 #define ALLOWABLE_ERROR     20  // How close we need to be to bot posistions
 #define SEQUENTIAL_READS    10  // How many readings we need to be in posistion before declaring arrival
 #define CUMULATIVE_CAP      1000 // Cap on cumlative error for pid
+
 // Default dynamixel setting
 #define BAUDRATE              57600           // Default Baudrate of DYNAMIXEL X series
 #define DEVICE_NAME           "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT89FKZ2-if00-port0"  // [Linux] To find assigned port, use "$ ls /dev/ttyUSB*" command
@@ -71,9 +74,6 @@ PacketHandler* packetHandler = PacketHandler::getPacketHandler(PROTOCOL_VERSION)
 // Create objects for bult reading and writing of servos
 GroupBulkRead groupBulkRead(portHandler, packetHandler);
 GroupBulkWrite groupBulkWrite(portHandler, packetHandler);
-
-// Global variables
-int arm_moving = 0;     // Keeps track of weather or not the arm need to be check for moving
 
 // Main class holding all servo declarations, functions, and variables
 class ServoClass{
@@ -93,6 +93,7 @@ public:
         Arm_Done_pub = nh.advertise<std_msgs::Int8>("/Arm_Done", 1);
         Move_Done_pub = nh.advertise<std_msgs::Int8>("/Move_Done", 1);
         Wheel_Speeds_pub = nh.advertise<std_msgs::Float32MultiArray>("/Wheel_Speeds", 1);
+        Misc_Done_pub = nh.advertise<std_msgs::Int8>("/Misc_Done", 1);
 
         // Subscribers
         Get_Feedback_sub = nh.subscribe("/Get_Feedback", 1, &ServoClass::Get_FeedbackCallback, this);
@@ -260,18 +261,62 @@ public:
         // Creates and assigns array with each byte of message
         uint8_t data_array[4];
         for (int i = 1; i < 9; i++){     // Do for all 8ish misc servos
-            uint32_t data = (unsigned int)(Misc_Angles.data[i - 1]); // Convert int32 to uint32
-            data_array[0] = DXL_LOBYTE(DXL_LOWORD(data));
-            data_array[1] = DXL_HIBYTE(DXL_LOWORD(data));
-            data_array[2] = DXL_LOBYTE(DXL_HIWORD(data));
-            data_array[3] = DXL_HIBYTE(DXL_HIWORD(data));
-            groupBulkWrite.addParam((i + 11), GOAL_POSITION_ADDR, 4, data_array);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
+            if(Misc_Angles.data(i-1) != -1){
+                uint32_t data = (unsigned int)(Misc_Angles.data[i - 1]); // Convert int32 to uint32
+                data_array[0] = DXL_LOBYTE(DXL_LOWORD(data));
+                data_array[1] = DXL_HIBYTE(DXL_LOWORD(data));
+                data_array[2] = DXL_LOBYTE(DXL_HIWORD(data));
+                data_array[3] = DXL_HIBYTE(DXL_HIWORD(data));
+                groupBulkWrite.addParam((i + 11), GOAL_POSITION_ADDR, 4, data_array);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
+            }
         }
         groupBulkWrite.txPacket();  // Write servos with prepared list all at once
+
+        // Sets the misc moving flag to start checking for servos to complete move
+        misc_moving = 1;
 
         // Print final servo values to ros
         //ROS_INFO("Angles: %f, %f, %f, %f, %f, %f, %f, %f", Misc_Angles.data[0], Misc_Angles.data[1], Misc_Angles.data[2], Misc_Angles.data[3], Misc_Angles.data[4], Misc_Angles.data[5], Misc_Angles.data[6], Misc_Angles.data[7]);
     }
+
+
+    // Checks if servos are within exceptable error to declare done
+    void MiscMoving(){
+        // Clears bulk read stack
+        groupBulkRead.clearParam();
+
+        // Reads goal angles of misc servos and stores in array
+        for (int i = 12; i < 12 + MISC_COUNT; i++){
+            groupBulkRead.addParam(i, 116, 4);
+        }
+        groupBulkRead.txRxPacket(); // Executes bulk read
+
+        // Assigns temp bulk read array to topic and publishes
+        float desired_angle[8];
+        for (int i = 0; i <  MISC_COUNT; i++){
+            desired_angle[i] = groupBulkRead.getData((i + 12), 116, 4);
+        }
+        // Clears bulk read stack
+        groupBulkRead.clearParam();
+
+        // Reads servo posistions of servos and stores in array
+        for (int i = 12; i < 12 + MISC_COUNT; i++){
+            groupBulkRead.addParam(i, 132, 4);
+        }
+        groupBulkRead.txRxPacket(); // Executes bulk read
+
+        // Checks if current posistion and goal posistion are withen acceptable toleracne
+        for (int i = 0; i < MISC_COUNT; i++){
+            if(abs(desired_angle[i] - groupBulkRead.getData((i + 12), 132, 4)) > MISC_ANGLE_TOLERANCE){ // Used to use uint32_t pos[8]; for storing
+                misc_moving = 1;                 // Joint error is to large que up another check
+                return;                         //  break out of function
+            }
+        }
+        misc_moving = 0;                 // All joints in acceptable range so remove funtion for loop
+        Misc_Done.data = 1;              //  mark servos as done moving
+        Misc_Done_pub.publish(Misc_Done); //  publish done moving result
+    }
+
 
     //// Curently sending arm angles instead
     // Read present loads and publishes to feedback
@@ -313,8 +358,8 @@ public:
         for (int i = 0; i < 8; i++){
             if(abs(Arm_Angles.data[i] - groupBulkRead.getData((i + 1), 132, 4)) > 50){ // Used to use uint32_t pos[8]; for storing
                 arm_moving = 1;                 // Joint error is to large que up another check
-                Arm_Done.data = 0;              //  mark arm and not done moving
-                Arm_Done_pub.publish(Arm_Done); //  publish still moving result
+                //Arm_Done.data = 0;              //  mark arm and not done moving
+                //Arm_Done_pub.publish(Arm_Done); //  publish still moving result
                 return;                         //  break out of function
             }
         }
@@ -343,6 +388,21 @@ public:
             groupBulkWrite.addParam((i), MAX_VEL_ADDR, 4, data_array_vel);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
         }
         groupBulkWrite.txPacket();  // Write servos with prepared list all at once
+    }
+    
+
+    // Accepts move instructions for bot x, y, z, speed and sets local values to trigger on sensor callbacks
+    void MoveCallback(const std_msgs::Float32MultiArray& Move){
+        // Copy x&y offset, desired z bearing, and max speed allowed to locals for callback pids
+        desired_x = Move.data[0];
+        desired_y = Move.data[1];
+        desired_z = Move.data[2];
+        max_speed = Move.data[3] * MAX_SPEED;
+
+        // Reset arrived tally to not trigger imediatly
+        arrived_x = 0;
+        arrived_y = 0;
+        arrived_z = 0;
     }
 
 
@@ -507,21 +567,6 @@ public:
     }
 
 
-    // Accepts move instructions for bot x, y, z, speed and sets local values to trigger on sensor callbacks
-    void MoveCallback(const std_msgs::Float32MultiArray& Move){
-        // Copy x&y offset, desired z bearing, and max speed allowed to locals for callback pids
-        desired_x = Move.data[0];
-        desired_y = Move.data[1];
-        desired_z = Move.data[2];
-        max_speed = Move.data[3] * MAX_SPEED;
-
-        // Reset arrived tally to not trigger imediatly
-        arrived_x = 0;
-        arrived_y = 0;
-        arrived_z = 0;
-    }
-
-
     // Takes xy velocity and z rotation and calculates wheel speeds scaled to max speed
     void botKinematics(){
         // Find angle of linear movement for kinematics
@@ -591,6 +636,7 @@ private:
     ros::Publisher Arm_Done_pub;
     ros::Publisher Move_Done_pub;
     ros::Publisher Wheel_Speeds_pub;
+    ros::Publisher Misc_Done_pub;
 
     // Subscriber ros declarations
     ros::Subscriber Get_Feedback_sub;
@@ -612,6 +658,10 @@ private:
     std_msgs::Float32MultiArray Wheel_Speeds;
     std_msgs::Int8 Arm_Done;
     std_msgs::Int8 Move_Done;
+    std_msgs::Int8 Misc_Done;
+
+    // Local ints
+    int arm_moving = 0, misc_moving = 0;
 
     // Variables for bot movement functions
     double  desired_x = 0, error_x_prev = 0, error_x_cumulative = 0, linear_x = 0, arrived_x = 0,
@@ -639,8 +689,13 @@ int main(int argc, char** argv){
     while (ros::ok())
     {
         // Once triggered by new arm posistion will keep running until close enough to desired posistion
-        if(arm_moving)
+        if(ServoObject.arm_moving)
             ServoObject.armMoving();
+        
+        // Once triggered by new miscCallback will keep running until close enough to desired posistion
+        if(ServoObject.misc_moving)
+            ServoObject.miscMoving();
+        
 
         ros::spinOnce();
         //spinner.spin();
