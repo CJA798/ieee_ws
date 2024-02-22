@@ -280,8 +280,11 @@ class GoTo_(smach.State):
             # Wait for the move to complete
             while globals['tof_back'] < 70  and not rospy.is_shutdown():
                 rate.sleep()
+             
 
             rospy.loginfo('Backed up')
+
+            globals['move_done'] = False
 
             # Stop
             message.data = [0, 0, 0, 0]
@@ -296,8 +299,18 @@ class GoTo_(smach.State):
             self.misc_angles_pub.publish(bridge_message)
 
             # Wait for the move to complete
-            bridge_rate = rospy.Rate(1/3)
-            bridge_rate.sleep()
+           
+            #bridge_rate = rospy.Rate(1/3)
+            #bridge_rate.sleep()
+
+            # Wait for bridge to drop
+            while not globals['move_done']  and not rospy.is_shutdown():
+                rate.sleep()
+
+            rospy.loginfo('Bridge dropped')
+
+            # Reset the move_done variable
+            globals['move_done'] = False
 
             # Forward for ~2 seconds
             message.data = [0, 1, 0, 60]
