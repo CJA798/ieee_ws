@@ -645,6 +645,54 @@ class ScanPose(smach.State):
             return 'pose_reached'
         return 'pose_not_reached'
 
+# define state GetCoords
+class GetCoords(smach.State):
+    def __init__(self, object_type, pose):
+        smach.State.__init__(self, outcomes=['coords_received','coords_not_received'],
+                             output_keys=['coordinates'])
+        self.object_type = object_type
+        self.pose = pose
+        #TODO for some reason, removing this sleep brings back the fucking
+        # raise ValueError(f"Object type {object_type} not recognized.")
+        # ValueError: Object type SMALL_PACKAGE not recognized.
+
+        #rospy.sleep(5)
+
+    def execute(self, userdata):
+        try:
+            rospy.loginfo('Executing state GetCoords(small_packages, scan)')
+            
+            client = actionlib.SimpleActionClient('get_coords', GetCoordsAction)
+            client.wait_for_server()
+
+            goal = GetCoordsGoal()
+            goal.timeout.data = 5.0
+            if self.pose == Poses.FRONT.value and self.object_type == BoardObjects.FUEL_TANK.value:
+                goal.expected_pairs.data = 1
+            else:
+                goal.expected_pairs.data = 3
+            goal.object_type.data = self.object_type
+            goal.arm_pose.data = self.pose
+
+            client.send_goal(goal, feedback_cb=get_coords_fb_cb)
+
+            client.wait_for_result()
+            result = client.get_result()
+            #rospy.loginfo(f'Final Elapsed Time: {result.elapsed_time}')
+            #print(result)
+            rospy.loginfo(f'Final Coordinates List: {result.coordinates}    |    Total time: {result.elapsed_time.data}')
+
+            # Return the coordinates as userdata if they are received
+            if result.coordinates:
+                userdata.coordinates = result.coordinates
+
+            return 'coords_received'
+        
+        # Handle any exceptions that occur during the state execution
+        except Exception as e:
+            rospy.logerr(f"Error in GetCoords: {e}")
+            return 'coords_not_received'
+        
 
 ####################################################################################################
 #    
