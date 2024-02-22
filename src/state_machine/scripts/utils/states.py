@@ -237,7 +237,7 @@ class GoTo_(smach.State):
             globals['move_done'] = False
 
             # Move to the top second ramp
-            message.data = [200, 1, angle, 100]
+            message.data = [200, 1, angle, 90]
             self.move_pub.publish(message)
 
             # Wait for the move to complete
