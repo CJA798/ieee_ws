@@ -192,7 +192,7 @@ class GoTo_(smach.State):
             globals['move_done'] = False
 
             # Move to the fuel tank area
-            message.data = [100, 270, -90, 100]
+            message.data = [200, 270, -90, 100]
             self.move_pub.publish(message)
 
             # Wait for the move to complete
@@ -285,7 +285,7 @@ class GoTo_(smach.State):
             
             # Drop bridge
             bridge_message = Float32MultiArray()
-            bridge_message.data = [3150, -1, -1, -1, -1, -1, -1, -1]
+            bridge_message.data = [3200, -1, -1, -1, -1, -1, -1, -1]
             self.misc_angles_pub.publish(bridge_message)
 
             # Wait for the move to complete
@@ -293,7 +293,20 @@ class GoTo_(smach.State):
             bridge_rate.sleep()
 
             # Forward for ~2 seconds
+            message.data = [0, 1, 0, 40]
+            self.move_pub.publish(message)
+            rate2.sleep()
+            rate2.sleep()
 
+            # Reset the move_done global variable
+            globals['move_done'] = False
+
+            # Stop
+            message.data = [0, 0, 0, 0]
+            self.move_pub.publish(message)
+            
+            # Reset the move_done global variable
+            globals['move_done'] = False
 
 
             return 'arrived'

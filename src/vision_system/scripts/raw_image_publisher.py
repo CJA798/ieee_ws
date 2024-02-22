@@ -32,7 +32,7 @@ publisher = rospy.Publisher(topic_name, Image, queue_size=60)
 rate = rospy.Rate(30)
 
 # Create video capture object
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(2, cv2.CAP_V4L2)
 if not cap.isOpened():
     print('Unable to open camera')
     exit(0)
