@@ -355,8 +355,15 @@ public:
         }
 
         // If desired y is negative move backwards at that speed
-        else if(desired_y < 0)
-            linear_y = TOF_Front.data;
+        else if(desired_y < 0){
+            linear_y = -1000 * desired_y;
+        }
+
+
+        // If desired y is 1 move forward at max speed
+        else if(desired_y == 1){
+            linear_y = -1000 * desired_y;
+        }
 
         // If desired y is positive use sensor data to calculate pid for y velocity
         else{

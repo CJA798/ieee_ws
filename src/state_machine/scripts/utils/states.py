@@ -83,6 +83,7 @@ class ReadingStartLED(smach.State):
             rospy.logerr("Error in ReadingStartLED: {}".format(e))
             return 'green_led_not_detected'
         
+        
 
 class GoTo_(smach.State):
     # Dictionary mapping areas to method names
@@ -90,6 +91,7 @@ class GoTo_(smach.State):
         Areas.DROP_OFF: "GoToDropOffArea",
         Areas.FUEL_TANK: "GoToFuelTankArea",
         Areas.CRATER: "GoToCraterArea",
+        Areas.BUTTON: "GoToButtonArea"
     }
 
     def __init__(self, area, move_publisher, misc_angles_publisher=None):
@@ -192,7 +194,7 @@ class GoTo_(smach.State):
             globals['move_done'] = False
 
             # Move to the fuel tank area
-            message.data = [200, 270, -90, 100]
+            message.data = [150, 270, -90, 100]
             self.move_pub.publish(message)
 
             # Wait for the move to complete
@@ -293,7 +295,7 @@ class GoTo_(smach.State):
             bridge_rate.sleep()
 
             # Forward for ~2 seconds
-            message.data = [0, 1, 0, 40]
+            message.data = [0, 1, 0, 60]
             self.move_pub.publish(message)
             rate2.sleep()
             rate2.sleep()
@@ -308,12 +310,142 @@ class GoTo_(smach.State):
             # Reset the move_done global variable
             globals['move_done'] = False
 
+            # Raise the bridge back up
+            bridge_message.data = [2048, -1, -1, -1, -1, -1, -1, -1]
+            self.misc_angles_pub.publish(bridge_message)
+
+            # Go backwards on the bridge, move to next state
 
             return 'arrived'
 
+        # Handle any exceptions that occur during the state execution
         except Exception as e:
             rospy.logerr(f"Error in GoToCraterArea: {e}")
             return 'not_arrived'
+        
+    def GoToButtonArea(self):
+        rate = rospy.Rate(20)
+
+        try:
+            # Reset the move_done global variable
+            globals['move_done'] = False
+
+            # Rotate
+            message = Float32MultiArray() # create an instance of the Float32MultiArray message
+            #Back until finding the flat area
+            message.data = [0, -1, 0, 60]
+            self.move_pub.publish(message)
+
+            #wait until we cross bridge
+            while globals['gravity_vector'] < 10  and not rospy.is_shutdown():
+                rate.sleep()
+            rospy.loginfo('Crossing bridge')
+
+            while globals['gravity_vector'] > 2  and not rospy.is_shutdown():
+                rate.sleep()
+            rospy.loginfo('Crossed bridge')
+
+            while globals['gravity_vector'] < 10  and not rospy.is_shutdown():
+                rate.sleep()
+            rospy.loginfo('Going down the ramp')
+
+            while globals['gravity_vector'] > 2  and not rospy.is_shutdown():
+                rate.sleep()
+            rospy.loginfo('Flat area reached')
+
+            #reset move_done
+            globals['move_done'] = False
+
+            # Rotate
+            message.data = [0, 0, 90, 100]
+            self.move_pub.publish(message)
+
+            while not globals['move_done']  and not rospy.is_shutdown():
+                rate.sleep()
+
+            # Reset the move_done global variable
+            globals['move_done'] = False
+
+            # Aim camera to thruster assembly
+            message.data = [100, 250, 90, 100]
+            self.move_pub.publish(message)
+
+            # Wait for the move to complete
+            while not globals['move_done']  and not rospy.is_shutdown():
+                rate.sleep()
+
+            # Reset the move_done global variable
+            globals['move_done'] = False
+
+            #Stop and hit the button
+            message.data = [0, 0, 0, 0]
+            self.move_pub.publish(message)
+
+            # Reset the move_done global variable
+            globals['move_done'] = False
+
+            # next state
+            return 'arrived'
+
+
+        # Handle any exceptions that occur during the state execution    
+        except Exception as e:
+            rospy.logerr(f"Error in GoToButtonArea: {e}")
+            return 'not_arrived'
+        
+# define state ButtonPress
+class ButtonPress(smach.State):
+
+    def __init__(self, move_publisher):
+        smach.State.__init__(self, outcomes=['succeeded','aborted'])
+        self.move_pub = move_publisher
+
+    def execute(self, userdata):
+        '''Execute the state logic to press the button
+        
+        Args:
+            userdata: The data passed to the state (Not used)
+            
+        Returns:
+            str: The outcome of the state ('succeeded' or 'aborted')
+            
+        Raises:
+            Exception: Any exception that occurs during the state execution'''
+        # Press the button
+        try:
+            rate = rospy.Rate(1)
+
+            
+            # Reset the move_done global variable
+            globals['move_done'] = False
+
+            # Move to the button
+            message = Float32MultiArray()
+            message.data = [0, -1, 90, 50]
+            self.move_pub.publish(message)
+
+            rate.sleep()
+
+            # Wait for the move to complete
+            globals['move_done'] = False
+
+            # Stop
+            message.data = [0, 0, 0, 0]
+            self.move_pub.publish(message)
+
+            # Reset the move_done global variable
+            globals['move_done'] = False
+
+            # finished
+            return 'succeeded'
+
+        # Handle any exceptions that occur during the state execution
+        except Exception as e:
+            rospy.logerr(f"Error in ButtonPress: {e}")
+            return 'aborted'
+        
+
+    
 
 
 

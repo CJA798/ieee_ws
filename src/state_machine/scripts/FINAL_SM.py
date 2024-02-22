@@ -71,7 +71,13 @@ def main():
 
         # Go to crater
         smach.StateMachine.add('GO_TO_CRATER_AREA', GoTo_(Areas.CRATER, move_publisher=move_pub, misc_angles_publisher=misc_angles_pub), 
-                                   transitions={'arrived':'END', 'not_arrived':'GO_TO_CRATER_AREA'})
+                                   transitions={'arrived':'GO_TO_FINAL', 'not_arrived':'GO_TO_CRATER_AREA'})
+        
+        smach.StateMachine.add('GO_TO_FINAL', GoTo_(Areas.BUTTON, move_publisher=move_pub), 
+                               transitions={'arrived':'BUTTON_PRESS', 'not_arrived':'GO_TO_FINAL'})
+        
+        smach.StateMachine.add('BUTTON_PRESS', ButtonPress(move_publisher=move_pub), 
+                               transitions={'succeeded':'END', 'aborted':'BUTTON_PRESS'})
 
 
 

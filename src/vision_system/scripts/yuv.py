@@ -24,7 +24,7 @@ def get_limits(color):
     return lowerLimit, upperLimit
 
 yellow = [0, 255, 255]  # yellow in BGR colorspace
-cap = cv2.VideoCapture(2)
+cap = cv2.VideoCapture(1)
 
 frame_width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
 frame_height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
