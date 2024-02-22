@@ -49,8 +49,8 @@ yellow = [0, 255, 255]  # yellow in BGR colorspace
 cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
 
 
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920//2)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080//2)
 
 print('WIDTH: %d HEIGHT: %d',cap.get(cv2.CAP_PROP_FRAME_WIDTH), cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 

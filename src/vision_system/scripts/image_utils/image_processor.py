@@ -297,7 +297,7 @@ def main():
             print("Can't receive frame")
             break
 
-        coords_list, coords_image = ip.get_coords(BoardObjects.FUEL_TANK.value, Poses.FRONT.value)
+        coords_list, coords_image = ip.get_coords(BoardObjects.SMALL_PACKAGE.value, Poses.FRONT.value)
         
         
 

@@ -32,16 +32,19 @@ publisher = rospy.Publisher(topic_name, Image, queue_size=60)
 rate = rospy.Rate(30)
 
 # Create video capture object
-cap = cv2.VideoCapture(2, cv2.CAP_V4L2)
+cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
 if not cap.isOpened():
     print('Unable to open camera')
     exit(0)
 
+# TODO: Make the image resize factor a global variable
 img_resize_factor = 4
-img_width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
-img_height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, round(img_width/img_resize_factor))
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, round(img_height/img_resize_factor))
+#img_width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+#img_height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+img_width = 1920
+img_height = 1080
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, round(img_width//img_resize_factor))
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, round(img_height//img_resize_factor))
 
 # Create CvBridge object to convert images to messages
 bridge = CvBridge()

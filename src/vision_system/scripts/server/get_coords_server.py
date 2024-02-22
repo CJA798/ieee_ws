@@ -61,6 +61,8 @@ class GetCoordsServer:
             ip.image = self.current_frame.copy()
 
             #print(f'Object type: {object_type}  |   Arm pose: {arm_pose}')
+            #print(f'Object Type: {type(object_type)}  |   Arm pose Type: {type(arm_pose)}')
+
             coordinates.coordinates, coords_image = ip.get_coords(object_type = object_type, pose = arm_pose)
             
             # Convert frame to msg format

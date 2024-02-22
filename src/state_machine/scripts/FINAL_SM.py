@@ -14,15 +14,15 @@ from utils.areas import Areas
 from utils.callbacks import *
 
 # Create publishers
-#task_space_pub = rospy.Publisher('Task_Space', Float32MultiArray, queue_size=10)
-#arm_angles_pub = rospy.Publisher('Arm_Angles', Float32MultiArray, queue_size=10)
+task_space_pub = rospy.Publisher('Task_Space', Float32MultiArray, queue_size=10)
+arm_angles_pub = rospy.Publisher('Arm_Angles', Float32MultiArray, queue_size=10)
 #state_SM2Nav_pub = rospy.Publisher('State_SM2Nav', Int8, queue_size=10)
 move_pub = rospy.Publisher('Move', Float32MultiArray, queue_size=10)
 misc_angles_pub = rospy.Publisher('Misc_Angles', Float32MultiArray, queue_size=10)
 
 # Create subscribers
 start_led_state_sub = rospy.Subscriber("LED_State", Bool, callback=start_led_callback)
-#arm_done_sub = rospy.Subscriber("Arm_Done", Int8, callback=state_arm2sm_cb)
+arm_done_sub = rospy.Subscriber("Arm_Done", Int8, callback=state_arm2sm_cb)
 #state_Nav2SM_sub = rospy.Subscriber("State_Nav2SM", Int8, callback=state_nav2arm_cb)
 #TOF_Front = rospy.Subscriber("TOF_Front", Int16, callback=tof_front_cb)
 move_done_sub = rospy.Subscriber("Move_Done", Int8, callback=move_done_cb)
@@ -47,14 +47,25 @@ def main():
         
         # Read the start green LED and wait for it to be detected
         smach.StateMachine.add('READING_START_LED', ReadingStartLED(), 
-                               transitions={'green_led_detected': 'GO_TO_DROP_OFF_AREA',
+                               transitions={'green_led_detected': 'PACKAGE_PICKUP',
                                             'green_led_not_detected':'READING_START_LED'})
         
-        # TODO: Add pickup states
-        # concurrent state machine object
-        # with new_sm:....
-        # add states
-        # make sure the transitions match
+        # Create a concurrent state machine for package pickup
+        package_pickup_sm = smach.Concurrence(outcomes=['packages_picked_up','packages_not_picked_up'],
+                                    default_outcome='packages_not_picked_up',
+                                    outcome_map={'packages_picked_up':{
+                                        'PICK_BIG_PACKAGES':'packages_picked_up',
+                                        'PICK_SMALL_PACKAGES':'packages_picked_up'
+                                    }})
+
+        with package_pickup_sm:
+
+            smach.Concurrence.add('PICK_BIG_PACKAGES', PickUp(BoardObjects.BIG_PACKAGE, Poses.SCAN, arm_angles_publisher=arm_angles_pub))
+            smach.Concurrence.add('PICK_SMALL_PACKAGES', PickUp(BoardObjects.SMALL_PACKAGE, Poses.SCAN, arm_angles_publisher=arm_angles_pub, task_space_publisher=task_space_pub))
+
+        smach.StateMachine.add('PACKAGE_PICKUP', package_pickup_sm,
+                                transitions={'packages_picked_up':'GO_TO_DROP_OFF_AREA',
+                                            'packages_not_picked_up':'PACKAGE_PICKUP'})
 
         # Go to dropoff area
         smach.StateMachine.add('GO_TO_DROP_OFF_AREA', GoTo_(Areas.DROP_OFF, move_publisher=move_pub), 
@@ -78,20 +89,6 @@ def main():
         
         smach.StateMachine.add('BUTTON_PRESS', ButtonPress(move_publisher=move_pub), 
                                transitions={'succeeded':'END', 'aborted':'BUTTON_PRESS'})
-
-
-
-        # Go to thruster area
-        # TODO:
-        # 1) Rotate facing towards the thruster area
-        # 2) Go up the ramp and stop when the gravity vector returns ~ 0
-        # 3) Rotate 180°
-        # 4) Go backwards until the back tof detects the gap
-        # 5) Deploy the bridge
-        # 6) Go forward a bit
-        # 7) Go backwards
-        # 7.5) Add logic for gravity vector
-        # 8) Reached thruster area in reverse?
 
 
     # Create and start the introspection server

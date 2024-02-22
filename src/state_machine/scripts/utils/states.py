@@ -12,6 +12,11 @@ from vision_system.msg import GetCoordsAction, GetCoordsGoal, GetCoordsResult, G
 
 from utils.areas import Areas
 from utils.globals import globals
+from utils.callbacks import get_coords_fb_cb
+
+from image_utils.poses import Poses
+from image_utils.board_objects import BoardObjects
+
 
 class SM2NavStates(Enum):
     DROP_OFF_AREA = 0
@@ -392,10 +397,157 @@ class GoTo_(smach.State):
         except Exception as e:
             rospy.logerr(f"Error in GoToButtonArea: {e}")
             return 'not_arrived'
+
+
+# Define state PickUp
+class PickUp(smach.State):
+    # Dictionary mapping board objects to method names
+    BOARD_OBJECT_METHODS = {
+        BoardObjects.SMALL_PACKAGE: "PickUpSmallPackages",
+        BoardObjects.BIG_PACKAGE: "PickUpBigPackages",
+        BoardObjects.FUEL_TANK: "PickUpFuelTanks"
+    }
+    def __init__(self, board_object, camera_pose, arm_angles_publisher, task_space_publisher=None):
+        smach.State.__init__(self, outcomes=['packages_picked_up','packages_not_picked_up'])
+        self.board_object = board_object
+        self.camera_pose = camera_pose
+        self.arm_angles_pub = arm_angles_publisher
+        self.task_space_pub = task_space_publisher
+
+    def execute(self, userdata):
+        '''Execute the state logic to pick up the specified board object
         
+        Args:
+            userdata: The data passed to the state (Not used)
+            
+        Returns:
+            str: The outcome of the state ('packages_picked_up' or 'packages_not_picked_up')
+            
+        Raises:
+            Exception: Any exception that occurs during the state execution'''
+        # Check if the board object is valid and has a corresponding action
+        if self.board_object in self.BOARD_OBJECT_METHODS:
+            # Get the action name corresponding to the board object
+            method_name = self.BOARD_OBJECT_METHODS[self.board_object]
+            # Log the execution of the state
+            rospy.loginfo(f"Executing state {method_name}")
+            # Call the corresponding method dynamically using getattr
+            outcome = getattr(self, method_name)()
+            
+            return outcome
+        else:
+            # Log that the board object is invalid
+            rospy.loginfo('Invalid board object')
+            return 'packages_not_picked_up'
+        
+    def PickUpSmallPackages(self):
+        # Create a rate object to control the loop rate
+        # This one should have a higher rate than the other states
+        rate = rospy.Rate(40)
+        rate2 = rospy.Rate(1/2)
+
+        try:
+
+            # Reset the arm_done global variable
+            globals['arm_done'] = False
+
+            # Go to scan pose
+            pose = Float32MultiArray()
+            speed = 1
+            pose.data = [1940.0, 2125.0, 2120.0, 2443.0, 2179.0, 716.0, 2003.0, 1400.0, speed]
+            self.arm_angles_pub.publish(pose)
+
+            # Wait for the arm to move to the scan pose
+            while not globals['arm_done']  and not rospy.is_shutdown():
+                rate.sleep()
+
+            rospy.loginfo('Arm moved to scan pose')
+            rate2.sleep()
+            # Reset the arm_done global variable
+            globals['arm_done'] = False
+
+            # Get coordinates of detected small packages
+            # Create an action client for the GetCoords action
+            client = actionlib.SimpleActionClient('get_coords', GetCoordsAction)
+            client.wait_for_server()
+
+            # Create a goal for the GetCoords action
+            goal = GetCoordsGoal()
+            goal.timeout.data = 5.0
+            if self.camera_pose == Poses.FRONT.value and self.object_type == BoardObjects.FUEL_TANK.value:
+                goal.expected_pairs.data = 1
+            else:
+                goal.expected_pairs.data = 3
+            goal.object_type.data = self.board_object.value
+            goal.arm_pose.data = self.camera_pose.value
+
+            # Send the goal to the action server
+            client.send_goal(goal, feedback_cb=get_coords_fb_cb)
+            
+            # Wait for the action to complete
+            client.wait_for_result()
+            result = client.get_result()
+
+            rospy.loginfo(f'Final Coordinates List: {result.coordinates}    |    Total time: {result.elapsed_time.data}')
+            # If no coordinates are detected, return 'packages_not_picked_up'
+
+            # Reset the arm_done global variable
+            globals['arm_done'] = False
+
+            # Go to over small package grabber
+            rospy.loginfo('Moving to over small package grabber')
+            speed = 1
+            pose.data = [2903.0, 2186.0, 2179.0, 1652.0, 2058.0, 1504.0, 1825.0, 1400.0, speed]
+            self.arm_angles_pub.publish(pose)
+            rospy.loginfo('WASD to over small package grabber')
+            # Wait for the arm to move over the small package grabber
+            #while not globals['arm_done']  and not rospy.is_shutdown():
+             #   rate.sleep()
+
+            rospy.loginfo('Arm moved over small package grabber')
+            rate2.sleep()
+
+            # Close gripper
+            speed = 1
+            pose.data = [2903.0, 2186.0, 2179.0, 1652.0, 2058.0, 1504.0, 1825.0, 2041.0, speed]
+            self.arm_angles_pub.publish(pose)
+
+            rate2.sleep()
+
+            rospy.loginfo('Arm closed gripper')
+            # Reset the arm_done global variable
+            globals['arm_done'] = False
+
+
+            # Grab the detected small packages
+                
+            rospy.sleep(10)
+
+            return 'packages_picked_up'
+
+        # Handle any exceptions that occur during the state execution
+        except Exception as e:
+            rospy.logerr(f"Error in PickUpSmallPackages: {e}")
+            return 'packages_not_picked_up'
+        
+    def PickUpBigPackages(self):
+        rate = rospy.Rate(20)
+        try:
+            rate.sleep()
+            return 'packages_picked_up'
+        
+        # Handle any exceptions that occur during the state execution
+        except Exception as e:
+            rospy.logerr(f"Error in PickUpBigPackages: {e}")
+            return 'packages_not_picked_up'
+
+    def PickUpFuelTanks(self):
+        pass
+
+
+
 # define state ButtonPress
 class ButtonPress(smach.State):
-
     def __init__(self, move_publisher):
         smach.State.__init__(self, outcomes=['succeeded','aborted'])
         self.move_pub = move_publisher

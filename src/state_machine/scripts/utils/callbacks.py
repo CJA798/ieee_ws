@@ -113,3 +113,29 @@ def tof_back_cb(data):
     # Handle any exceptions that occur during the state execution
     except Exception as e:
         rospy.logerr("Error in tof_back_cb: {}".format(e))
+
+
+def state_arm2sm_cb(data):
+    '''Callback function to handle arm done updates
+    
+    Args:
+        data (std_msgs.Int8): The new arm done value
+
+    Returns:
+        None
+
+    Raises:
+        Exception: Any exception that occurs during the callback
+    '''
+    # Update the global arm done value
+    try:
+        globals['arm_done'] = data.data
+        #rospy.loginfo("Arm Done: %s", globals['arm_done'])
+    
+    # Handle any exceptions that occur during the state execution
+    except Exception as e:
+        rospy.logerr("Error in state_arm2sm_cb: {}".format(e))
+
+
+def get_coords_fb_cb(feedback):
+        rospy.loginfo(f'Current Coordinates List: {feedback.current_coordinates}')
