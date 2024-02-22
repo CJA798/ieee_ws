@@ -13,6 +13,8 @@ import cv2
 # into a ROS Image message, and viceversa
 from cv_bridge import CvBridge
 
+# Import the globals dictionary
+from utils.globals import globals
 
 # Create a name for the publisher node
 publisher_node_name = 'raw_image_publisher'
@@ -38,13 +40,14 @@ if not cap.isOpened():
     exit(0)
 
 # TODO: Make the image resize factor a global variable
-img_resize_factor = 4
+img_resize_factor = globals['img_resize_factor']
+rospy.loginfo(f"Image resize factor: {img_resize_factor}")
 #img_width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
 #img_height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
 img_width = 1920
 img_height = 1080
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, round(img_width//img_resize_factor))
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, round(img_height//img_resize_factor))
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, img_width//img_resize_factor)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, img_height//img_resize_factor)
 
 # Create CvBridge object to convert images to messages
 bridge = CvBridge()

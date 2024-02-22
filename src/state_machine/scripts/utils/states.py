@@ -634,14 +634,18 @@ class ScanPose(smach.State):
         self.arm_angles_pub = arm_angles_pub
 
     def execute(self, userdata):
+        # Reset the arm_done global variable
+        globals['arm_done'] = False
+        speed = 1
         angles_ = Float32MultiArray()
-        angles_.data = [1940.0, 2125.0, 2120.0, 2443.0, 2179.0, 716.0, 2003.0, 2040.0]
+        angles_.data = [1940.0, 2125.0, 2120.0, 2443.0, 2179.0, 716.0, 2003.0, 2040.0, speed]
         self.arm_angles_pub.publish(angles_)
         rate = rospy.Rate(100)
 
         while not globals['arm_done']:
             rate.sleep()
             globals ['arm_done'] = False
+            rospy.sleep(2)
             return 'pose_reached'
         return 'pose_not_reached'
 
@@ -694,6 +698,39 @@ class GetCoords(smach.State):
             return 'coords_not_received'
         
 
+
+# define state VerifyPose
+class VerifyPose(smach.State):
+    def __init__(self, task_space_pub, offset=0.0):
+        smach.State.__init__(self, outcomes=['pose_reached','pose_not_reached'],
+                             input_keys=['coordinates'])
+        rospy.loginfo(f'Executing state VerifyPose')
+
+        self.task_space_pub = task_space_pub
+        self.x_offset = offset
+
+    def execute(self, userdata):
+        # Store the coordinates list: CoordinatesList -> coordinates[coordinates]
+        coordinates = userdata.coordinates.coordinates
+        rospy.loginfo(f'Coordinates: {coordinates}')
+        
+        # Reset the arm_done global variable
+        globals['arm_done'] = False
+
+        # Go to first coordinate
+        task_space = Float32MultiArray()
+        target = coordinates[0]
+        quickness = 10
+        task_space.data = [target.x + self.x_offset, target.y, target.z, 2048, 1700, quickness]
+        self.task_space_pub.publish(task_space)
+        # wait 5 seconds and go to next state
+        rospy.sleep(2)
+
+        # Wait for the arm to move to the first coordinate
+        while not globals['arm_done']:
+            rospy.sleep(0.1)
+        return 'pose_reached'
+  
 ####################################################################################################
 #    
 ####################################################################################################
@@ -727,7 +764,7 @@ class PickUpBigPackages(smach.State):
 
     def execute(self, userdata):
         rospy.loginfo('Executing state PickUpBigPackages')
-        rospy.sleep(5)
+        rospy.sleep(10)
         if True:
             return 'packages_picked_up'
         return 'packages_not_picked_up'

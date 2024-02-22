@@ -43,11 +43,11 @@ def main():
 
         # Initialize all devices, variables, windows, etc.
         smach.StateMachine.add('INITIALIZE', Initialize(), 
-                               transitions={'succeeded':'READING_START_LED', 'aborted':'INITIALIZE'})
+                               transitions={'succeeded':'PACKAGE_PICKUP', 'aborted':'INITIALIZE'})
         
         # Read the start green LED and wait for it to be detected
         smach.StateMachine.add('READING_START_LED', ReadingStartLED(), 
-                               transitions={'green_led_detected': 'GO_TO_DROP_OFF_AREA',
+                               transitions={'green_led_detected': 'PACKAGE_PICKUP',
                                             'green_led_not_detected':'READING_START_LED'})
         
         # Create a concurrent state machine for package pickup
@@ -65,8 +65,8 @@ def main():
                                         transitions={'pose_reached':'GET_SP_COORDS', 'pose_not_reached':'SCAN_POSE'})
                 smach.StateMachine.add('GET_SP_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose='SCAN'),
                                         transitions={'coords_received':'packages_picked_up', 'coords_not_received':'packages_not_picked_up'})
-                #smach.StateMachine.add('VERIFY_POSE', VerifyPose(task_space_pub=task_space_pub),
-                #                        transitions={'pose_reached':'PICK_UP', 'pose_not_reached':'VERIFY_POSE'})
+                smach.StateMachine.add('VERIFY_POSE', VerifyPose(task_space_pub=task_space_pub),
+                                        transitions={'pose_reached':'PICK_UP', 'pose_not_reached':'VERIFY_POSE'})
                 #smach.StateMachine.add('VERIFY_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose='VERIFY'),
                                         #transitions={'coords_received':'PICK_UP', 'coords_not_received':'VERIFY_COORDS'})
                 #smach.StateMachine.add('PICK_UP', PickUp(task_space_pub=task_space_pub),
