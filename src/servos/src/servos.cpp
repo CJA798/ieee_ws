@@ -78,9 +78,12 @@ GroupBulkWrite groupBulkWrite(portHandler, packetHandler);
 // Main class holding all servo declarations, functions, and variables
 class ServoClass{
 public:
+    // Int flags for main
+        int arm_moving = 0, misc_moving = 0;
+
     // Initiating pubs, subs, and arrays
     ServoClass(ros::NodeHandle* nodehandle){ 
-        nh = *nodehandle;        
+        nh = *nodehandle;       
 
         // Resize Publisher Arrays
         Arm_Angles.data.resize(9);
@@ -261,7 +264,7 @@ public:
         // Creates and assigns array with each byte of message
         uint8_t data_array[4];
         for (int i = 1; i < 9; i++){     // Do for all 8ish misc servos
-            if(Misc_Angles.data(i-1) != -1){
+            if(Misc_Angles.data[i-1] != -1){
                 uint32_t data = (unsigned int)(Misc_Angles.data[i - 1]); // Convert int32 to uint32
                 data_array[0] = DXL_LOBYTE(DXL_LOWORD(data));
                 data_array[1] = DXL_HIBYTE(DXL_LOWORD(data));
@@ -281,7 +284,7 @@ public:
 
 
     // Checks if servos are within exceptable error to declare done
-    void MiscMoving(){
+    void miscMoving(){
         // Clears bulk read stack
         groupBulkRead.clearParam();
 
@@ -659,9 +662,6 @@ private:
     std_msgs::Int8 Arm_Done;
     std_msgs::Int8 Move_Done;
     std_msgs::Int8 Misc_Done;
-
-    // Local ints
-    int arm_moving = 0, misc_moving = 0;
 
     // Variables for bot movement functions
     double  desired_x = 0, error_x_prev = 0, error_x_cumulative = 0, linear_x = 0, arrived_x = 0,
