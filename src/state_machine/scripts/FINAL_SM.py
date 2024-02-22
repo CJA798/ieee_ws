@@ -62,7 +62,7 @@ def main():
 
             with small_packages_sm:
                 smach.StateMachine.add('SCAN_POSE', ScanPose(arm_angles_pub=arm_angles_pub),
-                                        transitions={'pose_reached':'GET_SP_COORDS', 'pose_not_reached':'SCAN_POSE'})
+                                        transitions={'pose_reached':'packages_picked_up', 'pose_not_reached':'packages_not_picked_up'})
                 #smach.StateMachine.add('GET_SP_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose='SCAN'),
                 #                        transitions={'coords_received':'VERIFY_POSE', 'coords_not_received':'GET_SP_COORDS'})
                 #smach.StateMachine.add('VERIFY_POSE', VerifyPose(task_space_pub=task_space_pub),
