@@ -57,11 +57,26 @@ def main():
                                         'PICK_BIG_PACKAGES':'packages_picked_up',
                                         'PICK_SMALL_PACKAGES':'packages_picked_up'
                                     }})
-
         with package_pickup_sm:
+            small_packages_sm = smach.StateMachine(outcomes=['packages_picked_up', 'packages_not_picked_up'])
 
-            smach.Concurrence.add('PICK_BIG_PACKAGES', PickUp(BoardObjects.BIG_PACKAGE, Poses.SCAN, arm_angles_publisher=arm_angles_pub))
-            smach.Concurrence.add('PICK_SMALL_PACKAGES', PickUp(BoardObjects.SMALL_PACKAGE, Poses.SCAN, arm_angles_publisher=arm_angles_pub, task_space_publisher=task_space_pub))
+            with small_packages_sm:
+                smach.StateMachine.add('SCAN_POSE', ScanPose(arm_angles_pub=arm_angles_pub),
+                                        transitions={'pose_reached':'GET_SP_COORDS', 'pose_not_reached':'SCAN_POSE'})
+                #smach.StateMachine.add('GET_SP_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose='SCAN'),
+                #                        transitions={'coords_received':'VERIFY_POSE', 'coords_not_received':'GET_SP_COORDS'})
+                #smach.StateMachine.add('VERIFY_POSE', VerifyPose(task_space_pub=task_space_pub),
+                #                        transitions={'pose_reached':'PICK_UP', 'pose_not_reached':'VERIFY_POSE'})
+                #smach.StateMachine.add('VERIFY_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose='VERIFY'),
+                                        #transitions={'coords_received':'PICK_UP', 'coords_not_received':'VERIFY_COORDS'})
+                #smach.StateMachine.add('PICK_UP', PickUp(task_space_pub=task_space_pub),
+                #                        transitions={'packages_picked_up':'STORE_SMALL_PACKAGE', 'packages_not_picked_up':'PICK_UP'})
+                
+            big_packages_sm = smach.StateMachine(outcomes=['packages_picked_up', 'packages_not_picked_up'])
+            #with big_packages_sm:
+            #    pass
+            smach.Concurrence.add('PICK_BIG_PACKAGES', PickUpBigPackages())
+            smach.Concurrence.add('PICK_SMALL_PACKAGES', small_packages_sm)
 
         smach.StateMachine.add('PACKAGE_PICKUP', package_pickup_sm,
                                 transitions={'packages_picked_up':'GO_TO_DROP_OFF_AREA',
