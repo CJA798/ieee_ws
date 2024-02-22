@@ -216,7 +216,7 @@ class GoTo_(smach.State):
             return 'not_arrived'
         
     def GoToCraterArea(self):
-        rate = rospy.Rate(20)
+        rate = rospy.Rate(30)
         angle = 180
         try:
             # Reset the move_done global variable
@@ -290,8 +290,8 @@ class GoTo_(smach.State):
             message.data = [0, 0, 0, 0]
             self.move_pub.publish(message)
             
-            # Reset the move_done global variable
-            globals['move_done'] = False
+            # Reset the misc_done global variable
+            globals['misc_done'] = False
             
             # Drop bridge
             bridge_message = Float32MultiArray()
@@ -304,12 +304,13 @@ class GoTo_(smach.State):
             #bridge_rate.sleep()
 
             # Wait for bridge to drop
-            while not globals['move_done']  and not rospy.is_shutdown():
+            while not globals['misc_done']  and not rospy.is_shutdown():
                 rate.sleep()
 
             rospy.loginfo('Bridge dropped')
 
-            # Reset the move_done variable
+            # Reset the misc_done variable
+            globals['misc_done'] = False
             globals['move_done'] = False
 
             # Forward for ~2 seconds
@@ -727,6 +728,10 @@ class VerifyPose(smach.State):
         coordinates = userdata.coordinates.coordinates
         rospy.loginfo(f'Coordinates: {coordinates}')
         
+        # Check if the coordinates list is empty
+        if not coordinates:
+            return 'pose_reached'
+        
         # Reset the arm_done global variable
         globals['arm_done'] = False
 
@@ -777,7 +782,7 @@ class PickUpBigPackages(smach.State):
 
     def execute(self, userdata):
         rospy.loginfo('Executing state PickUpBigPackages')
-        rospy.sleep(10)
+        rospy.sleep(5)
         if True:
             return 'packages_picked_up'
         return 'packages_not_picked_up'

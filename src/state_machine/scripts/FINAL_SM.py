@@ -23,6 +23,7 @@ misc_angles_pub = rospy.Publisher('Misc_Angles', Float32MultiArray, queue_size=1
 # Create subscribers
 start_led_state_sub = rospy.Subscriber("LED_State", Bool, callback=start_led_callback)
 arm_done_sub = rospy.Subscriber("Arm_Done", Int8, callback=state_arm2sm_cb)
+misc_done = rospy.Subscriber("Misc_Done", Int8, callback=misc_done_cb)
 #state_Nav2SM_sub = rospy.Subscriber("State_Nav2SM", Int8, callback=state_nav2arm_cb)
 #TOF_Front = rospy.Subscriber("TOF_Front", Int16, callback=tof_front_cb)
 move_done_sub = rospy.Subscriber("Move_Done", Int8, callback=move_done_cb)
@@ -43,11 +44,11 @@ def main():
 
         # Initialize all devices, variables, windows, etc.
         smach.StateMachine.add('INITIALIZE', Initialize(), 
-                               transitions={'succeeded':'PACKAGE_PICKUP', 'aborted':'INITIALIZE'})
+                               transitions={'succeeded':'READING_START_LED', 'aborted':'INITIALIZE'})
         
         # Read the start green LED and wait for it to be detected
         smach.StateMachine.add('READING_START_LED', ReadingStartLED(), 
-                               transitions={'green_led_detected': 'PACKAGE_PICKUP',
+                               transitions={'green_led_detected': 'GO_TO_DROP_OFF_AREA',
                                             'green_led_not_detected':'READING_START_LED'})
         
         # Create a concurrent state machine for package pickup
@@ -64,9 +65,9 @@ def main():
                 smach.StateMachine.add('SCAN_POSE', ScanPose(arm_angles_pub=arm_angles_pub),
                                         transitions={'pose_reached':'GET_SP_COORDS', 'pose_not_reached':'SCAN_POSE'})
                 smach.StateMachine.add('GET_SP_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose='SCAN'),
-                                        transitions={'coords_received':'packages_picked_up', 'coords_not_received':'packages_not_picked_up'})
+                                        transitions={'coords_received':'VERIFY_POSE', 'coords_not_received':'GET_SP_COORDS'})
                 smach.StateMachine.add('VERIFY_POSE', VerifyPose(task_space_pub=task_space_pub),
-                                        transitions={'pose_reached':'PICK_UP', 'pose_not_reached':'VERIFY_POSE'})
+                                        transitions={'pose_reached':'packages_picked_up', 'pose_not_reached':'packages_picked_up'})
                 #smach.StateMachine.add('VERIFY_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose='VERIFY'),
                                         #transitions={'coords_received':'PICK_UP', 'coords_not_received':'VERIFY_COORDS'})
                 #smach.StateMachine.add('PICK_UP', PickUp(task_space_pub=task_space_pub),

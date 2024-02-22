@@ -139,3 +139,24 @@ def state_arm2sm_cb(data):
 
 def get_coords_fb_cb(feedback):
         rospy.loginfo(f'Current Coordinates List: {feedback.current_coordinates}')
+
+def misc_done_cb(data):
+    '''Callback function to handle misc done updates
+    
+    Args:
+        data (std_msgs.Int8): The new misc done value
+
+    Returns:
+        None
+
+    Raises:
+        Exception: Any exception that occurs during the callback
+    '''
+    # Update the global misc done value
+    try:
+        globals['misc_done'] = data.data
+        #rospy.loginfo("Misc Done: %s", globals['misc_done'])
+    
+    # Handle any exceptions that occur during the state execution
+    except Exception as e:
+        rospy.logerr("Error in misc_done_cb: {}".format(e))
