@@ -109,9 +109,7 @@ def main():
         
         smach.StateMachine.add('BUTTON_PRESS', ButtonPress(move_publisher=move_pub), 
                                transitions={'succeeded':'SPIRIT_CELEBRATION', 'aborted':'BUTTON_PRESS'})
-        
-        smach.StateMachine.add('SPIRIT_CELEBRATION', Spirit_Celebration( misc_angles_publisher = misc_angles_pub),
-                               transitions={'succeeded':'END', 'aborted':'SPIRIT_CELEBRATION'})
+ 
 
 
     # Create and start the introspection server
