@@ -21,7 +21,7 @@ def update_settings():
 def on_trackbar(value):
     pass
 
-cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
+cap = cv2.VideoCapture(1, cv2.CAP_V4L2)
 #cap.set(cv2.CAP_PROP_SETTINGS, 1)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920//2)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080//2)

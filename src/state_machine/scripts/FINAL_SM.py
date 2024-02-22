@@ -47,7 +47,7 @@ def main():
         
         # Read the start green LED and wait for it to be detected
         smach.StateMachine.add('READING_START_LED', ReadingStartLED(), 
-                               transitions={'green_led_detected': 'PACKAGE_PICKUP',
+                               transitions={'green_led_detected': 'GO_TO_DROP_OFF_AREA',
                                             'green_led_not_detected':'READING_START_LED'})
         
         # Create a concurrent state machine for package pickup
@@ -88,7 +88,10 @@ def main():
                                transitions={'arrived':'BUTTON_PRESS', 'not_arrived':'GO_TO_FINAL'})
         
         smach.StateMachine.add('BUTTON_PRESS', ButtonPress(move_publisher=move_pub), 
-                               transitions={'succeeded':'END', 'aborted':'BUTTON_PRESS'})
+                               transitions={'succeeded':'SPIRIT_CELEBRATION', 'aborted':'BUTTON_PRESS'})
+        
+        smach.StateMachine.add('SPIRIT_CELEBRATION', Spirit_Celebration( misc_angles_publisher = misc_angles_pub),
+                               transitions={'succeeded':'END', 'aborted':'SPIRIT_CELEBRATION'})
 
 
     # Create and start the introspection server
