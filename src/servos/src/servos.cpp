@@ -37,11 +37,12 @@ using namespace dynamixel;
 #define TORQUE_ENABLE 1         // Enable torque on servos
 #define CENTER_POSISTION  2048  // Center posistion for angle mode on servos
 #define POS_P_GAIN  640         // Angle mode P gain
-#define POS_I_GAIN  0           // Angle mode I gain
+#define POS_I_GAIN  500           // Angle mode I gain
 #define POS_D_GAIN  4000        // Angle mode D gain
 #define STOP  0                 // Velocity mode stop
 #define MISC_COUNT  1          // Number of misc servos hooked up
 #define MISC_ANGLE_TOLERANCE    50 // Counts we need to be off to count as arrived
+#define ARM_TOLERANCE  10       // Allowable error in arm before declareing arrived
 
 // PID's and Move constants
 #define KP_X    4.0//4.0
@@ -131,7 +132,7 @@ public:
             packetHandler->write2ByteTxOnly(portHandler, ARM_SECONDARY_ID, POS_D_GAIN_ADDR, POS_D_GAIN);            // Sets posistion D gain
 
             // Publish 8 starting servo angles and speed to Arm_Angles
-            int Arm_Start_Angles[9] = { 1586, 2902, 2898, 1471, 2063, 1802, 1041, 2100, 1 };
+            int Arm_Start_Angles[9] = { 1586, 2902, 2898, 1471, 2063, 1802, 1041, 1400, 1 };
             for (int i = 0; i < 9; i++) {
                 Arm_Angles.data[i] = Arm_Start_Angles[i];
             }
@@ -156,9 +157,10 @@ public:
         // Creat arrays for calculations and predefined values
         float q[6] = { 0, 0, 0, 0, 0, 0 };                          // Major joint angles of robot
         int Q[9] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };                      // Final joint angles for servos including duplicated j2 and claw
-        float l[9] = { 32.5, 162, 24, 24, 148.5, 150, 53, 0, 0 }; // Predefined lengths of links for jaws attachment DH params
+        //float l[9] = { 32.5, 162, 24, 24, 148.5, 150, 53, 0, 0 }; // Predefined lengths of links for jaws attachment DH params
         //float l[9] = { 32.5, 162, 24, 24, 148.5, 82.5, 22.5, 0, 0 }; // Predefined lengths of links for new claw DH params
         //float l[9] = { 32.5, 162, 24, 24, 148.5, 75.34, 17, 0, 0 }; // Predefined lengths of links for old claw DH params
+        float l[9] = { 32.5, 162, 24, 24, 148.5, 140, 0, 0, 0 }; // Predefined lengths of links for jaws attachment DH params
 
         // Reverse kinematics math
         float x1 = sqrt(x * x + z * z) + l[6] - l[3];
@@ -361,7 +363,7 @@ public:
 
         // Checks if current posistion and goal posistion are withen acceptable toleracne
         for (int i = 0; i < 8; i++){
-            if(abs(Arm_Angles.data[i] - groupBulkRead.getData((i + 1), 132, 4)) > 50){ // Used to use uint32_t pos[8]; for storing
+            if(abs(Arm_Angles.data[i] - groupBulkRead.getData((i + 1), 132, 4)) > ARM_TOLERANCE){ // Used to use uint32_t pos[8]; for storing
                 arm_moving = 1;                 // Joint error is to large que up another check
                 //Arm_Done.data = 0;              //  mark arm and not done moving
                 //Arm_Done_pub.publish(Arm_Done); //  publish still moving result

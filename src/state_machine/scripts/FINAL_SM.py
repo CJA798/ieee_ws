@@ -76,7 +76,7 @@ def main():
             smach.Concurrence.add('PICK_SMALL_PACKAGES', small_packages_sm)
 
         smach.StateMachine.add('PACKAGE_PICKUP', package_pickup_sm,
-                                transitions={'packages_picked_up':'GO_TO_DROP_OFF_AREA',
+                                transitions={'packages_picked_up':'END',
                                             'packages_not_picked_up':'PACKAGE_PICKUP'})
 
         # Go to dropoff area

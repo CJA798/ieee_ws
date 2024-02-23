@@ -312,10 +312,11 @@ class ImageProcessor():
         if pose == Poses.SCAN.value:
             #print("image_height: ", self.image_height)
             #print("image_width: ", self.image_width)
-            KX = 57/46
-            PX2MM_Y = 380/self.image_height
-            PX2MM_X = 570/self.image_width * KX
+            KX = 57/47
+            PX2MM_Y = 410/self.image_height
+            PX2MM_X = 580/self.image_width * KX
 
+            # Offset from bottom of image to arm base
             A = 45
 
             Xarm_xi_obj = (self.image_height - y) * PX2MM_Y + A
@@ -340,12 +341,18 @@ class ImageProcessor():
         
 
 def main():
-    cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
+    device_path = "/dev/v4l/by-id/usb-Arducam_Arducam_5MP_Camera_Module_YL20230518V0-video-index0"
+    cap = cv2.VideoCapture(device_path, cv2.CAP_V4L2)
     #cap.set(cv2.CAP_PROP_SETTINGS, 1)
     img_width = globals['current_cam_res'][0]
     img_height = globals['current_cam_res'][1]    
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, img_width)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, img_height)
+    
+    # sET CONTRAST
+    cap.set(cv2.CAP_PROP_CONTRAST, 3)
+    # SET SATURATION
+    cap.set(cv2.CAP_PROP_SATURATION, 150)
 
     if not cap.isOpened():
         print("Cannot open camera")

@@ -51,7 +51,7 @@ class Initialize(smach.State):
         rospy.loginfo('Executing state Initialize')
         # Run initialization logic
         self.bot_initialized = True
-        rospy.sleep(5)
+        rospy.sleep(2.5)
 
         if self.bot_initialized:
             return 'succeeded'
@@ -206,7 +206,7 @@ class GoTo_(smach.State):
             # Wait for the move to complete
             while not globals['move_done']  and not rospy.is_shutdown():
                 rate.sleep()
-
+            rospy.sleep(200)
             # Reset the move_done global variable
             globals['move_done'] = False
             return 'arrived'
@@ -665,12 +665,12 @@ class ScanPose(smach.State):
         self.arm_angles_pub = arm_angles_pub
 
     def execute(self, userdata):
-        rate = rospy.Rate(30)
+        rate = rospy.Rate(50)
         # Reset the arm_done global variable
         globals['arm_done'] = False
         speed = 1
         angles_ = Float32MultiArray()
-        angles_.data = [2135, 1627, 1628, 2949, 2019, 629, 2110, 2111, speed]
+        angles_.data = [2135, 1627, 1628, 2949, 2019, 629, 2110, 1400, speed]
         self.arm_angles_pub.publish(angles_)
         rospy.loginfo('Moving to scan pose')
         while not globals['arm_done'] and not rospy.is_shutdown():
@@ -741,7 +741,7 @@ class VerifyPose(smach.State):
         self.task_space_pub = task_space_pub
 
     def execute(self, userdata):
-        rate = rospy.Rate(30)
+        rate = rospy.Rate(50)
         # Store the coordinates list: CoordinatesList -> coordinates[coordinates]
         coordinates = userdata.coordinates_list.coordinates
         rospy.loginfo(f'Coordinates: {coordinates}')
@@ -750,54 +750,80 @@ class VerifyPose(smach.State):
         if not coordinates:
             return 'pose_reached'
         
-        # Reset the arm_done global variable
-        globals['arm_done'] = False
-
-        # Go to first coordinate
         task_space = Float32MultiArray()
-        target = coordinates[0]
-        quickness = 1
+        jaw = 1400
 
-        x = target.x
-        y = target.y
-        z = target.z
+        for i in range(len(coordinates)):
+            # Reset the arm_done global variable
+            globals['arm_done'] = False
 
-        grabber_offset = 50
+            # Go to first coordinate
+            target = coordinates[i]
+            quickness = 1
 
-        # Calculate offset from end effector to small package grabber
-        magnitude = sqrt(z**2 + x**2) + grabber_offset
-        angle = degrees(atan2(x, z))
-        Kx = 1
-        Kz = 1
-        x_offset = magnitude * sin(radians(angle)) * Kx
-        z_offset = magnitude * cos(radians(angle)) * Kz
+            x = target.x
+            y = target.y
+            z = target.z
 
-        # Reset the arm_done global variable
-        globals['arm_done'] = False
+            grabber_offset = 0
 
-        # Move to coordinates
-        task_space.data = [int(x), int(y), int(z), 2048, 2100, quickness]
-        self.task_space_pub.publish(task_space)
+            # Calculate offset from end effector to small package grabber
+            magnitude = sqrt(z**2 + x**2) + grabber_offset
+            angle = degrees(atan2(x, z))
+            Kx = 1.0
+            Kz = 1.0
+            x_grabber = magnitude * sin(radians(angle)) * Kx
+            z_grabber = magnitude * cos(radians(angle)) * Kz
 
-        while not globals['arm_done'] and not rospy.is_shutdown():
+            print(f'x_offset: {x_grabber}, z_offset: {z_grabber}')
+
+            #x_grabber = target.x 
+            #z_grabber = target.z 
+
+            # Reset the arm_done global variable
+            globals['arm_done'] = False
+
+            # Move to coordinates
+            task_space.data = [int(x_grabber), int(y), int(z_grabber), 2048, jaw, quickness]
+            self.task_space_pub.publish(task_space)
+
+            while not globals['arm_done'] and not rospy.is_shutdown():
+                rate.sleep()
+
+            rospy.loginfo('Arm moved to location')
+            globals['arm_done'] = False
+
+            # Move to coordinates
+            task_space.data = [x_grabber, -60, z_grabber, 2048, jaw, 1]
+            self.task_space_pub.publish(task_space)
+
+            while not globals['arm_done'] and not rospy.is_shutdown():
+                rate.sleep()
+
+            rospy.loginfo('Grabbing object')
+            globals['arm_done'] = False
+            rospy.sleep(0.7)
+            # Move to coordinates
+            task_space.data = [x_grabber, -90, z_grabber, 2048, jaw, 1]
+            self.task_space_pub.publish(task_space)
+
+            while not globals['arm_done'] and not rospy.is_shutdown():
+                rate.sleep()
+
+            rospy.loginfo('Grabbing object')
+            globals['arm_done'] = False
+
             rate.sleep()
+            # Move to coordinates
+            task_space.data = [x_grabber , y, z_grabber, 2048, jaw, quickness]
+            self.task_space_pub.publish(task_space)
+            while not globals['arm_done'] and not rospy.is_shutdown():
+                rate.sleep()
 
-        globals['arm_done'] = False
-
-        # Move to coordinates
-        task_space.data = [x + x_offset, y-20, z + z_offset, 2048, 2100, 20]
-        self.task_space_pub.publish(task_space)
-
-        while not globals['arm_done'] and not rospy.is_shutdown():
-            rate.sleep()
-
-        globals['arm_done'] = False
-
-        # Move to coordinates
-        task_space.data = [x + x_offset, y, z + z_offset, 2048, 2100, quickness]
-        self.task_space_pub.publish(task_space)
-        rate.sleep()
-        
+            rospy.loginfo('Picking object')
+            globals['arm_done'] = False
+            rospy.sleep(2)
+            
         return 'pose_reached'
 
 class PickUp_(smach.State):
@@ -807,7 +833,7 @@ class PickUp_(smach.State):
 
     def execute(self, userdata):
         task_space = Float32MultiArray()
-        task_space.data = [100, 100, 0, 2048, 2200, 10]
+        task_space.data = [100, 100, 0, 2048, 2100, 10]
         self.task_space_pub.publish(task_space)
 
         if True:
