@@ -844,10 +844,11 @@ class PickUp_(smach.State):
   
 
 class PickUpFuelTanks_(smach.State):
-    def __init__(self, arm_angles_publisher, task_space_publisher):
+    def __init__(self, arm_angles_publisher, task_space_publisher,misc_angles_publisher):
         smach.State.__init__(self, outcomes=['fuel_tanks_picked_up','fuel_tanks_not_picked_up'])
         self.arm_angles_pub = arm_angles_publisher
         self.task_space_pub = task_space_publisher
+        self.misc_angles_pub = misc_angles_publisher
     
     def execute(self, userdata):
         rate = rospy.Rate(20)
@@ -864,6 +865,24 @@ class PickUpFuelTanks_(smach.State):
             rospy.sleep(4)
             rospy.loginfo(f'Moving to wall pose {i}')''''
 
+            globals['misc_done'] = False
+            
+            # Drop bridge
+            bridge_message = Float32MultiArray()
+            bridge_message.data = [2700, -1, -1, -1, -1, -1, -1, -1]
+            self.misc_angles_pub.publish(bridge_message)
+
+
+            # Wait for bridge to drop
+            while not globals['misc_done']  and not rospy.is_shutdown():
+                rate.sleep()
+
+            rospy.loginfo('Bridge lowered')
+
+            # Reset the misc_done variable
+            globals['misc_done'] = False
+
+
         #pickup for wall rocket
         for i in range (5):
             # Reset the arm_done global variable
@@ -874,6 +893,25 @@ class PickUpFuelTanks_(smach.State):
             #    rate.sleep()
             rospy.sleep(4)
             rospy.loginfo(f'Moving to wall pose {i}')
+
+
+
+            globals['misc_done'] = False
+            
+            # Drop bridge
+            bridge_message = Float32MultiArray()
+            bridge_message.data = [2048, -1, -1, -1, -1, -1, -1, -1]
+            self.misc_angles_pub.publish(bridge_message)
+
+
+            # Wait for bridge to drop
+            while not globals['misc_done']  and not rospy.is_shutdown():
+                rate.sleep()
+
+            rospy.loginfo('Bridge raised')
+
+            # Reset the misc_done variable
+            globals['misc_done'] = False
 ''''
         #pickup for middle rocket
         for i in range (5):
@@ -887,7 +925,7 @@ class PickUpFuelTanks_(smach.State):
             rospy.loginfo(f'Moving to mid pose {i}')
 
         #pickup for last rocket
-        for i in range (6):
+        for i in range (5):
             # Reset the arm_done global variable
             globals['arm_done'] = False
             angles_.data = fuel_tanks['CORNER'][i]
