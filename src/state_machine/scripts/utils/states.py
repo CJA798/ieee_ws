@@ -577,9 +577,19 @@ class SpiritCelebration(smach.State):
             Exception: Any exception that occurs during the state execution'''
         
         try:
+            rate = rospy.Rate(30)
+            globals['misc_done'] = False
+
             flag = Float32MultiArray()
             flag.data = [-1,-1,-1,2048,-1,-1,-1,-1]
             self.misc_angles_pub.publish(flag)
+
+            while not globals['misc_done'] and not rospy.is_shutdown():
+                rate.sleep()
+
+            globals['misc_done'] = False
+            
+            
             return 'succeeded'
         
          # Handle any exceptions that occur during the state execution
