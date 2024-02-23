@@ -5,10 +5,11 @@ from geometry_msgs.msg import Point
 import cv2
 import numpy as np
 #from board_objects import BoardObjects 
+from utils.globals import globals
 from image_utils.board_objects import BoardObjects
 from image_utils.poses import Poses
 from imutils import grab_contours
-
+from wand.image import Image, Color
 
 
 #nidiaes*min_area=514593
@@ -33,15 +34,19 @@ class ImageProcessor():
             None
         '''
         #TODO: fix the initial image. It should be None, then initialized in the calling function
-        self.image = np.zeros((160, 120, 3), dtype=np.uint8)
+        self.image = np.zeros((*globals['current_cam_res'] , 3), dtype=np.uint8)
         self.color_data = {
         "orange": self.get_color_bounds([0, 85, 255], hue_offset=15, value=(100, 255)),
         "copper": self.get_color_bounds([75, 112, 255]),
         "yellow": self.get_color_bounds([0, 255, 255]),
+        "magenta": self.get_color_bounds([255, 0, 255], value=(100, 255), saturation=(100, 255)),
         "black": (np.array([0, 0, 0], dtype=np.uint8), np.array([180, 255, 100], dtype=np.uint8)),
         }
 
-        self.image_width, self.image_height, _ = self.image.shape
+        self.image_width = globals['max_cam_res'][0]//globals['img_resize_factor']
+        print("image_width: ", self.image_width)
+        self.image_height = globals['max_cam_res'][1]//globals['img_resize_factor']
+        print("image_height: ", self.image_height)
 
         self.x_conversion_factor = 203.2
         self.z_conversion_factor = 177.8
@@ -50,7 +55,7 @@ class ImageProcessor():
         self.PX2MMX = self.x_conversion_factor / self.image_height
         
 
-    def get_coords(self, object_type: str, pose: str) -> Tuple[List[Point], np.ndarray]:
+    def get_coords(self, object_type: str, pose: str, experimental: bool=False) -> Tuple[List[Point], np.ndarray]:
         '''
         Get the coordinates of the object in the image.
         Arguments: 
@@ -69,7 +74,10 @@ class ImageProcessor():
         try:
             if object_type == BoardObjects.SMALL_PACKAGE.value:
                 #print("Finding small package coordinates")
-                coordinates, coords_image = self.find_small_package_coords(image, pose)
+                if experimental:
+                    coordinates, coords_image = self.experimental_find_small_package_coords(image, pose)
+                else:
+                    coordinates, coords_image = self.find_small_package_coords(image, pose)
             elif object_type == BoardObjects.THRUSTER.value:
                 #print("Finding thruster coordinates")
                 coordinates, coords_image = self.find_thruster_or_fuel_tank_coords(image, pose)
@@ -90,7 +98,7 @@ class ImageProcessor():
                 # Find the contours in the image
                 coordinates, coords_image = self.find_contours(closing, pose, area_range_factor=(0.1, 0.4))
                 output_img = np.hstack([median, color_mask, cv2.cvtColor(closing, cv2.COLOR_GRAY2BGR), coords_image])
-                cv2.imshow('Fuel Tank', output_img)
+                #cv2.imshow('Fuel Tank', output_img)
 
         except ValueError as e:
             raise ValueError(f"Object type {object_type} not recognized.")
@@ -138,10 +146,25 @@ class ImageProcessor():
             lowerLimit = np.array([min_hue, min_saturation, min_value], dtype=np.uint8)
             upperLimit = np.array([hue_ + hue_offset, max_saturation, max_value], dtype=np.uint8)
         else:
-            lowerLimit = np.array([hue_ - hue_offset, min_saturation, min_value], dtype=np.uint8)
-            upperLimit = np.array([hue_ + hue_offset, max_saturation, max_value], dtype=np.uint8)
+            lowerLimit = np.array([hue_ - hue_offset//2, min_saturation, min_value], dtype=np.uint8)
+            upperLimit = np.array([hue_ + hue_offset//2, max_saturation, max_value], dtype=np.uint8)
 
         return (lowerLimit, upperLimit)
+
+    def apply_pincushion_distortion(self, image, coefficients: Tuple[int, int, int, int]):
+        try:
+            with Image.from_array(image) as img:
+                img.background_color = Color('black')
+                img.virtual_pixel = 'background'
+                img.distort('barrel', coefficients)
+            
+                bgr_array = np.array(img)
+
+                return bgr_array
+        except Exception as e:
+            print(f"Error applying pincushion distortion: {e}")
+            return None
+
 
     def find_small_package_coords(self, image: np.ndarray, pose: str) -> Tuple[List[Point], np.ndarray]:
         '''
@@ -153,9 +176,7 @@ class ImageProcessor():
             coordinates: List[Point] - The coordinates of the small packages in the image.
             coords_image: np.ndarray - The image with the coordinates drawn on it.
         '''
-        if image == np.zeros((160, 120, 3), dtype=np.uint8):
-            coordinates = []
-            return (coordinates, image)
+
         # Apply blurs to remove noise
         blur = cv2.GaussianBlur(image, (3, 3), 0)
         median = cv2.medianBlur(blur, 3)
@@ -177,7 +198,33 @@ class ImageProcessor():
         darkened_frame = cv2.bitwise_and(darkened_frame, darkened_frame, mask=black_inverted_mask)
         gray = cv2.cvtColor(darkened_frame, cv2.COLOR_BGR2GRAY)
         coordinates, coords_image = self.find_contours(gray, pose, area_range_factor=(0.0025, 0.025))
-        coords_image = np.hstack([image, blur, median, darkened_frame, self.image])
+        #coords_image = np.hstack([image, blur, median, darkened_frame, self.image])
+        return (coordinates, coords_image)
+    
+    def experimental_find_small_package_coords(self, image: np.ndarray, pose: str) -> Tuple[List[Point], np.ndarray]:
+        # Apply pincushion distortion
+        #pincushion = self.apply_pincushion_distortion(image, (0.0, 0.0, -1.2, 2.1))
+
+        #if pincushion is None:
+        #    print("Pincushion is None")
+        #    pincushion = image
+
+        # Apply blurs to remove noise
+        blur = cv2.GaussianBlur(image, (3, 3), 0)
+        median = cv2.medianBlur(blur, 3)
+        
+        # Convert to HSV
+        hsvImage = cv2.cvtColor(median, cv2.COLOR_BGR2HSV)
+
+        # Create yellow mask
+        lower_limit, upper_limit = self.color_data["magenta"]
+        magenta_mask = cv2.inRange(hsvImage, lower_limit, upper_limit)
+        magenta_mask = cv2.cvtColor(magenta_mask, cv2.COLOR_GRAY2BGR)
+
+        # Convert to grayscale
+        gray = cv2.cvtColor(magenta_mask, cv2.COLOR_BGR2GRAY)
+        coordinates, coords_image = self.find_contours(gray, pose, area_range_factor=(0.0025, 0.025))
+        #coords_image = np.hstack([image, blur, median, darkened_frame, self.image])
         return (coordinates, coords_image)
     
     def find_thruster_or_fuel_tank_coords(self, image: np.ndarray, pose: str, front_offset: int, right_offset: int) -> Tuple[List[Point], np.ndarray]:
@@ -238,13 +285,13 @@ class ImageProcessor():
 
                 cv2.drawContours(self.image, [cv2.convexHull(contour)], -1, (0, 255, 0), 2)
                 cv2.circle(self.image, (cX, cY), 2, (0, 255, 0), -1)
-                x_img, y_img, z_img = self.coordinate_frame_conversion(cX, self.image_height - cY, 0, pose)
+                x_arm, y_arm, z_arm = self.coordinate_frame_conversion(cX, cY, 0, pose)
                 coords = Point()
-                coords.x = z_img    # Z-img = X-arm
-                coords.z = x_img    # X-img = Z-arm
-                coords.y = y_img
+                coords.x = x_arm    # Z-img = X-arm
+                coords.z = z_arm    # X-img = Z-arm
+                coords.y = y_arm
                 coords_list.append(coords)
-                coords_text = "(%.1f, %.1f)"  % (x_img, y_img) 
+                coords_text = "(%.1f, %.1f)"  % (z_arm, x_arm) 
                 cv2.putText(self.image, coords_text, (cX - 15, cY - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)    
                 output_img = np.hstack([self.image, cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)])
         return (coords_list, output_img)
@@ -255,16 +302,34 @@ class ImageProcessor():
         Arguments:
             x: Union[int, float] - The x-coordinate in the image frame.
             y: Union[int, float] - The y-coordinate in the image frame.
+            z: Union[int, float] - The z-coordinate in the image frame.
             pose: str - The pose of the camera when the image was taken.
         Returns:
             x: float - The x-coordinate in the arm frame.
             y: float - The y-coordinate in the arm frame.
+            z: float - The z-coordinate in the arm frame.
         '''
         if pose == Poses.SCAN.value:
-            return x*self.PX2MMX + 45.0, y*self.PX2MMZ - self.image_width/2, z
+            #print("image_height: ", self.image_height)
+            #print("image_width: ", self.image_width)
+            KX = 57/46
+            PX2MM_Y = 380/self.image_height
+            PX2MM_X = 570/self.image_width * KX
+
+            A = 45
+
+            Xarm_xi_obj = (self.image_height - y) * PX2MM_Y + A
+            Yarm_xi_obj = 40
+            Zarm_xi_obj = (x - self.image_width/2) * PX2MM_X
+            print(f"Y: {y}  |   Max_Cam_Height: {self.image_height}     |   Conversion Factior: {PX2MM_Y}")
+
+            Xarm_offset = 50
+            Zarm_offset = 51
+
+            return Xarm_xi_obj + Xarm_offset, Yarm_xi_obj, Zarm_xi_obj + Zarm_offset
         elif pose == Poses.VERIFY.value:
             # TODO: find and add the conversion factor for the verify pose
-            return x*self.PX2MMX, y*self.PX2MMZ, z
+            return x*(600/1080*2.5), y*(600/1080*2.5) - self.image_width/2, z
         elif pose == Poses.FRONT.value:
             x_img = x*70/160
             y_img = -35
@@ -277,11 +342,10 @@ class ImageProcessor():
 def main():
     cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
     #cap.set(cv2.CAP_PROP_SETTINGS, 1)
-    img_resize_factor = 4
-    img_width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
-    img_height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, round(img_width/img_resize_factor))
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, round(img_height/img_resize_factor))
+    img_width = globals['current_cam_res'][0]
+    img_height = globals['current_cam_res'][1]    
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, img_width)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, img_height)
 
     if not cap.isOpened():
         print("Cannot open camera")
@@ -297,7 +361,7 @@ def main():
             print("Can't receive frame")
             break
 
-        coords_list, coords_image = ip.get_coords(BoardObjects.SMALL_PACKAGE.value, Poses.FRONT.value)
+        coords_list, coords_image = ip.get_coords(BoardObjects.SMALL_PACKAGE.value, Poses.SCAN.value, experimental=True)
         
         
 

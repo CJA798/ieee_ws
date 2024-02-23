@@ -668,14 +668,14 @@ class ScanPose(smach.State):
         globals['arm_done'] = False
         speed = 1
         angles_ = Float32MultiArray()
-        angles_.data = [1940.0, 2125.0, 2120.0, 2443.0, 2179.0, 716.0, 2003.0, 2040.0, speed]
+        angles_.data = [2135.0, 1627.0, 1628.0, 2949.0, 2019.0, 629.0, 2110.0, 2111.0, speed]
         self.arm_angles_pub.publish(angles_)
         rate = rospy.Rate(100)
 
         while not globals['arm_done']:
             rate.sleep()
             globals ['arm_done'] = False
-            rospy.sleep(2)
+            rospy.sleep(20)
             return 'pose_reached'
         return 'pose_not_reached'
 
