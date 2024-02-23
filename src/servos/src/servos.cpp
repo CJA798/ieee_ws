@@ -44,12 +44,12 @@ using namespace dynamixel;
 #define MISC_ANGLE_TOLERANCE    50 // Counts we need to be off to count as arrived
 
 // PID's and Move constants
-#define KP_X    4.0
-#define KI_X    0.01
-#define KD_X    0.5
+#define KP_X    4.0//4.0
+#define KI_X    0.01//0.01
+#define KD_X    0.5//0.5
 
-#define KP_Y    4.0
-#define KI_Y    0.01
+#define KP_Y    4.0//4.0
+#define KI_Y    0.01//0.01
 #define KD_Y    0.5
 
 #define KP_Z    6.0
@@ -156,7 +156,8 @@ public:
         // Creat arrays for calculations and predefined values
         float q[6] = { 0, 0, 0, 0, 0, 0 };                          // Major joint angles of robot
         int Q[9] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };                      // Final joint angles for servos including duplicated j2 and claw
-        float l[9] = { 32.5, 162, 24, 24, 148.5, 75.34, 17, 0, 0 }; // Predefined lengts of links for DH params
+        float l[9] = { 32.5, 162, 24, 24, 148.5, 82.5, 22.5, 0, 0 }; // Predefined lengts of links for new claw DH params
+        //float l[9] = { 32.5, 162, 24, 24, 148.5, 75.34, 17, 0, 0 }; // Predefined lengts of links for old claw DH params
 
         // Reverse kinematics math
         float x1 = sqrt(x * x + z * z) + l[6] - l[3];
