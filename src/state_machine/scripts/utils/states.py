@@ -853,7 +853,7 @@ class PickUpFuelTanks_(smach.State):
     def execute(self, userdata):
         rate = rospy.Rate(20)
         angles_ = Float32MultiArray()
-        ''''
+        '''
         #pickup for wall rocket
         for i in range (6):
             # Reset the arm_done global variable
@@ -863,24 +863,24 @@ class PickUpFuelTanks_(smach.State):
             #while not globals['arm_done'] and not rospy.is_shutdown():
             #    rate.sleep()
             rospy.sleep(4)
-            rospy.loginfo(f'Moving to wall pose {i}')''''
+            rospy.loginfo(f'Moving to wall pose {i}')'''
 
-            globals['misc_done'] = False
+        globals['misc_done'] = False
             
-            # Drop bridge
-            bridge_message = Float32MultiArray()
-            bridge_message.data = [2700, -1, -1, -1, -1, -1, -1, -1]
-            self.misc_angles_pub.publish(bridge_message)
+        # Drop bridge
+        bridge_message = Float32MultiArray()
+        bridge_message.data = [2700, -1, -1, -1, -1, -1, -1, -1]
+        self.misc_angles_pub.publish(bridge_message)
 
 
-            # Wait for bridge to drop
-            while not globals['misc_done']  and not rospy.is_shutdown():
-                rate.sleep()
+        # Wait for bridge to drop
+        while not globals['misc_done']  and not rospy.is_shutdown():
+            rate.sleep()
 
-            rospy.loginfo('Bridge lowered')
+        rospy.loginfo('Bridge lowered')
 
-            # Reset the misc_done variable
-            globals['misc_done'] = False
+        # Reset the misc_done variable
+        globals['misc_done'] = False
 
 
         #pickup for wall rocket
