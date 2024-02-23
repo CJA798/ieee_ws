@@ -109,7 +109,7 @@ def main():
 
         
         smach.StateMachine.add('BUTTON_PRESS', ButtonPress(move_publisher=move_pub), 
-                               transitions={'succeeded':'SPIRIT_CELEBRATION', 'aborted':'BUTTON_PRESS'})
+                               transitions={'succeeded':'END', 'aborted':'BUTTON_PRESS'})
  
 
 
