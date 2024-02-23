@@ -14,6 +14,7 @@ from vision_system.msg import GetCoordsAction, GetCoordsGoal, GetCoordsResult, G
 from utils.areas import Areas
 from utils.globals import globals
 from utils.callbacks import get_coords_fb_cb
+from utils.fuel_tank_utils import fuel_tanks
 
 from image_utils.poses import Poses
 from image_utils.board_objects import BoardObjects
@@ -206,7 +207,7 @@ class GoTo_(smach.State):
             # Wait for the move to complete
             while not globals['move_done']  and not rospy.is_shutdown():
                 rate.sleep()
-            rospy.sleep(200)
+            rospy.sleep(4)
             # Reset the move_done global variable
             globals['move_done'] = False
             return 'arrived'
@@ -841,6 +842,29 @@ class PickUp_(smach.State):
             return 'packages_picked_up'
         return 'packages_not_picked_up'
   
+
+class PickUpFuelTanks_(smach.State):
+    def __init__(self, arm_angles_publisher):
+        smach.State.__init__(self, outcomes=['fuel_tanks_picked_up','fuel_tanks_not_picked_up'])
+        self.arm_angles_pub = arm_angles_publisher
+    
+    def execute(self, userdata):
+        rate = rospy.Rate(20)
+        angles_ = Float32MultiArray()
+        for i in range (6):
+            # Reset the arm_done global variable
+            globals['arm_done'] = False
+            angles_.data = fuel_tanks['WALL'][i]
+            self.arm_angles_pub.publish(angles_)
+            #while not globals['arm_done'] and not rospy.is_shutdown():
+            #    rate.sleep()
+            rospy.sleep(4)
+            rospy.loginfo(f'Moving to pose {i}')
+            
+
+        return 'fuel_tanks_picked_up'
+        return 'fuel_tanks_not_picked_up'
+        
 ####################################################################################################
 #    
 ####################################################################################################
@@ -881,7 +905,7 @@ class PickUpBigPackages(smach.State):
 
 # define state PickUpFuelTanks
 class PickUpFuelTanks(smach.State):
-    def __init__(self):
+    def __init__(self, arm_angles_pub):
         smach.State.__init__(self, outcomes=['fuel_tanks_picked_up','fuel_tanks_not_picked_up'])
 
     def execute(self, userdata):

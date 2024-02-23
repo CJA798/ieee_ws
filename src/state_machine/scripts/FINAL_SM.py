@@ -12,6 +12,7 @@ from utils.states import *
 from utils.globals import globals
 from utils.areas import Areas
 from utils.callbacks import *
+from utils.fuel_tank_utils import fuel_tanks
 
 # Create publishers
 task_space_pub = rospy.Publisher('Task_Space', Float32MultiArray, queue_size=1)
@@ -44,7 +45,7 @@ def main():
 
         # Initialize all devices, variables, windows, etc.
         smach.StateMachine.add('INITIALIZE', Initialize(), 
-                               transitions={'succeeded':'PACKAGE_PICKUP', 'aborted':'INITIALIZE'})
+                               transitions={'succeeded':'GO_TO_DROP_OFF_AREA', 'aborted':'INITIALIZE'})
         
         # Read the start green LED and wait for it to be detected
         smach.StateMachine.add('READING_START_LED', ReadingStartLED(), 
@@ -87,10 +88,12 @@ def main():
 
         # Go to fuel tank area
         smach.StateMachine.add('GO_TO_FUEL_TANK_AREA', GoTo_(Areas.FUEL_TANK, move_publisher=move_pub), 
-                                   transitions={'arrived':'GO_TO_CRATER_AREA', 'not_arrived':'GO_TO_FUEL_TANK_AREA'})
+                                   transitions={'arrived':'PICK_UP_FUEL_TANKS', 'not_arrived':'GO_TO_FUEL_TANK_AREA'})
 
         # TODO: Add fuel tank pickup states
 
+        smach.StateMachine.add('PICK_UP_FUEL_TANKS', PickUpFuelTanks_(arm_angles_publisher=arm_angles_pub),
+                               transitions={'fuel_tanks_picked_up':'END', 'fuel_tanks_not_picked_up':'PICK_UP_FUEL_TANKS'})
 
         # Go to crater
         smach.StateMachine.add('GO_TO_CRATER_AREA', GoTo_(Areas.CRATER, move_publisher=move_pub, misc_angles_publisher=misc_angles_pub), 
