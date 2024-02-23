@@ -14,7 +14,7 @@ from utils.areas import Areas
 from utils.callbacks import *
 
 # Create publishers
-task_space_pub = rospy.Publisher('Task_Space', Float32MultiArray, queue_size=10)
+task_space_pub = rospy.Publisher('Task_Space', Float32MultiArray, queue_size=1)
 arm_angles_pub = rospy.Publisher('Arm_Angles', Float32MultiArray, queue_size=10)
 #state_SM2Nav_pub = rospy.Publisher('State_SM2Nav', Int8, queue_size=10)
 move_pub = rospy.Publisher('Move', Float32MultiArray, queue_size=10)
@@ -67,15 +67,11 @@ def main():
                 smach.StateMachine.add('GET_SP_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose='SCAN'),
                                         transitions={'coords_received':'VERIFY_POSE', 'coords_not_received':'GET_SP_COORDS'})
                 smach.StateMachine.add('VERIFY_POSE', VerifyPose(task_space_pub=task_space_pub),
-                                        transitions={'pose_reached':'packages_picked_up', 'pose_not_reached':'packages_picked_up'})
-                #smach.StateMachine.add('VERIFY_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose='VERIFY'),
-                                        #transitions={'coords_received':'PICK_UP', 'coords_not_received':'VERIFY_COORDS'})
+                                        transitions={'pose_reached':'packages_picked_up', 'pose_not_reached':'VERIFY_POSE'})
                 #smach.StateMachine.add('PICK_UP', PickUp(task_space_pub=task_space_pub),
-                #                        transitions={'packages_picked_up':'STORE_SMALL_PACKAGE', 'packages_not_picked_up':'PICK_UP'})
+                #                        transitions={'packages_picked_up':'packages_picked_up', 'packages_not_picked_up':'PICK_UP'})
                 
-            big_packages_sm = smach.StateMachine(outcomes=['packages_picked_up', 'packages_not_picked_up'])
-            #with big_packages_sm:
-            #    pass
+        
             smach.Concurrence.add('PICK_BIG_PACKAGES', PickUpBigPackages())
             smach.Concurrence.add('PICK_SMALL_PACKAGES', small_packages_sm)
 

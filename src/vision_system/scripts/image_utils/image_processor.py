@@ -44,9 +44,9 @@ class ImageProcessor():
         }
 
         self.image_width = globals['max_cam_res'][0]//globals['img_resize_factor']
-        print("image_width: ", self.image_width)
+        #print("image_width: ", self.image_width)
         self.image_height = globals['max_cam_res'][1]//globals['img_resize_factor']
-        print("image_height: ", self.image_height)
+        #print("image_height: ", self.image_height)
 
         self.x_conversion_factor = 203.2
         self.z_conversion_factor = 177.8
@@ -319,9 +319,9 @@ class ImageProcessor():
             A = 45
 
             Xarm_xi_obj = (self.image_height - y) * PX2MM_Y + A
-            Yarm_xi_obj = 40
+            Yarm_xi_obj = 0
             Zarm_xi_obj = (x - self.image_width/2) * PX2MM_X
-            print(f"Y: {y}  |   Max_Cam_Height: {self.image_height}     |   Conversion Factior: {PX2MM_Y}")
+            #print(f"Y: {y}  |   Max_Cam_Height: {self.image_height}     |   Conversion Factior: {PX2MM_Y}")
 
             Xarm_offset = 50
             Zarm_offset = 51

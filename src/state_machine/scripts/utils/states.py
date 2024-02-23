@@ -4,6 +4,7 @@ import rospy
 import smach
 import smach_ros
 from enum import Enum
+from math import sqrt, atan2, sin, cos, degrees, radians
 
 from std_msgs.msg import Int8, Int32, Bool, String, Float32MultiArray
 import actionlib
@@ -664,26 +665,27 @@ class ScanPose(smach.State):
         self.arm_angles_pub = arm_angles_pub
 
     def execute(self, userdata):
+        rate = rospy.Rate(30)
         # Reset the arm_done global variable
         globals['arm_done'] = False
         speed = 1
         angles_ = Float32MultiArray()
-        angles_.data = [2135.0, 1627.0, 1628.0, 2949.0, 2019.0, 629.0, 2110.0, 2111.0, speed]
+        angles_.data = [2135, 1627, 1628, 2949, 2019, 629, 2110, 2111, speed]
         self.arm_angles_pub.publish(angles_)
-        rate = rospy.Rate(100)
-
-        while not globals['arm_done']:
+        rospy.loginfo('Moving to scan pose')
+        while not globals['arm_done'] and not rospy.is_shutdown():
             rate.sleep()
-            globals ['arm_done'] = False
-            rospy.sleep(20)
-            return 'pose_reached'
+
+        globals['arm_done'] = False
+        rospy.sleep(2)
+        return 'pose_reached'
         return 'pose_not_reached'
 
 # define state GetCoords
 class GetCoords(smach.State):
     def __init__(self, object_type, pose):
         smach.State.__init__(self, outcomes=['coords_received','coords_not_received'],
-                             output_keys=['coordinates'])
+                             output_keys=['coordinates_list'])
         self.object_type = object_type
         self.pose = pose
         #TODO for some reason, removing this sleep brings back the fucking
@@ -718,7 +720,7 @@ class GetCoords(smach.State):
 
             # Return the coordinates as userdata if they are received
             if result.coordinates:
-                userdata.coordinates = result.coordinates
+                userdata.coordinates_list = result.coordinates
 
             return 'coords_received'
         
@@ -733,15 +735,15 @@ class GetCoords(smach.State):
 class VerifyPose(smach.State):
     def __init__(self, task_space_pub, offset=0.0):
         smach.State.__init__(self, outcomes=['pose_reached','pose_not_reached'],
-                             input_keys=['coordinates'])
+                             input_keys=['coordinates_list'],
+                             output_keys=['coordinates_list_out'])
         rospy.loginfo(f'Executing state VerifyPose')
-
         self.task_space_pub = task_space_pub
-        self.x_offset = offset
 
     def execute(self, userdata):
+        rate = rospy.Rate(30)
         # Store the coordinates list: CoordinatesList -> coordinates[coordinates]
-        coordinates = userdata.coordinates.coordinates
+        coordinates = userdata.coordinates_list.coordinates
         rospy.loginfo(f'Coordinates: {coordinates}')
         
         # Check if the coordinates list is empty
@@ -754,16 +756,64 @@ class VerifyPose(smach.State):
         # Go to first coordinate
         task_space = Float32MultiArray()
         target = coordinates[0]
-        quickness = 10
-        task_space.data = [target.x + self.x_offset, target.y, target.z, 2048, 1700, quickness]
-        self.task_space_pub.publish(task_space)
-        # wait 5 seconds and go to next state
-        rospy.sleep(2)
+        quickness = 1
 
-        # Wait for the arm to move to the first coordinate
-        while not globals['arm_done']:
-            rospy.sleep(0.1)
+        x = target.x
+        y = target.y
+        z = target.z
+
+        grabber_offset = 50
+
+        # Calculate offset from end effector to small package grabber
+        magnitude = sqrt(z**2 + x**2) + grabber_offset
+        angle = degrees(atan2(x, z))
+        Kx = 1
+        Kz = 1
+        x_offset = magnitude * sin(radians(angle)) * Kx
+        z_offset = magnitude * cos(radians(angle)) * Kz
+
+        # Reset the arm_done global variable
+        globals['arm_done'] = False
+
+        # Move to coordinates
+        task_space.data = [int(x), int(y), int(z), 2048, 2100, quickness]
+        self.task_space_pub.publish(task_space)
+
+        while not globals['arm_done'] and not rospy.is_shutdown():
+            rate.sleep()
+
+        globals['arm_done'] = False
+
+        # Move to coordinates
+        task_space.data = [x + x_offset, y-20, z + z_offset, 2048, 2100, 20]
+        self.task_space_pub.publish(task_space)
+
+        while not globals['arm_done'] and not rospy.is_shutdown():
+            rate.sleep()
+
+        globals['arm_done'] = False
+
+        # Move to coordinates
+        task_space.data = [x + x_offset, y, z + z_offset, 2048, 2100, quickness]
+        self.task_space_pub.publish(task_space)
+        rate.sleep()
+        
         return 'pose_reached'
+
+class PickUp_(smach.State):
+    def __init__(self, task_space_pub):
+        smach.State.__init__(self, outcomes=['packages_picked_up','packages_not_picked_up'])
+        self.task_space_pub = task_space_pub
+
+    def execute(self, userdata):
+        task_space = Float32MultiArray()
+        task_space.data = [100, 100, 0, 2048, 2200, 10]
+        self.task_space_pub.publish(task_space)
+
+        if True:
+            rospy.sleep(5)
+            return 'packages_picked_up'
+        return 'packages_not_picked_up'
   
 ####################################################################################################
 #    
@@ -798,7 +848,7 @@ class PickUpBigPackages(smach.State):
 
     def execute(self, userdata):
         rospy.loginfo('Executing state PickUpBigPackages')
-        rospy.sleep(5)
+        #rospy.sleep(5)
         if True:
             return 'packages_picked_up'
         return 'packages_not_picked_up'

@@ -34,20 +34,24 @@ publisher = rospy.Publisher(topic_name, Image, queue_size=60)
 rate = rospy.Rate(30)
 
 # Create video capture object
-cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
+device_path = "/dev/v4l/by-id/usb-Arducam_Arducam_5MP_Camera_Module_YL20230518V0-video-index0"
+cap = cv2.VideoCapture(device_path, cv2.CAP_V4L2)
+
 if not cap.isOpened():
     print('Unable to open camera')
     exit(0)
 
-# TODO: Make the image resize factor a global variable
-img_resize_factor = globals['img_resize_factor']
-rospy.loginfo(f"Image resize factor: {img_resize_factor}")
 #img_width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
 #img_height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-img_width = 1920
-img_height = 1080
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, img_width//img_resize_factor)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, img_height//img_resize_factor)
+img_width = globals['current_cam_res'][0]
+img_height = globals['current_cam_res'][1]
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, img_width)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, img_height)
+
+# Set Contrast
+cap.set(cv2.CAP_PROP_CONTRAST, 3)   # Makes things gray
+# Set Saturation
+cap.set(cv2.CAP_PROP_SATURATION, 150)   # Makes purple magenta
 
 # Create CvBridge object to convert images to messages
 bridge = CvBridge()
