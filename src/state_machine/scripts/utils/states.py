@@ -844,13 +844,16 @@ class PickUp_(smach.State):
   
 
 class PickUpFuelTanks_(smach.State):
-    def __init__(self, arm_angles_publisher):
+    def __init__(self, arm_angles_publisher, task_space_publisher):
         smach.State.__init__(self, outcomes=['fuel_tanks_picked_up','fuel_tanks_not_picked_up'])
         self.arm_angles_pub = arm_angles_publisher
+        self.task_space_pub = task_space_publisher
     
     def execute(self, userdata):
         rate = rospy.Rate(20)
         angles_ = Float32MultiArray()
+        ''''
+        #pickup for wall rocket
         for i in range (6):
             # Reset the arm_done global variable
             globals['arm_done'] = False
@@ -859,8 +862,41 @@ class PickUpFuelTanks_(smach.State):
             #while not globals['arm_done'] and not rospy.is_shutdown():
             #    rate.sleep()
             rospy.sleep(4)
-            rospy.loginfo(f'Moving to pose {i}')
-            
+            rospy.loginfo(f'Moving to wall pose {i}')''''
+
+        #pickup for wall rocket
+        for i in range (5):
+            # Reset the arm_done global variable
+            globals['arm_done'] = False
+            angles_.data = fuel_tanks['WALL'][i]
+            self.task_space_pub.publish(angles_)
+            #while not globals['arm_done'] and not rospy.is_shutdown():
+            #    rate.sleep()
+            rospy.sleep(4)
+            rospy.loginfo(f'Moving to wall pose {i}')
+''''
+        #pickup for middle rocket
+        for i in range (5):
+            # Reset the arm_done global variable
+            globals['arm_done'] = False
+            angles_.data = fuel_tanks['MID'][i]
+            self.task_space_pub.publish(angles_)
+            #while not globals['arm_done'] and not rospy.is_shutdown():
+            #    rate.sleep()
+            rospy.sleep(4)
+            rospy.loginfo(f'Moving to mid pose {i}')
+
+        #pickup for last rocket
+        for i in range (6):
+            # Reset the arm_done global variable
+            globals['arm_done'] = False
+            angles_.data = fuel_tanks['CORNER'][i]
+            self.task_space_pub.publish(angles_)
+            #while not globals['arm_done'] and not rospy.is_shutdown():
+            #    rate.sleep()
+            rospy.sleep(4)
+            rospy.loginfo(f'Moving to corner pose {i}')
+         '''   
 
         return 'fuel_tanks_picked_up'
         return 'fuel_tanks_not_picked_up'

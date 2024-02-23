@@ -92,7 +92,7 @@ def main():
 
         # TODO: Add fuel tank pickup states
 
-        smach.StateMachine.add('PICK_UP_FUEL_TANKS', PickUpFuelTanks_(arm_angles_publisher=arm_angles_pub),
+        smach.StateMachine.add('PICK_UP_FUEL_TANKS', PickUpFuelTanks_(arm_angles_publisher=arm_angles_pub,task_space_publisher=task_space_pub),
                                transitions={'fuel_tanks_picked_up':'END', 'fuel_tanks_not_picked_up':'PICK_UP_FUEL_TANKS'})
 
         # Go to crater
