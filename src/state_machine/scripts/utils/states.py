@@ -314,7 +314,7 @@ class GoTo_(smach.State):
             globals['move_done'] = False
 
             # Forward for ~2 seconds
-            message.data = [0, 1, 0, 60]
+            message.data = [0, 1, 0, 30]
             self.move_pub.publish(message)
             rate2.sleep()
             rate2.sleep()
@@ -352,7 +352,7 @@ class GoTo_(smach.State):
             # Rotate
             message = Float32MultiArray() # create an instance of the Float32MultiArray message
             #Back until finding the flat area
-            message.data = [0, -1, 0, 60]
+            message.data = [0, -1, 0, 40]
             self.move_pub.publish(message)
 
             #wait until we cross bridge
