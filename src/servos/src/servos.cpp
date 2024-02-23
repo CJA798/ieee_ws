@@ -156,8 +156,9 @@ public:
         // Creat arrays for calculations and predefined values
         float q[6] = { 0, 0, 0, 0, 0, 0 };                          // Major joint angles of robot
         int Q[9] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };                      // Final joint angles for servos including duplicated j2 and claw
-        float l[9] = { 32.5, 162, 24, 24, 148.5, 82.5, 22.5, 0, 0 }; // Predefined lengts of links for new claw DH params
-        //float l[9] = { 32.5, 162, 24, 24, 148.5, 75.34, 17, 0, 0 }; // Predefined lengts of links for old claw DH params
+        float l[9] = { 32.5, 162, 24, 24, 148.5, 150, 53, 0, 0 }; // Predefined lengths of links for jaws attachment DH params
+        //float l[9] = { 32.5, 162, 24, 24, 148.5, 82.5, 22.5, 0, 0 }; // Predefined lengths of links for new claw DH params
+        //float l[9] = { 32.5, 162, 24, 24, 148.5, 75.34, 17, 0, 0 }; // Predefined lengths of links for old claw DH params
 
         // Reverse kinematics math
         float x1 = sqrt(x * x + z * z) + l[6] - l[3];
