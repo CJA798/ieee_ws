@@ -250,7 +250,10 @@ class GoTo_(smach.State):
 
 
             rate2 = rospy.Rate(1)
-            rate2.sleep()
+            rate3 = rospy.Rate(2)
+            rate3.sleep()
+
+            
             # Move to the top second ramp
             message.data = [0, 0, angle, 0]
             self.move_pub.publish(message)
@@ -314,10 +317,13 @@ class GoTo_(smach.State):
             globals['move_done'] = False
 
             # Forward for ~2 seconds
-            message.data = [0, 1, 0, 30]
+            message.data = [0, 1, 0, 40]
             self.move_pub.publish(message)
             rate2.sleep()
             rate2.sleep()
+            
+            
+
 
             # Reset the move_done global variable
             globals['move_done'] = False
