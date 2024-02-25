@@ -52,7 +52,11 @@ class Initialize(smach.State):
         rospy.loginfo('Executing state Initialize')
         # Run initialization logic
         self.bot_initialized = True
-        rospy.sleep(2.5)
+        rospy.sleep(5)
+
+        rate = rospy.Rate(50)
+        #while not rospy.is_shutdown():
+        #    rate.sleep()
 
         if self.bot_initialized:
             return 'succeeded'
@@ -95,6 +99,8 @@ class ReadingStartLED(smach.State):
 class GoTo_(smach.State):
     # Dictionary mapping areas to method names
     AREA_METHODS = {
+        Areas.BIG_PACKAGE_WALL: "GoToBigPackageWall",
+        Areas.PUSH_BIG_PACKAGES: "GoToPushBigPackages",
         Areas.DROP_OFF: "GoToDropOffArea",
         Areas.FUEL_TANK: "GoToFuelTankArea",
         Areas.CRATER: "GoToCraterArea",
@@ -136,6 +142,64 @@ class GoTo_(smach.State):
             rospy.loginfo('Invalid area')
             return 'not_arrived'
     
+    def GoToBigPackageWall(self):
+        '''State to move the robot to the big package wall'''
+        rate = rospy.Rate(20)
+        try:
+            # Reset the move_done global variable
+            globals['move_done'] = False
+
+            # Move to the big package wall
+            message = Float32MultiArray()
+            message.data = [-235, 0, 0, 20]
+            self.move_pub.publish(message)
+
+            # Wait for the move to complete
+            while not globals['move_done']  and not rospy.is_shutdown():
+                rate.sleep()
+            
+            return 'arrived'
+        
+        # Handle any exceptions that occur during the state execution
+        except Exception as e:
+            rospy.logerr(f"Error in GoToBigPackageWall: {e}")
+            return 'not_arrived'
+        
+    def GoToPushBigPackages(self):
+        '''State to move the robot to the push big packages area'''
+        rate = rospy.Rate(20)
+        rate2 = rospy.Rate(1/1.5)
+        try:
+            # Reset the move_done global variable
+            globals['move_done'] = False
+
+            # Move to the push big packages area
+            message = Float32MultiArray()
+            message.data = [-235, 1, 0, 100]
+            self.move_pub.publish(message)
+
+            # Wait for the move to complete
+            rospy.sleep(1)
+
+            # Reset the move_done global variable
+            globals['move_done'] = False
+
+            # Stop
+            message.data = [0, 0, 0, 0]
+            self.move_pub.publish(message)
+
+            #while not globals['move_done']  and not rospy.is_shutdown():
+                #rate.sleep()
+            
+            globals['move_done'] = False
+            
+            return 'arrived'
+        
+        # Handle any exceptions that occur during the state execution
+        except Exception as e:
+            rospy.logerr(f"Error in GoToPushBigPackages: {e}")
+            return 'not_arrived'
+        
     def GoToDropOffArea(self):
         '''State to move the robot to the drop off area'''
         rate = rospy.Rate(20)

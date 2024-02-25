@@ -536,7 +536,7 @@ public:
     // Triggers on /IMU_Bearing post sets rotation z spead based on pids and offset
     void IMU_BearingCallback(const std_msgs::Int16& IMU_Bearing){
         // If bearing_offset is negative it is uninitialized, so set it as offset
-        if(bearing_offset == -1)
+        if(bearing_offset == -1 && desired_z != -1)
             bearing_offset = IMU_Bearing.data;
         
         // Find difference or errot between desired and actual
@@ -670,7 +670,7 @@ private:
     // Variables for bot movement functions
     double  desired_x = 0, error_x_prev = 0, error_x_cumulative = 0, linear_x = 0, arrived_x = 0,
             desired_y = 0, error_y_prev = 0, error_y_cumulative = 0, linear_y = 0, arrived_y = 0,
-            desired_z = 0, error_z_prev = 0, error_z_cumulative = 0, linear_z = 0, arrived_z = 0,
+            desired_z = -1, error_z_prev = 0, error_z_cumulative = 0, linear_z = 0, arrived_z = 0,
             max_speed = 0, bearing_offset = -1;
 };
 
