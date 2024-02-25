@@ -20,6 +20,8 @@ arm_angles_pub = rospy.Publisher('Arm_Angles', Float32MultiArray, queue_size=10)
 #state_SM2Nav_pub = rospy.Publisher('State_SM2Nav', Int8, queue_size=10)
 move_pub = rospy.Publisher('Move', Float32MultiArray, queue_size=10)
 misc_angles_pub = rospy.Publisher('Misc_Angles', Float32MultiArray, queue_size=10)
+init_state_pub = rospy.Publisher('Init_State', Bool, queue_size=10)
+
 
 # Create subscribers
 start_led_state_sub = rospy.Subscriber("LED_State", Bool, callback=start_led_callback)
@@ -44,12 +46,13 @@ def main():
         # Add states to the container
 
         # Initialize all devices, variables, windows, etc.
-        smach.StateMachine.add('INITIALIZE', Initialize(), 
-                               transitions={'succeeded':'GO_TO_DROP_OFF_AREA', 'aborted':'INITIALIZE'})
+        smach.StateMachine.add('INITIALIZE', Initialize(init_state_pub=init_state_pub), 
+                               #transitions={'succeeded':'READING_START_LED', 'aborted':'INITIALIZE'})
+                               transitions={'succeeded':'PACKAGE_PICKUP', 'aborted':'INITIALIZE'})
         
         # Read the start green LED and wait for it to be detected
         smach.StateMachine.add('READING_START_LED', ReadingStartLED(), 
-                               transitions={'green_led_detected': 'PACKAGE_PICKUP',
+                               transitions={'green_led_detected': 'GO_TO_DROP_OFF_AREA',
                                             'green_led_not_detected':'READING_START_LED'})
         
         # Create a concurrent state machine for package pickup
@@ -64,16 +67,20 @@ def main():
 
             with small_packages_sm:
                 smach.StateMachine.add('SCAN_POSE', ScanPose(arm_angles_pub=arm_angles_pub),
-                                        transitions={'pose_reached':'GET_SP_COORDS', 'pose_not_reached':'SCAN_POSE'})
+                                        transitions={'pose_reached':'packages_picked_up', 'pose_not_reached':'SCAN_POSE'})
                 smach.StateMachine.add('GET_SP_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose='SCAN'),
-                                        transitions={'coords_received':'VERIFY_POSE', 'coords_not_received':'GET_SP_COORDS'})
-                smach.StateMachine.add('VERIFY_POSE', VerifyPose(task_space_pub=task_space_pub),
-                                        transitions={'pose_reached':'packages_picked_up', 'pose_not_reached':'VERIFY_POSE'})
-                #smach.StateMachine.add('PICK_UP', PickUp(task_space_pub=task_space_pub),
-                #                        transitions={'packages_picked_up':'packages_picked_up', 'packages_not_picked_up':'PICK_UP'})
-                
+                                        transitions={'coords_received':'packages_picked_up', 'coords_not_received':'GET_SP_COORDS'})
+
         
-            smach.Concurrence.add('PICK_BIG_PACKAGES', PickUpBigPackages())
+            big_packages_sm = smach.StateMachine(outcomes=['packages_picked_up', 'packages_not_picked_up'])
+
+            with big_packages_sm:
+                smach.StateMachine.add('MOVE_TO_BIG_PACKAGE_WALL', GoTo_(Areas.BIG_PACKAGE_WALL, move_publisher=move_pub),
+                                        transitions={'arrived':'PUSH_BIG_PACKAGES', 'not_arrived':'MOVE_TO_BIG_PACKAGE_WALL'})
+                smach.StateMachine.add('PUSH_BIG_PACKAGES', GoTo_(Areas.PUSH_BIG_PACKAGES, move_publisher=move_pub),
+                                        transitions={'arrived':'packages_picked_up', 'not_arrived':'PUSH_BIG_PACKAGES'})
+
+            smach.Concurrence.add('PICK_BIG_PACKAGES', big_packages_sm)
             smach.Concurrence.add('PICK_SMALL_PACKAGES', small_packages_sm)
 
         smach.StateMachine.add('PACKAGE_PICKUP', package_pickup_sm,
@@ -88,19 +95,19 @@ def main():
 
         # Go to fuel tank area
         smach.StateMachine.add('GO_TO_FUEL_TANK_AREA', GoTo_(Areas.FUEL_TANK, move_publisher=move_pub), 
-                                   transitions={'arrived':'PICK_UP_FUEL_TANKS', 'not_arrived':'GO_TO_FUEL_TANK_AREA'})
+                                   transitions={'arrived':'GO_TO_CRATER_AREA', 'not_arrived':'GO_TO_FUEL_TANK_AREA'})
 
         # TODO: Add fuel tank pickup states
 
-        smach.StateMachine.add('PICK_UP_FUEL_TANKS', PickUpFuelTanks_(arm_angles_publisher=arm_angles_pub,task_space_publisher=task_space_pub),
-                               transitions={'fuel_tanks_picked_up':'END', 'fuel_tanks_not_picked_up':'PICK_UP_FUEL_TANKS'})
+      #  smach.StateMachine.add('PICK_UP_FUEL_TANKS', PickUpFuelTanks(arm_angles_publisher=arm_angles_pub),
+                          #     transitions={'fuel_tanks_picked_up':'END', 'fuel_tanks_not_picked_up':'PICK_UP_FUEL_TANKS'})
 
         # Go to crater
         smach.StateMachine.add('GO_TO_CRATER_AREA', GoTo_(Areas.CRATER, move_publisher=move_pub, misc_angles_publisher=misc_angles_pub), 
                                    transitions={'arrived':'GO_TO_FINAL', 'not_arrived':'GO_TO_CRATER_AREA'})
         
         smach.StateMachine.add('GO_TO_FINAL', GoTo_(Areas.BUTTON, move_publisher=move_pub), 
-                               transitions={'arrived':'SPIRIT_CELEBRATION', 'not_arrived':'GO_TO_FINAL'})
+                               transitions={'arrived':'BUTTON_PRESS', 'not_arrived':'GO_TO_FINAL'})
         
         
         smach.StateMachine.add('SPIRIT_CELEBRATION', SpiritCelebration(misc_angles_publisher = misc_angles_pub),

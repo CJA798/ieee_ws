@@ -34,9 +34,9 @@ class Nav2SMStates(Enum):
 # define state Initialize
 class Initialize(smach.State):
     ''' State to initialize the robot'''
-    def __init__(self):
+    def __init__(self, init_state_pub):
         smach.State.__init__(self, outcomes=['succeeded','aborted'])
-        self.bot_initialized = False
+        self.init_state_pub = init_state_pub
 
     def execute(self, userdata):
         '''Delay for 5 seconds to simulate the initialization of the robot
@@ -49,15 +49,22 @@ class Initialize(smach.State):
         
         Raises:
             Exception: Any exception that occurs during the state execution'''
-        rospy.loginfo('Executing state Initialize')
-        # Run initialization logic
-        self.bot_initialized = True
-        rospy.sleep(2.5)
-
-        if self.bot_initialized:
+        try:
+            rospy.loginfo('Executing state Initialize')
+            rospy.sleep(5)
+            rate = rospy.Rate(50)
+            #while not rospy.is_shutdown():
+            #    rate.sleep()
+            # Publish the initial state
+            init_msg = Bool()
+            init_msg.data = True
+            self.init_state_pub.publish(init_msg)
             return 'succeeded'
-        
-        return 'aborted'
+
+        # Handle any exceptions that occur during the state execution
+        except Exception as e:
+            rospy.logerr("Error in Initialize: {}".format(e))
+            return 'aborted'  
 
 class ReadingStartLED(smach.State):
     '''State to read the start green LED status'''
@@ -95,6 +102,8 @@ class ReadingStartLED(smach.State):
 class GoTo_(smach.State):
     # Dictionary mapping areas to method names
     AREA_METHODS = {
+        Areas.BIG_PACKAGE_WALL: "GoToBigPackageWall",
+        Areas.PUSH_BIG_PACKAGES: "GoToPushBigPackages",
         Areas.DROP_OFF: "GoToDropOffArea",
         Areas.FUEL_TANK: "GoToFuelTankArea",
         Areas.CRATER: "GoToCraterArea",
@@ -136,6 +145,64 @@ class GoTo_(smach.State):
             rospy.loginfo('Invalid area')
             return 'not_arrived'
     
+    def GoToBigPackageWall(self):
+        '''State to move the robot to the big package wall'''
+        rate = rospy.Rate(20)
+        try:
+            # Reset the move_done global variable
+            globals['move_done'] = False
+
+            # Move to the big package wall
+            message = Float32MultiArray()
+            message.data = [-235, 0, 0, 20]
+            self.move_pub.publish(message)
+
+            # Wait for the move to complete
+            while not globals['move_done']  and not rospy.is_shutdown():
+                rate.sleep()
+            
+            return 'arrived'
+        
+        # Handle any exceptions that occur during the state execution
+        except Exception as e:
+            rospy.logerr(f"Error in GoToBigPackageWall: {e}")
+            return 'not_arrived'
+        
+    def GoToPushBigPackages(self):
+        '''State to move the robot to the push big packages area'''
+        rate = rospy.Rate(20)
+        rate2 = rospy.Rate(1/1.5)
+        try:
+            # Reset the move_done global variable
+            globals['move_done'] = False
+
+            # Move to the push big packages area
+            message = Float32MultiArray()
+            message.data = [-235, 1, 0, 100]
+            self.move_pub.publish(message)
+
+            # Wait for the move to complete
+            rospy.sleep(1)
+
+            # Reset the move_done global variable
+            globals['move_done'] = False
+
+            # Stop
+            message.data = [0, 0, 0, 0]
+            self.move_pub.publish(message)
+
+            #while not globals['move_done']  and not rospy.is_shutdown():
+                #rate.sleep()
+            
+            globals['move_done'] = False
+            
+            return 'arrived'
+        
+        # Handle any exceptions that occur during the state execution
+        except Exception as e:
+            rospy.logerr(f"Error in GoToPushBigPackages: {e}")
+            return 'not_arrived'
+        
     def GoToDropOffArea(self):
         '''State to move the robot to the drop off area'''
         rate = rospy.Rate(20)
@@ -207,7 +274,7 @@ class GoTo_(smach.State):
             # Wait for the move to complete
             while not globals['move_done']  and not rospy.is_shutdown():
                 rate.sleep()
-            rospy.sleep(4)
+            #rospy.sleep(4)
             # Reset the move_done global variable
             globals['move_done'] = False
             return 'arrived'
@@ -568,9 +635,10 @@ class PickUp(smach.State):
 
 
 class SpiritCelebration(smach.State):
-    def __init__(self, misc_angles_publisher = None):
+    def __init__(self, misc_angles_publisher = None,arm_angles_publisher = None):
         smach.State.__init__(self, outcomes = ['succeeded','aborted'])
         self.misc_angles_pub = misc_angles_publisher
+        self.arm_angles_pub = arm_angles_publisher
 
     def execute(self, userdata):
         '''Execute the state logic to celebrate the spirit
@@ -589,8 +657,8 @@ class SpiritCelebration(smach.State):
             globals['misc_done'] = False
 
             flag = Float32MultiArray()
-            flag.data = [-1,-1,-1,2048,-1,-1,-1,-1]
-            self.misc_angles_pub.publish(flag)
+            flag.data = [2048,2048,2048,2048,2048,2048,2048,2048,1]
+            self.arm_angles_pub.publish(flag)
 
             while not globals['misc_done'] and not rospy.is_shutdown():
                 rate.sleep()
@@ -678,7 +746,7 @@ class ScanPose(smach.State):
             rate.sleep()
 
         globals['arm_done'] = False
-        rospy.sleep(2)
+        rospy.sleep(2000)
         return 'pose_reached'
         return 'pose_not_reached'
 
@@ -843,63 +911,6 @@ class PickUp_(smach.State):
         return 'packages_not_picked_up'
   
 
-class PickUpFuelTanks_(smach.State):
-    def __init__(self, arm_angles_publisher, task_space_publisher):
-        smach.State.__init__(self, outcomes=['fuel_tanks_picked_up','fuel_tanks_not_picked_up'])
-        self.arm_angles_pub = arm_angles_publisher
-        self.task_space_pub = task_space_publisher
-    
-    def execute(self, userdata):
-        rate = rospy.Rate(20)
-        angles_ = Float32MultiArray()
-        ''''
-        #pickup for wall rocket
-        for i in range (6):
-            # Reset the arm_done global variable
-            globals['arm_done'] = False
-            angles_.data = fuel_tanks['WALL'][i]
-            self.arm_angles_pub.publish(angles_)
-            #while not globals['arm_done'] and not rospy.is_shutdown():
-            #    rate.sleep()
-            rospy.sleep(4)
-            rospy.loginfo(f'Moving to wall pose {i}')''''
-
-        #pickup for wall rocket
-        for i in range (5):
-            # Reset the arm_done global variable
-            globals['arm_done'] = False
-            angles_.data = fuel_tanks['WALL'][i]
-            self.task_space_pub.publish(angles_)
-            #while not globals['arm_done'] and not rospy.is_shutdown():
-            #    rate.sleep()
-            rospy.sleep(4)
-            rospy.loginfo(f'Moving to wall pose {i}')
-''''
-        #pickup for middle rocket
-        for i in range (5):
-            # Reset the arm_done global variable
-            globals['arm_done'] = False
-            angles_.data = fuel_tanks['MID'][i]
-            self.task_space_pub.publish(angles_)
-            #while not globals['arm_done'] and not rospy.is_shutdown():
-            #    rate.sleep()
-            rospy.sleep(4)
-            rospy.loginfo(f'Moving to mid pose {i}')
-
-        #pickup for last rocket
-        for i in range (6):
-            # Reset the arm_done global variable
-            globals['arm_done'] = False
-            angles_.data = fuel_tanks['CORNER'][i]
-            self.task_space_pub.publish(angles_)
-            #while not globals['arm_done'] and not rospy.is_shutdown():
-            #    rate.sleep()
-            rospy.sleep(4)
-            rospy.loginfo(f'Moving to corner pose {i}')
-         '''   
-
-        return 'fuel_tanks_picked_up'
-        return 'fuel_tanks_not_picked_up'
         
 ####################################################################################################
 #    
