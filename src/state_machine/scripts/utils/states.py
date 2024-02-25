@@ -207,7 +207,7 @@ class GoTo_(smach.State):
             # Wait for the move to complete
             while not globals['move_done']  and not rospy.is_shutdown():
                 rate.sleep()
-            rospy.sleep(4)
+            #rospy.sleep(4)
             # Reset the move_done global variable
             globals['move_done'] = False
             return 'arrived'
@@ -568,9 +568,10 @@ class PickUp(smach.State):
 
 
 class SpiritCelebration(smach.State):
-    def __init__(self, misc_angles_publisher = None):
+    def __init__(self, misc_angles_publisher = None,arm_angles_publisher = None):
         smach.State.__init__(self, outcomes = ['succeeded','aborted'])
         self.misc_angles_pub = misc_angles_publisher
+        self.arm_angles_pub = arm_angles_publisher
 
     def execute(self, userdata):
         '''Execute the state logic to celebrate the spirit
@@ -589,8 +590,8 @@ class SpiritCelebration(smach.State):
             globals['misc_done'] = False
 
             flag = Float32MultiArray()
-            flag.data = [-1,-1,-1,2048,-1,-1,-1,-1]
-            self.misc_angles_pub.publish(flag)
+            flag.data = [2048,2048,2048,2048,2048,2048,2048,2048,1]
+            self.arm_angles_pub.publish(flag)
 
             while not globals['misc_done'] and not rospy.is_shutdown():
                 rate.sleep()
@@ -678,7 +679,7 @@ class ScanPose(smach.State):
             rate.sleep()
 
         globals['arm_done'] = False
-        rospy.sleep(2)
+        rospy.sleep(2000)
         return 'pose_reached'
         return 'pose_not_reached'
 
@@ -843,101 +844,6 @@ class PickUp_(smach.State):
         return 'packages_not_picked_up'
   
 
-class PickUpFuelTanks_(smach.State):
-    def __init__(self, arm_angles_publisher, task_space_publisher,misc_angles_publisher):
-        smach.State.__init__(self, outcomes=['fuel_tanks_picked_up','fuel_tanks_not_picked_up'])
-        self.arm_angles_pub = arm_angles_publisher
-        self.task_space_pub = task_space_publisher
-        self.misc_angles_pub = misc_angles_publisher
-    
-    def execute(self, userdata):
-        rate = rospy.Rate(20)
-        angles_ = Float32MultiArray()
-        '''
-        #pickup for wall rocket
-        for i in range (6):
-            # Reset the arm_done global variable
-            globals['arm_done'] = False
-            angles_.data = fuel_tanks['WALL'][i]
-            self.arm_angles_pub.publish(angles_)
-            #while not globals['arm_done'] and not rospy.is_shutdown():
-            #    rate.sleep()
-            rospy.sleep(4)
-            rospy.loginfo(f'Moving to wall pose {i}')'''
-
-        globals['misc_done'] = False
-            
-        # Drop bridge
-        bridge_message = Float32MultiArray()
-        bridge_message.data = [2700, -1, -1, -1, -1, -1, -1, -1]
-        self.misc_angles_pub.publish(bridge_message)
-
-
-        # Wait for bridge to drop
-        while not globals['misc_done']  and not rospy.is_shutdown():
-            rate.sleep()
-
-        rospy.loginfo('Bridge lowered')
-
-        # Reset the misc_done variable
-        globals['misc_done'] = False
-
-
-        #pickup for wall rocket
-        for i in range (5):
-            # Reset the arm_done global variable
-            globals['arm_done'] = False
-            angles_.data = fuel_tanks['WALL'][i]
-            self.task_space_pub.publish(angles_)
-            #while not globals['arm_done'] and not rospy.is_shutdown():
-            #    rate.sleep()
-            rospy.sleep(4)
-            rospy.loginfo(f'Moving to wall pose {i}')
-
-
-
-            globals['misc_done'] = False
-            
-            # Drop bridge
-            bridge_message = Float32MultiArray()
-            bridge_message.data = [2048, -1, -1, -1, -1, -1, -1, -1]
-            self.misc_angles_pub.publish(bridge_message)
-
-
-            # Wait for bridge to drop
-            while not globals['misc_done']  and not rospy.is_shutdown():
-                rate.sleep()
-
-            rospy.loginfo('Bridge raised')
-
-            # Reset the misc_done variable
-            globals['misc_done'] = False
-''''
-        #pickup for middle rocket
-        for i in range (5):
-            # Reset the arm_done global variable
-            globals['arm_done'] = False
-            angles_.data = fuel_tanks['MID'][i]
-            self.task_space_pub.publish(angles_)
-            #while not globals['arm_done'] and not rospy.is_shutdown():
-            #    rate.sleep()
-            rospy.sleep(4)
-            rospy.loginfo(f'Moving to mid pose {i}')
-
-        #pickup for last rocket
-        for i in range (5):
-            # Reset the arm_done global variable
-            globals['arm_done'] = False
-            angles_.data = fuel_tanks['CORNER'][i]
-            self.task_space_pub.publish(angles_)
-            #while not globals['arm_done'] and not rospy.is_shutdown():
-            #    rate.sleep()
-            rospy.sleep(4)
-            rospy.loginfo(f'Moving to corner pose {i}')
-         '''   
-
-        return 'fuel_tanks_picked_up'
-        return 'fuel_tanks_not_picked_up'
         
 ####################################################################################################
 #    
