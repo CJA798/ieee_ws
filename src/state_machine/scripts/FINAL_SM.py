@@ -47,12 +47,12 @@ def main():
 
         # Initialize all devices, variables, windows, etc.
         smach.StateMachine.add('INITIALIZE', Initialize(init_state_pub=init_state_pub), 
-                               #transitions={'succeeded':'READING_START_LED', 'aborted':'INITIALIZE'})
-                               transitions={'succeeded':'PACKAGE_PICKUP', 'aborted':'INITIALIZE'})
+                               transitions={'succeeded':'READING_START_LED', 'aborted':'INITIALIZE'})
+                               #transitions={'succeeded':'PACKAGE_PICKUP', 'aborted':'INITIALIZE'})
         
         # Read the start green LED and wait for it to be detected
         smach.StateMachine.add('READING_START_LED', ReadingStartLED(), 
-                               transitions={'green_led_detected': 'GO_TO_DROP_OFF_AREA',
+                               transitions={'green_led_detected': 'PACKAGE_PICKUP',
                                             'green_led_not_detected':'READING_START_LED'})
         
         # Create a concurrent state machine for package pickup
@@ -67,10 +67,11 @@ def main():
 
             with small_packages_sm:
                 smach.StateMachine.add('SCAN_POSE', ScanPose(arm_angles_pub=arm_angles_pub),
-                                        transitions={'pose_reached':'packages_picked_up', 'pose_not_reached':'SCAN_POSE'})
+                                        transitions={'pose_reached':'GET_SP_COORDS', 'pose_not_reached':'SCAN_POSE'})
                 smach.StateMachine.add('GET_SP_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose='SCAN'),
-                                        transitions={'coords_received':'packages_picked_up', 'coords_not_received':'GET_SP_COORDS'})
-
+                                        transitions={'coords_received':'VERIFY_POSE', 'coords_not_received':'GET_SP_COORDS'})
+                smach.StateMachine.add('VERIFY_POSE', VerifyPose(task_space_pub=task_space_pub),
+                                        transitions={'pose_reached':'packages_picked_up', 'pose_not_reached':'VERIFY_POSE'})
         
             big_packages_sm = smach.StateMachine(outcomes=['packages_picked_up', 'packages_not_picked_up'])
 
@@ -80,7 +81,7 @@ def main():
                 smach.StateMachine.add('PUSH_BIG_PACKAGES', GoTo_(Areas.PUSH_BIG_PACKAGES, move_publisher=move_pub),
                                         transitions={'arrived':'packages_picked_up', 'not_arrived':'PUSH_BIG_PACKAGES'})
 
-            smach.Concurrence.add('PICK_BIG_PACKAGES', big_packages_sm)
+            smach.Concurrence.add('PICK_BIG_PACKAGES', PickUpBigPackages())
             smach.Concurrence.add('PICK_SMALL_PACKAGES', small_packages_sm)
 
         smach.StateMachine.add('PACKAGE_PICKUP', package_pickup_sm,

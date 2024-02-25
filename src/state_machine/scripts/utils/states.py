@@ -543,7 +543,7 @@ class PickUp(smach.State):
             # Go to scan pose
             pose = Float32MultiArray()
             speed = 1
-            pose.data = [1940.0, 2125.0, 2120.0, 2443.0, 2179.0, 716.0, 2003.0, 1400.0, speed]
+            pose.data = [1940.0, 2125.0, 2120.0, 2443.0, 2179.0, 716.0, 2003.0, 1935.0, speed]
             self.arm_angles_pub.publish(pose)
 
             # Wait for the arm to move to the scan pose
@@ -586,7 +586,7 @@ class PickUp(smach.State):
             # Go to over small package grabber
             rospy.loginfo('Moving to over small package grabber')
             speed = 1
-            pose.data = [2903.0, 2186.0, 2179.0, 1652.0, 2058.0, 1504.0, 1825.0, 1400.0, speed]
+            pose.data = [2903.0, 2186.0, 2179.0, 1652.0, 2058.0, 1504.0, 1825.0, 1935.0, speed]
             self.arm_angles_pub.publish(pose)
             rospy.loginfo('WASD to over small package grabber')
             # Wait for the arm to move over the small package grabber
@@ -734,19 +734,19 @@ class ScanPose(smach.State):
         self.arm_angles_pub = arm_angles_pub
 
     def execute(self, userdata):
-        rate = rospy.Rate(50)
+        rate = rospy.Rate(100)
         # Reset the arm_done global variable
         globals['arm_done'] = False
         speed = 1
         angles_ = Float32MultiArray()
-        angles_.data = [2135, 1627, 1628, 2949, 2019, 629, 2110, 1400, speed]
+        angles_.data = [2135, 1627, 1628, 2949, 2019, 629, 2110, 1935, speed]
         self.arm_angles_pub.publish(angles_)
         rospy.loginfo('Moving to scan pose')
-        while not globals['arm_done'] and not rospy.is_shutdown():
-            rate.sleep()
-
+        #while not globals['arm_done'] and not rospy.is_shutdown():
+        #    rate.sleep()
+        rospy.sleep(2)
         globals['arm_done'] = False
-        rospy.sleep(2000)
+        #rospy.sleep(2000)
         return 'pose_reached'
         return 'pose_not_reached'
 
@@ -820,7 +820,7 @@ class VerifyPose(smach.State):
             return 'pose_reached'
         
         task_space = Float32MultiArray()
-        jaw = 1400
+        jaw = 1935
 
         for i in range(len(coordinates)):
             # Reset the arm_done global variable
