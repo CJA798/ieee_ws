@@ -157,7 +157,7 @@ public:
         // If speed was negative then slowly move down at STEPS_DOWN pace
         if(Task_Space.data[5] < 0){
             // Copy to local task space
-            for(int i = 0, i < 6; i++)
+            for(int i = 0; i < 6; i++)
                 local_task_space[i] = Task_Space.data[i];
 
             // Move y down by STEPS_DOWN
