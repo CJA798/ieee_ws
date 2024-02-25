@@ -34,9 +34,9 @@ class Nav2SMStates(Enum):
 # define state Initialize
 class Initialize(smach.State):
     ''' State to initialize the robot'''
-    def __init__(self):
+    def __init__(self, init_state_pub):
         smach.State.__init__(self, outcomes=['succeeded','aborted'])
-        self.bot_initialized = False
+        self.init_state_pub = init_state_pub
 
     def execute(self, userdata):
         '''Delay for 5 seconds to simulate the initialization of the robot
@@ -49,19 +49,22 @@ class Initialize(smach.State):
         
         Raises:
             Exception: Any exception that occurs during the state execution'''
-        rospy.loginfo('Executing state Initialize')
-        # Run initialization logic
-        self.bot_initialized = True
-        rospy.sleep(5)
-
-        rate = rospy.Rate(50)
-        #while not rospy.is_shutdown():
-        #    rate.sleep()
-
-        if self.bot_initialized:
+        try:
+            rospy.loginfo('Executing state Initialize')
+            rospy.sleep(5)
+            rate = rospy.Rate(50)
+            #while not rospy.is_shutdown():
+            #    rate.sleep()
+            # Publish the initial state
+            init_msg = Bool()
+            init_msg.data = True
+            self.init_state_pub.publish(init_msg)
             return 'succeeded'
-        
-        return 'aborted'
+
+        # Handle any exceptions that occur during the state execution
+        except Exception as e:
+            rospy.logerr("Error in Initialize: {}".format(e))
+            return 'aborted'  
 
 class ReadingStartLED(smach.State):
     '''State to read the start green LED status'''

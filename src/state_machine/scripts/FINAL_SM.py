@@ -20,6 +20,8 @@ arm_angles_pub = rospy.Publisher('Arm_Angles', Float32MultiArray, queue_size=10)
 #state_SM2Nav_pub = rospy.Publisher('State_SM2Nav', Int8, queue_size=10)
 move_pub = rospy.Publisher('Move', Float32MultiArray, queue_size=10)
 misc_angles_pub = rospy.Publisher('Misc_Angles', Float32MultiArray, queue_size=10)
+init_state_pub = rospy.Publisher('Init_State', Bool, queue_size=10)
+
 
 # Create subscribers
 start_led_state_sub = rospy.Subscriber("LED_State", Bool, callback=start_led_callback)
@@ -44,7 +46,7 @@ def main():
         # Add states to the container
 
         # Initialize all devices, variables, windows, etc.
-        smach.StateMachine.add('INITIALIZE', Initialize(), 
+        smach.StateMachine.add('INITIALIZE', Initialize(init_state_pub=init_state_pub), 
                                #transitions={'succeeded':'READING_START_LED', 'aborted':'INITIALIZE'})
                                transitions={'succeeded':'PACKAGE_PICKUP', 'aborted':'INITIALIZE'})
         
