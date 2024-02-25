@@ -185,7 +185,7 @@ public:
         //float l[9] = { 32.5, 162, 24, 24, 148.5, 150, 53, 0, 0 }; // Predefined lengths of links for jaws attachment DH params
         //float l[9] = { 32.5, 162, 24, 24, 148.5, 82.5, 22.5, 0, 0 }; // Predefined lengths of links for new claw DH params
         //float l[9] = { 32.5, 162, 24, 24, 148.5, 75.34, 17, 0, 0 }; // Predefined lengths of links for old claw DH params
-        float l[9] = { 32.5, 162, 24, 24, 148.5, 140, 0, 0, 0 }; // Predefined lengths of links for jaws attachment DH params
+        float l[9] = { 32.5, 162, 24, 24, 148.5, 140, 18.4, 0, 0 }; // Predefined lengths of links for jaws attachment DH params
 
         // Inverse kinematics math
         float x1 = sqrt(x * x + z * z) + l[6] - l[3];
