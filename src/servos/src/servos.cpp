@@ -462,6 +462,9 @@ public:
         arrived_x = 0;
         arrived_y = 0;
         arrived_z = 0;
+
+        // Reset backup saftey
+        e_stop = 0;
     }
 
 
@@ -626,6 +629,13 @@ public:
     }
 
 
+    // Backup safety
+    void TOF_BackCallback(const std_msgs::Int16& TOF_Back){
+        if(TOF_Back.data > 120 && desired_y < 0)
+            e_stop = 1;
+    }
+
+
     // Takes xy velocity and z rotation and calculates wheel speeds scaled to max speed
     void botKinematics(){
         // Find angle of linear movement for kinematics
@@ -660,8 +670,8 @@ public:
 
         //ROS_INFO("Arrived array: %f, %f, %f", arrived_x, arrived_y, arrived_z);
 
-        // Checks to see if xyz are all stable and happy
-        if(max_speed != 0 && arrived_x >= SEQUENTIAL_READS && arrived_y >= SEQUENTIAL_READS && arrived_z >= SEQUENTIAL_READS){
+        // Checks to see if xyz are all stable and happy and we arn't about to die
+        if(e_stop == 1 || (max_speed != 0 && arrived_x >= SEQUENTIAL_READS && arrived_y >= SEQUENTIAL_READS && arrived_z >= SEQUENTIAL_READS)){
             // Ignore sensors and set speed to 0
             //desired_x = 0;
             //desired_y = 0;
@@ -730,6 +740,7 @@ private:
     ros::Subscriber TOF_Front_sub;
     ros::Subscriber TOF_Left_sub;
     ros::Subscriber TOF_Right_sub;
+    ros::SUbscriber TOF_Back_sub;
     ros::Subscriber IMU_Bearing_sub;
     ros::Subscriber PIDs_sub;
 
@@ -748,7 +759,7 @@ private:
     double  desired_x = 0, error_x_prev = 0, error_x_cumulative = 0, linear_x = 0, arrived_x = 0,
             desired_y = 0, error_y_prev = 0, error_y_cumulative = 0, linear_y = 0, arrived_y = 0,
             desired_z = -1, error_z_prev = 0, error_z_cumulative = 0, linear_z = 0, arrived_z = 0,
-            max_speed = 0, bearing_offset = -1;
+            max_speed = 0, bearing_offset = -1, e_stop = 0;
 
     // Local task space 
     float local_task_space[6];
