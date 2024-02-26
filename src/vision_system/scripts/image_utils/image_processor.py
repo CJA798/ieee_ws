@@ -10,6 +10,8 @@ from image_utils.board_objects import BoardObjects
 from image_utils.poses import Poses
 from imutils import grab_contours
 from wand.image import Image, Color
+from rospy import loginfo, logwarn
+from pickle import load
 
 
 #nidiaes*min_area=514593
@@ -22,6 +24,72 @@ class Point():
         self.y = y
         self.z = 0
 '''
+
+class ImageProcessor_():
+    # Dictionary mapping object types to their respective coordinate finder methods
+    OBJECT_METHODS = {
+        BoardObjects.SMALL_PACKAGE: "find_small_package_coords",
+        BoardObjects.FUEL_TANK: "find_fuel_tank_coords",
+    }
+    def __init__(self) -> None:
+        self.image = None
+
+        # Open the camera calibration results using pickle
+        self.camera_matrix = load(open(globals['camera_matrix_path'], "rb" ))
+        self.dist = load(open(globals['distortion_coefficients_path'], "rb" ))
+        print("Camera calibration results loaded")
+
+    def get_coords(self, object_type) -> Tuple[List[Point], np.ndarray]:
+        try:
+            coordinates = []
+            coords_image = []
+
+            # Check if the object type is valid
+            if object_type not in BoardObjects:
+                raise ValueError(f"Object type {object_type} not recognized.")
+
+            # Get the method to find the coordinates
+            method_name = self.OBJECT_METHODS[object_type]
+            coordinate_finder = getattr(self, method_name)
+            
+            # Log the execution of the state
+            print(f"Executing {method_name} to find {object_type} coordinates")
+            
+            # Call the method to find the coordinates
+            coordinates, coords_image = coordinate_finder()
+
+            return (coordinates, coords_image)
+        
+        # Handle any exceptions that may occur
+        except Exception as e:
+            raise ValueError(f"ERROR: {e}")
+        
+    def find_small_package_coords(self) -> Tuple[List[Point], np.ndarray]:
+        image = self.image
+
+        # Check if the current image is not None
+        if image is None:
+            logwarn("find_small_package_coords - Image is None")
+            return (None, None)
+        
+        # Remove distortion from the image
+        undistorted_image = self.remove_distortion(image)
+
+        return ([], undistorted_image)
+    
+    def remove_distortion(self, image=None) -> np.ndarray:
+        # Check if the current image is not None
+        if image is None:
+            logwarn("undistort - Image is None")
+            return None
+    
+        h,  w = image.shape[:2]
+        newCameraMatrix, _ = cv2.getOptimalNewCameraMatrix(self.camera_matrix, self.dist, (w,h), 1, (w,h))
+        # Undistort
+        reprojection = cv2.undistort(image, self.camera_matrix, self.dist, None, newCameraMatrix)
+        
+        return reprojection
+
 
 class ImageProcessor():
     
@@ -320,7 +388,7 @@ class ImageProcessor():
             A = 45
 
             Xarm_xi_obj = (self.image_height - y) * PX2MM_Y + A
-            Yarm_xi_obj = 0
+            Yarm_xi_obj = -50
             Zarm_xi_obj = (x - self.image_width/2) * PX2MM_X
             #print(f"Y: {y}  |   Max_Cam_Height: {self.image_height}     |   Conversion Factior: {PX2MM_Y}")
 
@@ -333,7 +401,7 @@ class ImageProcessor():
             return x*(600/1080*2.5), y*(600/1080*2.5) - self.image_width/2, z
         elif pose == Poses.FRONT.value:
             x_img = x*70/160
-            y_img = -35
+            y_img = -20
             z_img = 260 #TODO: make this variable depend on the TOF_Front reading
             return x_img, y_img, z_img
         else:
@@ -398,5 +466,51 @@ def main():
     cap.release()
     cv2.destroyAllWindows()
 
+
+def main_():
+    device_path = "/dev/v4l/by-id/usb-Arducam_Arducam_5MP_Camera_Module_YL20230518V0-video-index0"
+    cap = cv2.VideoCapture(device_path, cv2.CAP_V4L2)
+
+    #cap.set(cv2.CAP_PROP_SETTINGS, 1)
+
+    img_width = globals['current_cam_res'][0]
+    img_height = globals['current_cam_res'][1]    
+
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, img_width)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, img_height)
+    
+    # Set Contrast
+    cap.set(cv2.CAP_PROP_CONTRAST, 3)
+    # Set Saturation
+    cap.set(cv2.CAP_PROP_SATURATION, 150)
+
+    if not cap.isOpened():
+        print("Cannot open camera")
+        exit()
+
+    ip = ImageProcessor_()
+    while cap.isOpened():
+        ret, ip.image = cap.read()
+
+        if not ret:
+            print("Can't receive frame")
+            break
+
+        coords_list, coords_image = ip.get_coords(BoardObjects.SMALL_PACKAGE)        
+        if coords_image is None:
+            logwarn("Coords Image is None")
+            continue
+
+        if cv2.waitKey(5) == 27:
+            break
+
+        cv2.imshow('Coordinates', coords_image)
+        print(coords_list)
+
+    cap.release()
+    cv2.destroyAllWindows()
+
+
+
 if __name__ == '__main__':
-    main()
+    main_()

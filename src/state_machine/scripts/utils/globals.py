@@ -11,6 +11,9 @@ globals: Dict[str, Union[bool, int, None]] = {
     'max_cam_res': (1920, 1080),
     'current_cam_res': None,
     
+    'camera_matrix_path': '/home/pi/ieee_ws/src/vision_system/scripts/image_utils/cameraMatrix.pkl',
+    'distortion_coefficients_path': '/home/pi/ieee_ws/src/vision_system/scripts/image_utils/dist.pkl',
+
     'tof_front': None,
     'tof_back': None,
 }

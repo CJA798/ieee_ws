@@ -853,7 +853,7 @@ class VerifyPose(smach.State):
             globals['arm_done'] = False
 
             # Move to coordinates
-            task_space.data = [int(x_grabber), int(y), int(z_grabber), 2048, jaw, quickness]
+            task_space.data = [int(x_grabber), int(y), int(z_grabber), 2048, jaw, -40]
             self.task_space_pub.publish(task_space)
 
             while not globals['arm_done'] and not rospy.is_shutdown():
@@ -862,7 +862,7 @@ class VerifyPose(smach.State):
             rospy.loginfo('Arm moved to location')
             globals['arm_done'] = False
 
-            # Move to coordinates
+            ''''# Move to coordinates
             task_space.data = [x_grabber, -60, z_grabber, 2048, jaw, 1]
             self.task_space_pub.publish(task_space)
 
@@ -887,7 +887,7 @@ class VerifyPose(smach.State):
             task_space.data = [x_grabber , y, z_grabber, 2048, jaw, quickness]
             self.task_space_pub.publish(task_space)
             while not globals['arm_done'] and not rospy.is_shutdown():
-                rate.sleep()
+                rate.sleep()'''
 
             rospy.loginfo('Picking object')
             globals['arm_done'] = False
