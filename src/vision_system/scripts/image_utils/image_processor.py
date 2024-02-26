@@ -32,8 +32,20 @@ class ImageProcessor_():
         BoardObjects.FUEL_TANK: "find_fuel_tank_coords",
     }
 
+    POSE_AREA_RANGES = {
+        Poses.SMALL_PACKAGE_SCAN: (0.0005, 0.0075)
+    }
+
     def __init__(self) -> None:
         self.image = None
+        self.undistorted_image = None
+
+        # TODO: Make the resolution an d everything related to it more flexible
+        # Hardcoded values for the camera resolution
+        self.image_width = globals['max_cam_res'][0]//globals['img_resize_factor']
+        #print("image_width: ", self.image_width)
+        self.image_height = globals['max_cam_res'][1]//globals['img_resize_factor']
+        #print("image_height: ", self.image_height)
 
         # Open the camera calibration results using pickle
         self.camera_matrix = load(open(globals['camera_matrix_path'], "rb" ))
@@ -50,7 +62,7 @@ class ImageProcessor_():
         }
         loginfo("Color data calculated")
 
-    def get_coords(self, object_type) -> Tuple[List[Point], np.ndarray]:
+    def get_coords(self, object_type, pose, *args, **kwargs) -> Tuple[List[Point], np.ndarray]:
         try:
             coordinates = []
             coords_image = []
@@ -64,11 +76,10 @@ class ImageProcessor_():
             coordinate_finder = getattr(self, method_name)
             
             # Log the execution of the state
-            loginfo(f"Executing {method_name} to find {object_type} coordinates")
-            
-            # Call the method to find the coordinates
-            coordinates, coords_image = coordinate_finder()
+            loginfo(f"Executing {method_name} to find {object_type} coordinates in pose {pose}")
 
+            # Call the method to find the coordinates, passing any additional arguments
+            coordinates, coords_image = coordinate_finder(*args, **kwargs)
             return (coordinates, coords_image)
         
         # Handle any exceptions that may occur
@@ -121,7 +132,11 @@ class ImageProcessor_():
 
         return (lowerLimit, upperLimit)
 
-    def find_small_package_coords(self) -> Tuple[List[Point], np.ndarray]:
+    def get_area_range_factor(self, pose: Poses) -> Tuple[float, float]:
+        # Get the area range factor for the pose
+        return self.POSE_AREA_RANGES[pose]
+    
+    def find_small_package_coords(self, pose: Poses=Poses.SMALL_PACKAGE_SCAN) -> Tuple[List[Point], np.ndarray]:
         image = self.image
 
         # Check if the current image is not None
@@ -141,12 +156,23 @@ class ImageProcessor_():
         # Convert to HSV
         hsvImage = cv2.cvtColor(median, cv2.COLOR_BGR2HSV)
 
-        # Create magenta mask
+        # Create binary mask for magenta 
         lower_limit, upper_limit = self.color_data["magenta"]
         magenta_mask = cv2.inRange(hsvImage, lower_limit, upper_limit)
         magenta_mask = cv2.cvtColor(magenta_mask, cv2.COLOR_GRAY2BGR)
 
-        return ([], magenta_mask)
+        # Convert to grayscale
+        gray = cv2.cvtColor(magenta_mask, cv2.COLOR_BGR2GRAY)
+        
+        # TODO: Apply morphological operations if necessary
+        
+        area_range_factor = self.get_area_range_factor(pose)
+        #print(f"Area Range Factor: {area_range_factor}")
+
+        coordinates, coords_image = self.find_contours(gray, pose, area_range_factor=area_range_factor)
+        #coords_image = np.hstack([image, blur, median, darkened_frame, self.image])
+        
+        return (coordinates, coords_image)
     
     def remove_distortion(self, image=None) -> np.ndarray:
         # Check if the current image is not None
@@ -158,9 +184,126 @@ class ImageProcessor_():
         newCameraMatrix, _ = cv2.getOptimalNewCameraMatrix(self.camera_matrix, self.dist, (w,h), 1, (w,h))
         # Undistort
         reprojection = cv2.undistort(image, self.camera_matrix, self.dist, None, newCameraMatrix)
-        
+        self.undistorted_image = reprojection
+
         return reprojection
 
+    def find_contours(self, image: np.ndarray, pose: Poses, area_range_factor: Iterable[Sized] = (0.01,1)) -> Tuple[List[Point], np.ndarray]:
+        '''
+        Find the contours in the image.
+        Arguments:
+            image: np.ndarray - The image to find the contours in.
+            pose: str - The pose of the camera when the image was taken.
+            area_range_factor: Iterable[Sized] - The factor to multiply the image area by to get the area range.
+        Returns:
+            contour_masks: List[Point] - The coordinates of the contours in the image.
+            image: np.ndarray - The image with the contours drawn on it.
+        '''
+        # Check if image is None
+        if image is None:
+            logwarn("find_contours - Image is None")
+            return (None, None)
+        
+        coords_list = []
+  
+        contours = cv2.findContours(image.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours = grab_contours(contours)
+
+        image_area = image.size
+        max_area = image_area * area_range_factor[1]
+        min_area = image_area * area_range_factor[0]
+        coords_image = self.undistorted_image
+        if len(contours) > 0:
+            for contour in contours:
+                M = cv2.moments(contour)
+                area = M["m00"]
+                #print(f"Min Area {min_area}    |   Area {area}")
+                if area < min_area or area > max_area or area == 0:
+                    continue
+                cX = int(M["m10"] / area)
+                cY = int(M["m01"] / area)
+
+                cv2.drawContours(coords_image, [cv2.convexHull(contour)], -1, (0, 255, 0), 2)
+                cv2.circle(coords_image, (cX, cY), 2, (0, 255, 0), -1)
+                x_arm, y_arm, z_arm = self.coordinate_frame_conversion(cX, cY, 0, pose)
+                coords = Point()
+                coords.x = x_arm    # Z-img = X-arm
+                coords.z = z_arm    # X-img = Z-arm
+                coords.y = y_arm
+                coords_list.append(coords)
+                coords_text = "(%.1f, %.1f)"  % (z_arm, x_arm) 
+                cv2.putText(coords_image, coords_text, (cX - 15, cY - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)    
+                #coords_image = np.hstack([coords_image, cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)])
+        return (coords_list, coords_image)
+    
+    def coordinate_frame_conversion(self, x: Union[int, float], y: Union[int, float], z: Union[int, float], pose: Poses) -> Tuple[float, float, float]:
+        '''
+        Convert the coordinates from the image frame to the arm frame.
+        Arguments:
+            x: Union[int, float] - The x-coordinate in the image frame.
+            y: Union[int, float] - The y-coordinate in the image frame.
+            z: Union[int, float] - The z-coordinate in the image frame.
+            pose: str - The pose of the camera when the image was taken.
+        Returns:
+            x: float - The x-coordinate in the arm frame.
+            y: float - The y-coordinate in the arm frame.
+            z: float - The z-coordinate in the arm frame.
+        '''
+        if pose == Poses.SMALL_PACKAGE_SCAN:
+            #print("image_height: ", self.image_height)
+            #print("image_width: ", self.image_width)
+            KX = 57/47
+            PX2MM_Y = 410/self.image_height
+            PX2MM_X = 580/self.image_width * KX
+
+            # Offset from bottom of image to arm base
+            A = 45
+
+            Xarm_xi_obj = (self.image_height - y) * PX2MM_Y + A
+            Yarm_xi_obj = globals['small_package_Y_arm_offset']
+            Zarm_xi_obj = (x - self.image_width/2) * PX2MM_X
+            #print(f"Y: {y}  |   Max_Cam_Height: {self.image_height}     |   Conversion Factior: {PX2MM_Y}")
+
+            Xarm_offset = 50
+            Zarm_offset = 51
+
+            return Xarm_xi_obj + Xarm_offset, Yarm_xi_obj, Zarm_xi_obj + Zarm_offset
+        
+            #Xarm = y
+            #Yarm = globals['small_package_Y_arm_offset']
+            #Zarm = x
+            #return Xarm, Yarm, Zarm
+        
+        if pose == Poses.SCAN:
+            #print("image_height: ", self.image_height)
+            #print("image_width: ", self.image_width)
+            KX = 57/47
+            PX2MM_Y = 410/self.image_height
+            PX2MM_X = 580/self.image_width * KX
+
+            # Offset from bottom of image to arm base
+            A = 45
+
+            Xarm_xi_obj = (self.image_height - y) * PX2MM_Y + A
+            Yarm_xi_obj = -50
+            Zarm_xi_obj = (x - self.image_width/2) * PX2MM_X
+            #print(f"Y: {y}  |   Max_Cam_Height: {self.image_height}     |   Conversion Factior: {PX2MM_Y}")
+
+            Xarm_offset = 50
+            Zarm_offset = 51
+
+            return Xarm_xi_obj + Xarm_offset, Yarm_xi_obj, Zarm_xi_obj + Zarm_offset
+        elif pose == Poses.VERIFY.value:
+            # TODO: find and add the conversion factor for the verify pose
+            return x*(600/1080*2.5), y*(600/1080*2.5) - self.image_width/2, z
+        elif pose == Poses.FRONT.value:
+            x_img = x*70/160
+            y_img = -20
+            z_img = 260 #TODO: make this variable depend on the TOF_Front reading
+            return x_img, y_img, z_img
+        else:
+            raise ValueError(f"Arm pose {pose} not recognized.")
+        
 
 class ImageProcessor():
     
@@ -567,7 +710,7 @@ def main_():
             print("Can't receive frame")
             break
 
-        coords_list, coords_image = ip.get_coords(BoardObjects.SMALL_PACKAGE)        
+        coords_list, coords_image = ip.get_coords(object_type=BoardObjects.SMALL_PACKAGE, pose=Poses.SMALL_PACKAGE_SCAN)        
         if coords_image is None:
             logwarn("Coords Image is None")
             continue

@@ -14,6 +14,8 @@ globals: Dict[str, Union[bool, int, None]] = {
     'camera_matrix_path': '/home/pi/ieee_ws/src/vision_system/scripts/image_utils/cameraMatrix.pkl',
     'distortion_coefficients_path': '/home/pi/ieee_ws/src/vision_system/scripts/image_utils/dist.pkl',
 
+    'small_package_Y_arm_offset': -20,
+
     'tof_front': None,
     'tof_back': None,
 }
