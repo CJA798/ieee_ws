@@ -62,6 +62,12 @@ class ImageProcessor_():
         }
         loginfo("Color data calculated")
 
+    def get_pose_from_string(self, pose_str):
+        for pose in Poses:
+            if pose.value == pose_str:
+                return pose
+        return None
+
     def get_coords(self, object_type, pose, *args, **kwargs) -> Tuple[List[Point], np.ndarray]:
         try:
             coordinates = []
@@ -79,7 +85,7 @@ class ImageProcessor_():
             loginfo(f"Executing {method_name} to find {object_type} coordinates in pose {pose}")
 
             # Call the method to find the coordinates, passing any additional arguments
-            coordinates, coords_image = coordinate_finder(*args, **kwargs)
+            coordinates, coords_image = coordinate_finder(pose, *args, **kwargs)
             return (coordinates, coords_image)
         
         # Handle any exceptions that may occur
@@ -136,8 +142,11 @@ class ImageProcessor_():
         # Get the area range factor for the pose
         return self.POSE_AREA_RANGES[pose]
     
-    def find_small_package_coords(self, pose: Poses=Poses.SMALL_PACKAGE_SCAN) -> Tuple[List[Point], np.ndarray]:
+    def find_small_package_coords(self, pose: str) -> Tuple[List[Point], np.ndarray]:
         image = self.image
+
+        # Find the key for the pose value
+        pose_ = self.get_pose_from_string(pose)
 
         # Check if the current image is not None
         if image is None:
@@ -166,10 +175,10 @@ class ImageProcessor_():
         
         # TODO: Apply morphological operations if necessary
         
-        area_range_factor = self.get_area_range_factor(pose)
+        area_range_factor = self.get_area_range_factor(pose_)
         #print(f"Area Range Factor: {area_range_factor}")
 
-        coordinates, coords_image = self.find_contours(gray, pose, area_range_factor=area_range_factor)
+        coordinates, coords_image = self.find_contours(gray, pose_, area_range_factor=area_range_factor)
         #coords_image = np.hstack([image, blur, median, darkened_frame, self.image])
         
         return (coordinates, coords_image)
@@ -710,7 +719,8 @@ def main_():
             print("Can't receive frame")
             break
 
-        coords_list, coords_image = ip.get_coords(object_type=BoardObjects.SMALL_PACKAGE, pose=Poses.SMALL_PACKAGE_SCAN)        
+        coords_list, coords_image = ip.get_coords(object_type=BoardObjects.SMALL_PACKAGE, pose=Poses.SMALL_PACKAGE_SCAN.value)        
+        
         if coords_image is None:
             logwarn("Coords Image is None")
             continue
