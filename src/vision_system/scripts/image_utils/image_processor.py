@@ -138,7 +138,15 @@ class ImageProcessor_():
         blur = cv2.GaussianBlur(undistorted_image, (3, 3), 0)
         median = cv2.medianBlur(blur, 3)
 
-        return ([], median)
+        # Convert to HSV
+        hsvImage = cv2.cvtColor(median, cv2.COLOR_BGR2HSV)
+
+        # Create magenta mask
+        lower_limit, upper_limit = self.color_data["magenta"]
+        magenta_mask = cv2.inRange(hsvImage, lower_limit, upper_limit)
+        magenta_mask = cv2.cvtColor(magenta_mask, cv2.COLOR_GRAY2BGR)
+
+        return ([], magenta_mask)
     
     def remove_distortion(self, image=None) -> np.ndarray:
         # Check if the current image is not None
