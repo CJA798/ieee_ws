@@ -49,10 +49,10 @@ using namespace dynamixel;
 #define CUSTOM_PIDS             1       // Set to 1 for custom variable pids, or 0 for preset
 
 // PID's and Move constants x = left/right, y = forward/backwards, z = rotation
-#if CUSTOM_PIDS {// Custom PIDs for use with publishing
+#if CUSTOM_PIDS// Custom PIDs for use with publishing
 double KP_X = 4.0, KI_X = 0.01, KD_X = 0.5, KP_Y = 4.0, KI_Y = 0.01, KD_Y = 0.5, KP_Z = 6.0, KI_Z = 0.01, KD_Z = 0.3, ALLOWABLE_ERROR = 20, SEQUENTIAL_READS = 10;
-}
-#else{ // Preset PIDs
+
+#else // Preset PIDs
 #define KP_X    4.0//4.0
 #define KI_X    0.01//0.01
 #define KD_X    0.5//0.5
@@ -67,7 +67,7 @@ double KP_X = 4.0, KI_X = 0.01, KD_X = 0.5, KP_Y = 4.0, KI_Y = 0.01, KD_Y = 0.5,
 
 #define ALLOWABLE_ERROR     20//20  // How close we need to be to the final posistion for each axis in mm
 #define SEQUENTIAL_READS    10//10  // How many readings we need to be in these posistion before declaring arrival about 10 reading/sec
-}
+#endif
 
 // Other PID and wheel constants
 #define TS                  10      // Estimation of TOF samples per sec
@@ -129,7 +129,7 @@ public:
 
     // PID callback funtion for seting pids on the fly
     void PIDsCallback(const std_msgs::Float32MultiArray& PIDs){
-        #if CUSTOM_PIDS{
+        #if CUSTOM_PIDS
         int i = 0;
         KP_X = PIDs.data[i++];
         KI_X = PIDs.data[i++];
@@ -145,9 +145,10 @@ public:
 
         ALLOWABLE_ERROR = PIDs.data[i++];
         SEQUENTIAL_READS = PIDs.data[i++];
-        }
+        
         #else
             return;
+        #endif
     }
 
 
