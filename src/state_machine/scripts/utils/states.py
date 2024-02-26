@@ -744,7 +744,7 @@ class ScanPose(smach.State):
         rospy.loginfo('Moving to scan pose')
         #while not globals['arm_done'] and not rospy.is_shutdown():
         #    rate.sleep()
-        rospy.sleep(2)
+        rospy.sleep(5)
         globals['arm_done'] = False
         #rospy.sleep(2000)
         return 'pose_reached'
@@ -828,7 +828,7 @@ class VerifyPose(smach.State):
 
             # Go to first coordinate
             target = coordinates[i]
-            quickness = 1
+            vertical_distance = -60
 
             x = target.x
             y = target.y
@@ -853,7 +853,7 @@ class VerifyPose(smach.State):
             globals['arm_done'] = False
 
             # Move to coordinates
-            task_space.data = [int(x_grabber), int(y), int(z_grabber), 2048, jaw, -40]
+            task_space.data = [int(x_grabber), int(y), int(z_grabber), 2048, jaw, vertical_distance]
             self.task_space_pub.publish(task_space)
 
             while not globals['arm_done'] and not rospy.is_shutdown():
