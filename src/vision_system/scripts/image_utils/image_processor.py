@@ -68,21 +68,28 @@ class ImageProcessor_():
                 return pose
         return None
 
+    def get_object_type_from_string(self, object_type_str):
+        for obj in BoardObjects:
+            if obj.value == object_type_str:
+                return obj
+        return None
+    
     def get_coords(self, object_type, pose, *args, **kwargs) -> Tuple[List[Point], np.ndarray]:
         try:
             coordinates = []
             coords_image = []
 
+            object_type_ = self.get_object_type_from_string(object_type)
             # Check if the object type is valid
-            if object_type not in BoardObjects:
-                raise ValueError(f"Object type {object_type} not recognized.")
+            if object_type_ not in BoardObjects:
+                raise ValueError(f"Object type {object_type_} not recognized.")
 
             # Get the method to find the coordinates
-            method_name = self.OBJECT_METHODS[object_type]
+            method_name = self.OBJECT_METHODS[object_type_]
             coordinate_finder = getattr(self, method_name)
             
             # Log the execution of the state
-            loginfo(f"Executing {method_name} to find {object_type} coordinates in pose {pose}")
+            loginfo(f"Executing {method_name} to find {object_type_} coordinates in pose {pose}")
 
             # Call the method to find the coordinates, passing any additional arguments
             coordinates, coords_image = coordinate_finder(pose, *args, **kwargs)
@@ -719,7 +726,7 @@ def main_():
             print("Can't receive frame")
             break
 
-        coords_list, coords_image = ip.get_coords(object_type=BoardObjects.SMALL_PACKAGE, pose=Poses.SMALL_PACKAGE_SCAN.value)        
+        coords_list, coords_image = ip.get_coords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value)        
         
         if coords_image is None:
             logwarn("Coords Image is None")
