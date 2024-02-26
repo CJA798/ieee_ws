@@ -731,6 +731,7 @@ private:
     ros::Subscriber TOF_Left_sub;
     ros::Subscriber TOF_Right_sub;
     ros::Subscriber IMU_Bearing_sub;
+    ros::Subscriber PIDs_sub;
 
     // Publisher variable declarations
     std_msgs::Float32MultiArray Feedback;
