@@ -73,7 +73,7 @@ double KP_X = 7.0, KI_X = 0.1, KD_X = 0.8, KP_Y = 7.0, KI_Y = 0.1, KD_Y = 0.8, K
 #define TS                  10      // Estimation of TOF samples per sec
 #define MAX_SPEED           5       // Scaler for max_speed of wheels
 #define CUMULATIVE_CAP      1000    // Cap on cumlative error for pid
-#define LIFTUP_SAFETY       200     // Distance bot must be picked up to stop
+#define LIFTUP_SAFETY       150     // Distance bot must be picked up to stop
 #define BACKUP_SAFETY       120     // Distance that will halt a backup move if read from back tof
 
 // Default dynamixel setting
