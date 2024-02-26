@@ -45,7 +45,14 @@ using namespace dynamixel;
 #define ARM_TOLERANCE           10      // Allowable error in arm before declareing arrived
 #define STEPS_DOWN              5       // Number of millimeters to move down per step
 
-// PID's and Move constants
+
+#define CUSTOM_PIDS             1       // Set to 1 for custom variable pids, or 0 for preset
+
+// PID's and Move constants x = left/right, y = forward/backwards, z = rotation
+#if CUSTOM_PIDS {// Custom PIDs for use with publishing
+double KP_X = 4.0, KI_X = 0.01, KD_X = 0.5, KP_Y = 4.0, KI_Y = 0.01, KD_Y = 0.5, KP_Z = 6.0, KI_Z = 0.01, KD_Z = 0.3, ALLOWABLE_ERROR = 20, SEQUENTIAL_READS = 10;
+}
+#else{ // Preset PIDs
 #define KP_X    4.0//4.0
 #define KI_X    0.01//0.01
 #define KD_X    0.5//0.5
@@ -58,10 +65,13 @@ using namespace dynamixel;
 #define KI_Z    0.01//0.01
 #define KD_Z    0.3//0.3
 
+#define ALLOWABLE_ERROR     20//20  // How close we need to be to the final posistion for each axis in mm
+#define SEQUENTIAL_READS    10//10  // How many readings we need to be in these posistion before declaring arrival about 10 reading/sec
+}
+
+// Other PID and wheel constants
 #define TS                  10      // Estimation of TOF samples per sec
 #define MAX_SPEED           5       // Scaler for max_speed of wheels
-#define ALLOWABLE_ERROR     20      // How close we need to be to bot posistions
-#define SEQUENTIAL_READS    10      // How many readings we need to be in posistion before declaring arrival
 #define CUMULATIVE_CAP      1000    // Cap on cumlative error for pid
 
 // Default dynamixel setting
@@ -113,6 +123,31 @@ public:
         TOF_Left_sub = nh.subscribe("/TOF_Left", 1, &ServoClass::TOF_LeftCallback, this);
         TOF_Right_sub = nh.subscribe("/TOF_Right", 1, &ServoClass::TOF_RightCallback, this);
         IMU_Bearing_sub = nh.subscribe("/IMU_Bearing", 1, &ServoClass::IMU_BearingCallback, this);
+        PIDs_sub = nh.subscribe("/PIDs", 1, &ServoClass::PIDsCallback, this);
+    }
+
+
+    // PID callback funtion for seting pids on the fly
+    void PIDsCallback(const std_msgs::Float32MultiArray& PIDs){
+        #if CUSTOM_PIDS{
+        int i = 0;
+        KP_X = PIDs.data[i++];
+        KI_X = PIDs.data[i++];
+        KD_X = PIDs.data[i++];
+
+        KP_Y = PIDs.data[i++];
+        KI_Y = PIDs.data[i++];
+        KD_Y = PIDs.data[i++];
+
+        KP_Z = PIDs.data[i++];
+        KI_Z = PIDs.data[i++];
+        KD_Z = PIDs.data[i++];
+
+        ALLOWABLE_ERROR = PIDs.data[i++];
+        SEQUENTIAL_READS = PIDs.data[i++];
+        }
+        #else
+            return;
     }
 
 
@@ -125,7 +160,7 @@ public:
         // Sets up initial values and states for servos
         if (arm) {
             packetHandler->write1ByteTxOnly(portHandler, ARM_SECONDARY_ID, TORQUE_ENABLE_ADDR, TORQUE_ENABLE);      // Enable torque
-            packetHandler->write1ByteTxOnly(portHandler, ARM_SECONDARY_ID, 65, 1);      // Turnn on LED
+            packetHandler->write1ByteTxOnly(portHandler, ARM_SECONDARY_ID, 65, 1);      // Turn on LED
             packetHandler->write4ByteTxOnly(portHandler, ARM_SECONDARY_ID, MAX_ACC_ADDR, MAX_ACC / 100);                  // Set acc limit of posistion mode
             packetHandler->write4ByteTxOnly(portHandler, ARM_SECONDARY_ID, MAX_VEL_ADDR, MAX_VEL / 10);                  // Set vel limit of posistion mode
             packetHandler->write4ByteTxOnly(portHandler, ARM_SECONDARY_ID, GOAL_VELOCITY_ADDR, STOP);               // Sets starting velocity to stop
