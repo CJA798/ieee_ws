@@ -122,6 +122,7 @@ public:
         TOF_Front_sub = nh.subscribe("/TOF_Front", 1, &ServoClass::TOF_FrontCallback, this);
         TOF_Left_sub = nh.subscribe("/TOF_Left", 1, &ServoClass::TOF_LeftCallback, this);
         TOF_Right_sub = nh.subscribe("/TOF_Right", 1, &ServoClass::TOF_RightCallback, this);
+        TOF_Back_sub = nh.subscribe("/TOF_Back", 1, &ServoClass::TOF_BackCallback, this);
         IMU_Bearing_sub = nh.subscribe("/IMU_Bearing", 1, &ServoClass::IMU_BearingCallback, this);
         PIDs_sub = nh.subscribe("/PIDs", 1, &ServoClass::PIDsCallback, this);
     }
@@ -740,7 +741,7 @@ private:
     ros::Subscriber TOF_Front_sub;
     ros::Subscriber TOF_Left_sub;
     ros::Subscriber TOF_Right_sub;
-    ros::SUbscriber TOF_Back_sub;
+    ros::Subscriber TOF_Back_sub;
     ros::Subscriber IMU_Bearing_sub;
     ros::Subscriber PIDs_sub;
 
