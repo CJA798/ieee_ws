@@ -73,6 +73,8 @@ double KP_X = 4.0, KI_X = 0.01, KD_X = 0.5, KP_Y = 4.0, KI_Y = 0.01, KD_Y = 0.5,
 #define TS                  10      // Estimation of TOF samples per sec
 #define MAX_SPEED           5       // Scaler for max_speed of wheels
 #define CUMULATIVE_CAP      1000    // Cap on cumlative error for pid
+#define LIFTUP_SAFETY       200     // Distance bot must be picked up to stop
+#define BACKUP_SAFETY       120     // Distance that will halt a backup move if read from back tof
 
 // Default dynamixel setting
 #define BAUDRATE              57600           // Default Baudrate of DYNAMIXEL X series
@@ -630,9 +632,14 @@ public:
     }
 
 
-    // Backup safety
+    // Backup and liftoff safety stops all wheel movement
     void TOF_BackCallback(const std_msgs::Int16& TOF_Back){
-        if(TOF_Back.data > 120 && desired_y < 0)
+        // More sensitive back up safety
+        if(TOF_Back.data > BACKUP_SAFETY && desired_y < 0)
+            e_stop = 1;
+
+        // Standard lift up to stop safety
+        if(TOF_Back.data > LIFTUP_SAFETY)
             e_stop = 1;
     }
 
