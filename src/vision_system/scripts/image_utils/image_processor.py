@@ -31,13 +31,24 @@ class ImageProcessor_():
         BoardObjects.SMALL_PACKAGE: "find_small_package_coords",
         BoardObjects.FUEL_TANK: "find_fuel_tank_coords",
     }
+
     def __init__(self) -> None:
         self.image = None
 
         # Open the camera calibration results using pickle
         self.camera_matrix = load(open(globals['camera_matrix_path'], "rb" ))
         self.dist = load(open(globals['distortion_coefficients_path'], "rb" ))
-        print("Camera calibration results loaded")
+        loginfo("Camera calibration results loaded")
+
+        # Calculate the color bounds
+        self.color_data = {
+        "orange": self.get_color_bounds([0, 85, 255], hue_offset=15, value=(100, 255)),
+        "copper": self.get_color_bounds([75, 112, 255]),
+        "yellow": self.get_color_bounds([0, 255, 255]),
+        "magenta": self.get_color_bounds([255, 0, 255], value=(100, 255), saturation=(100, 255)),
+        "black": (np.array([0, 0, 0], dtype=np.uint8), np.array([180, 255, 100], dtype=np.uint8)),
+        }
+        loginfo("Color data calculated")
 
     def get_coords(self, object_type) -> Tuple[List[Point], np.ndarray]:
         try:
@@ -53,7 +64,7 @@ class ImageProcessor_():
             coordinate_finder = getattr(self, method_name)
             
             # Log the execution of the state
-            print(f"Executing {method_name} to find {object_type} coordinates")
+            loginfo(f"Executing {method_name} to find {object_type} coordinates")
             
             # Call the method to find the coordinates
             coordinates, coords_image = coordinate_finder()
@@ -63,7 +74,53 @@ class ImageProcessor_():
         # Handle any exceptions that may occur
         except Exception as e:
             raise ValueError(f"ERROR: {e}")
-        
+    
+    def get_color_bounds(self, color_code: Iterable[Sized],
+                    hue_threshold: Iterable[Sized]=(15,165),
+                    hue_offset: int=30,
+                    hue: Iterable[Sized]=(0,180),
+                    saturation: Iterable[Sized]=(0,255),
+                    value: Iterable[Sized]=(0,255)) -> Tuple[np.array, np.array]:
+        '''
+        Get the lower and upper bounds for the color in the image.
+        Arguments:
+            color_code: Iterable[Sized] - The BGR color code for the color.
+            hue_threshold: Iterable[Sized] - .
+            hue_offset: int - The offset for the hue value.
+            hue: Iterable[Sized] - Hue range (0-179) = (red -> yellow -> green -> cyan -> blue -> magenta -> pink -> red).
+            saturation: Iterable[Sized] - Saturation range (0-255) = (white to color).
+            value: Iterable[Sized] - Value range (0-255) = (black to color).
+        Returns:
+            lower_limit: np.array - The lower limit for the color in the image.
+            upper_limit: np.array - The upper limit for the color in the image.
+        '''
+        c = np.uint8([[color_code]])  # BGR values
+        hsvC = cv2.cvtColor(c, cv2.COLOR_BGR2HSV)
+
+        hue_ = hsvC[0][0][0]  # Get the hue value
+
+        upper_hue_threshold = hue_threshold[1]
+        lower_hue_threshold = hue_threshold[0]
+        min_hue = hue[0]
+        max_hue = hue[1]
+        min_saturation = saturation[0]
+        max_saturation = saturation[1]
+        min_value = value[0]
+        max_value = value[1]
+
+        # Handle red hue wrap-around
+        if hue_ >= upper_hue_threshold:  # Upper limit for divided red hue
+            lowerLimit = np.array([hue_ - hue_offset, min_saturation, min_value], dtype=np.uint8)
+            upperLimit = np.array([max_hue, max_saturation, max_value], dtype=np.uint8)
+        elif hue_ <= lower_hue_threshold:  # Lower limit for divided red hue
+            lowerLimit = np.array([min_hue, min_saturation, min_value], dtype=np.uint8)
+            upperLimit = np.array([hue_ + hue_offset, max_saturation, max_value], dtype=np.uint8)
+        else:
+            lowerLimit = np.array([hue_ - hue_offset//2, min_saturation, min_value], dtype=np.uint8)
+            upperLimit = np.array([hue_ + hue_offset//2, max_saturation, max_value], dtype=np.uint8)
+
+        return (lowerLimit, upperLimit)
+
     def find_small_package_coords(self) -> Tuple[List[Point], np.ndarray]:
         image = self.image
 
@@ -75,7 +132,13 @@ class ImageProcessor_():
         # Remove distortion from the image
         undistorted_image = self.remove_distortion(image)
 
-        return ([], undistorted_image)
+        # TODO: resize image if latency is too bad
+
+        # Apply blurs to remove noise
+        blur = cv2.GaussianBlur(undistorted_image, (3, 3), 0)
+        median = cv2.medianBlur(blur, 3)
+
+        return ([], median)
     
     def remove_distortion(self, image=None) -> np.ndarray:
         # Check if the current image is not None
