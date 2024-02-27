@@ -73,11 +73,20 @@ def main():
                 smach.StateMachine.add('VERIFY_POSE', VerifyPose(task_space_pub=task_space_pub),
                                         transitions={'pose_reached':'DONE_POSE', 'pose_not_reached':'VERIFY_POSE'})
                 smach.StateMachine.add('DONE_POSE', ScanPose(arm_angles_pub=arm_angles_pub),
-                                        transitions={'pose_reached':'packages_picked_up', 'pose_not_reached':'SCAN_POSE'})
+                                        transitions={'pose_reached':'REST_POSE', 'pose_not_reached':'DONE_POSE'})
+                smach.StateMachine.add('REST_POSE', RestPose(arm_angles_pub=arm_angles_pub),
+                                        transitions={'pose_reached':'packages_picked_up', 'pose_not_reached':'REST_POSE'})
                 
             big_packages_sm = smach.StateMachine(outcomes=['packages_picked_up', 'packages_not_picked_up'])
 
             with big_packages_sm:
+                # TODO:
+                # Lower top grabber arm a bit
+                # Move to big package wall
+                # Move forward a little bit
+                # Finish moving top arm
+                # Go back to start and make done flag true for arm-camera to start
+                # raise both arms
                 smach.StateMachine.add('MOVE_TO_BIG_PACKAGE_WALL', GoTo_(Areas.BIG_PACKAGE_WALL, move_publisher=move_pub),
                                         transitions={'arrived':'PUSH_BIG_PACKAGES', 'not_arrived':'MOVE_TO_BIG_PACKAGE_WALL'})
                 smach.StateMachine.add('PUSH_BIG_PACKAGES', GoTo_(Areas.PUSH_BIG_PACKAGES, move_publisher=move_pub),
@@ -87,7 +96,7 @@ def main():
             smach.Concurrence.add('PICK_SMALL_PACKAGES', small_packages_sm)
 
         smach.StateMachine.add('PACKAGE_PICKUP', package_pickup_sm,
-                                transitions={'packages_picked_up':'END',
+                                transitions={'packages_picked_up':'GO_TO_DROP_OFF_AREA',
                                             'packages_not_picked_up':'PACKAGE_PICKUP'})
 
         # Go to dropoff area

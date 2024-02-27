@@ -9,13 +9,6 @@
     <param name="port" value="/dev/serial/by-id/usb-1a86_USB2.0-Serial-if00-port0"/>
     </node>
 
-    <!-- NAVIGATION STATE MACHINE NODE -->
-    <node pkg="navigation_system" 
-    type="navigation_SM" 
-    name="Nav" 
-    output="screen">
-    </node>
-
     <!-- SERVOS NODE -->
     <node pkg="servos" 
     type="servos_node" 

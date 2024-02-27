@@ -346,7 +346,7 @@ class GoTo_(smach.State):
             globals['move_done'] = False
 
             # Back up until back tof reads over 70
-            message.data = [0, -1, 0, 40]
+            message.data = [0, -1, 0, 20]
             self.move_pub.publish(message)
 
             # Wait for the move to complete
@@ -367,7 +367,7 @@ class GoTo_(smach.State):
             
             # Drop bridge
             bridge_message = Float32MultiArray()
-            bridge_message.data = [3200, -1, -1, -1, -1, -1, -1, -1]
+            bridge_message.data = [3225, -1, -1, -1, -1, -1, -1, -1]
             self.misc_angles_pub.publish(bridge_message)
 
             # Wait for the move to complete
@@ -543,7 +543,8 @@ class PickUp(smach.State):
             # Go to scan pose
             pose = Float32MultiArray()
             speed = 1
-            pose.data = [1940.0, 2125.0, 2120.0, 2443.0, 2179.0, 716.0, 2003.0, 1935.0, speed]
+            jaw = 2000
+            pose.data = [1940.0, 2125.0, 2120.0, 2443.0, 2179.0, 716.0, 2003.0, jaw, speed]
             self.arm_angles_pub.publish(pose)
 
             # Wait for the arm to move to the scan pose
@@ -738,8 +739,9 @@ class ScanPose(smach.State):
         # Reset the arm_done global variable
         globals['arm_done'] = False
         speed = 1
+        jaw = 2000
         angles_ = Float32MultiArray()
-        angles_.data = [2135, 1627, 1628, 2949, 2019, 629, 2110, 1935, speed]
+        angles_.data = [2135, 1627, 1628, 2949, 2019, 629, 2110, jaw, speed]
         self.arm_angles_pub.publish(angles_)
         rospy.loginfo('Moving to scan pose')
         #while not globals['arm_done'] and not rospy.is_shutdown():
@@ -749,6 +751,30 @@ class ScanPose(smach.State):
         #rospy.sleep(2000)
         return 'pose_reached'
         return 'pose_not_reached'
+    
+# define state SetPose
+class RestPose(smach.State):
+    def __init__(self, arm_angles_pub):
+        smach.State.__init__(self, outcomes=['pose_reached','pose_not_reached'])
+        rospy.loginfo(f'Executing state RestPose')
+        self.arm_angles_pub = arm_angles_pub
+
+    def execute(self, userdata):
+        try:
+            rate = rospy.Rate(100)
+            # Reset the arm_done global variable
+            globals['arm_done'] = False
+            speed = 1
+            jaw = 2000
+            angles_ = Float32MultiArray()
+            angles_.data = [1058.0, 2852.0, 2847.0, 1405.0, 2109.0, 1736.0, 1038.0, jaw, speed]
+            self.arm_angles_pub.publish(angles_)
+            rospy.loginfo('Moving to rest pose')
+            
+            return 'pose_reached'
+        except Exception as e:
+            rospy.logerr(f"Error in RestPose: {e}")
+            return 'pose_not_reached'
 
 # define state GetCoords
 class GetCoords(smach.State):
@@ -820,7 +846,7 @@ class VerifyPose(smach.State):
             return 'pose_reached'
         
         task_space = Float32MultiArray()
-        jaw = 1935
+        jaw = 2000
 
         for i in range(len(coordinates)):
             # Reset the arm_done global variable
