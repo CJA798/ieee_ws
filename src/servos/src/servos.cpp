@@ -468,6 +468,11 @@ public:
 
         // Reset backup saftey
         e_stop = 0;
+
+        // Reset Cumulative I values
+        error_x_cumulative = 0;
+        error_y_cumulative = 0;
+        error_z_cumulative = 0;
     }
 
 
