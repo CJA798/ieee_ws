@@ -71,9 +71,7 @@ def main():
                 smach.StateMachine.add('GET_SP_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value),
                                         transitions={'coords_received':'VERIFY_POSE', 'coords_not_received':'GET_SP_COORDS'})
                 smach.StateMachine.add('VERIFY_POSE', VerifyPose(task_space_pub=task_space_pub),
-                                        transitions={'pose_reached':'DONE_POSE', 'pose_not_reached':'VERIFY_POSE'})
-                smach.StateMachine.add('DONE_POSE', ScanPose(arm_angles_pub=arm_angles_pub),
-                                        transitions={'pose_reached':'REST_POSE', 'pose_not_reached':'DONE_POSE'})
+                                        transitions={'pose_reached':'REST_POSE', 'pose_not_reached':'VERIFY_POSE'})
                 smach.StateMachine.add('REST_POSE', RestPose(arm_angles_pub=arm_angles_pub),
                                         transitions={'pose_reached':'packages_picked_up', 'pose_not_reached':'REST_POSE'})
                 
