@@ -96,10 +96,11 @@ def main():
                                         transitions={'pose_reached':'RAISE_BULK_GRABBER', 'pose_not_reached':'CLOSE_TOP_BULK_GRABBER_ARM'})
                 smach.StateMachine.add('RAISE_BULK_GRABBER', SetPose(pose=Poses.RAISE_BULK_GRABBER, move_publisher=move_pub, misc_angles_publisher=misc_angles_pub),
                                         transitions={'pose_reached':'packages_picked_up', 'pose_not_reached':'RAISE_BULK_GRABBER'})
+            
             smach.Concurrence.add('PICK_BIG_PACKAGES', big_packages_sm)
             #smach.Concurrence.add('PICK_BIG_PACKAGES', PickUpBigPackages())
-            #smach.Concurrence.add('PICK_SMALL_PACKAGES', small_packages_sm)
-            smach.Concurrence.add('PICK_SMALL_PACKAGES', PickUpBigPackages())
+            smach.Concurrence.add('PICK_SMALL_PACKAGES', small_packages_sm)
+            #smach.Concurrence.add('PICK_SMALL_PACKAGES', PickUpBigPackages())
 
 
         smach.StateMachine.add('PACKAGE_PICKUP', package_pickup_sm,

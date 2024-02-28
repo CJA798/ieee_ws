@@ -569,7 +569,7 @@ class SetPose(smach.State):
             # Waitfor the bulk grabber arms to reach the pose
             rospy.wait_for_message("Move_Done", Int8, timeout=5)
             # Set big package pick up flag to True
-            globals['big_package_pick_up'] = True
+            globals['big_packages_picked_up'] = True
             return 'pose_reached'
         else:
             return 'pose_not_reached'
@@ -877,6 +877,10 @@ class GetCoords(smach.State):
         #rospy.sleep(5)
 
     def execute(self, userdata):
+        if not globals['big_packages_picked_up']:
+            rospy.logwarn('Big package pick up not done yet')
+            rospy.sleep(1)
+            return 'coords_not_received'
         try:
             rospy.loginfo('Executing state GetCoords(small_packages, scan)')
             

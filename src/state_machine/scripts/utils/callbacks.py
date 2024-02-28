@@ -130,7 +130,7 @@ def state_arm2sm_cb(data):
     # Update the global arm done value
     try:
         globals['arm_done'] = data.data
-        rospy.loginfo("Arm Done: %s", bool(globals['arm_done']))
+        #rospy.loginfo("Arm Done: %s", bool(globals['arm_done']))
     
     # Handle any exceptions that occur during the state execution
     except Exception as e:
