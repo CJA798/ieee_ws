@@ -217,13 +217,8 @@ class GoTo_(smach.State):
         '''State to move the robot to the drop off area'''
         rate = rospy.Rate(20)
         
-        # Reset the move_done global variable
-        globals['move_done'] = False
-
-        # Move to the second slope
-        message = Float32MultiArray()
-        message.data = [200, 1, 0, 100]
-        self.move_pub.publish(message)
+        # Publish command to go straight indefinitely
+        publish_command(self.move_pub, Float32MultiArray, [200, 1, 0, 100])
 
         # Wait for the move to complete
         while globals['gravity_vector'] > -25  and not rospy.is_shutdown():
@@ -235,21 +230,21 @@ class GoTo_(smach.State):
         while globals['gravity_vector'] < -10  and not rospy.is_shutdown():
             rate.sleep()
 
-        # Reset the move_done global variable
-        globals['move_done'] = False
+        rospy.loginfo('Crossed first ramps')
 
-        # Move to the drop off area
-        message.data = [200, 200, 0, 100]
-        self.move_pub.publish(message)
-
+        # Publish command to reach to the drop off area
+        publish_command(self.move_pub, Float32MultiArray, [200, 180, 0, 100])
+        
         # Wait for the move to complete
-        while not globals['move_done']  and not rospy.is_shutdown():
-            rate.sleep()
-        
-        # Reset the move_done global variable
-        globals['move_done'] = False
-        return 'arrived'
-        
+        rospy.wait_for_message("Move_Done", Int8, timeout=10)
+
+        # Publish the command to turn 90 degrees
+        if publish_command(self.move_pub, Float32MultiArray, [0, 0, -90, 100]):
+            # Wait for the move to complete
+            rospy.wait_for_message("Move_Done", Int8, timeout=5)
+            return 'arrived'
+        else:
+            return 'not_arrived'
 
 
 
@@ -484,7 +479,10 @@ class SetPose(smach.State):
     POSES = {
         Poses.SET_BULK_GRABBER_ARMS: "SetBulkGrabberArms",
         Poses.CLOSE_TOP_BULK_GRABBER_ARM: "CloseTopBulkGrabberArm",
-        Poses.RAISE_BULK_GRABBER: "RaiseBulkGrabberArms"
+        Poses.RAISE_BULK_GRABBER: "RaiseBulkGrabberArms",
+        Poses.DROP_OFF_SMALL_PACKAGES: "DropOffSmallPackages",
+        Poses.RELEASE_SMALL_PACKAGES: "ReleaseSmallPackages",
+        Poses.FUEL_TANK_SCAN: "FuelTankScan"
     }
 
     def __init__(self, pose: str,
@@ -537,7 +535,7 @@ class SetPose(smach.State):
             # Waitfor the bulk grabber arms to reach the pose
             rospy.wait_for_message("Misc_Done", Int8, timeout=5)
             # TODO: remove this sleep without breaking anything
-            #rospy.sleep(2)
+            rospy.sleep(2)
             return 'pose_reached'
         else:
             return 'pose_not_reached'
@@ -572,6 +570,54 @@ class SetPose(smach.State):
             globals['big_packages_picked_up'] = True
             return 'pose_reached'
         else:
+            return 'pose_not_reached'
+
+    def DropOffSmallPackages(self):
+        # TODO: Format this method better
+        # Publish command to move arm over drop off area
+        jaw = globals['gripper_bulk_hold']
+        speed = 1
+        angles = [608.0, 1634.0, 1638.0, 2721.0, 2023.0, 841.0, 2194.0, jaw, speed]
+        publish_command(self.arm_angles_pub, Float32MultiArray, angles)
+        # Wait for the arm to reach the pose
+        rospy.wait_for_message("Arm_Done", Int8, timeout=10) 
+
+        # Publish command to lower arm
+        jaw = globals['gripper_bulk_hold']
+        speed = 1
+        angles = [497.0, 1242.0, 1245.0, 2730.0, 2022.0, 1250.0, 2077.0, jaw, speed]
+        publish_command(self.arm_angles_pub, Float32MultiArray, angles)
+        # Wait for the arm to reach the pose
+        rospy.wait_for_message("Arm_Done", Int8, timeout=10) 
+
+        return 'pose_reached'
+
+
+    def ReleaseSmallPackages(self):
+        # Publish command to release the small packages
+        jaw = globals['gripper_bulk_release']
+        speed = 1
+        angles = [497.0, 1242.0, 1245.0, 2730.0, 2022.0, 1250.0, 2077.0, jaw, speed]
+        if publish_command(self.arm_angles_pub, Float32MultiArray, angles):
+            # Wait for the arm to reach the pose
+            rospy.wait_for_message("Arm_Done", Int8, timeout=10) 
+            return 'pose_reached'
+        else:
+            rospy.logerr('Error releasing small packages')
+            return 'pose_not_reached'
+
+
+    def FuelTankScan(self):
+        # Publish command to set the arm to fuel tank scan pose
+        jaw = globals['gripper_bulk_release']
+        speed = 1
+        angles = [1185.0, 2236.0, 2231.0, 2151.0, 2017.0, 692.0, 2109.0, jaw, speed]
+        if publish_command(self.arm_angles_pub, Float32MultiArray, angles):
+            # Wait for the arm to reach the pose
+            rospy.wait_for_message("Arm_Done", Int8, timeout=5) 
+            return 'pose_reached'
+        else:
+            rospy.logerr('Error setting arm to fuel tank scan pose')
             return 'pose_not_reached'
 
 
@@ -630,7 +676,7 @@ class PickUp(smach.State):
             # Go to scan pose
             pose = Float32MultiArray()
             speed = 1
-            jaw = 2000
+            jaw = globals['gripper_bulk_hold']
             pose.data = [1940.0, 2125.0, 2120.0, 2443.0, 2179.0, 716.0, 2003.0, jaw, speed]
             self.arm_angles_pub.publish(pose)
 
@@ -721,6 +767,63 @@ class PickUp(smach.State):
     def PickUpFuelTanks(self):
         pass
 
+class DropOff(smach.State):
+    OBJECTS = {
+        BoardObjects.SMALL_PACKAGE: "DropOffSmallPackages",
+        BoardObjects.BIG_PACKAGE: "DropOffBigPackages",
+    }
+
+    def __init__(self, board_object, arm_angles_publisher=None, task_space_publisher=None, misc_angles_publisher=None):
+        smach.State.__init__(self, outcomes=['packages_dropped_off','packages_not_dropped_off'])
+        self.board_object = board_object
+        self.arm_angles_pub = arm_angles_publisher
+        self.task_space_pub = task_space_publisher
+        self.misc_angles_pub = misc_angles_publisher
+
+    def execute(self, userdata):
+        # Check if the board object is valid and has a corresponding action
+        if self.board_object in self.OBJECTS:
+            # Get the action name corresponding to the board object
+            method_name = self.OBJECTS[self.board_object]
+            # Log the execution of the state
+            rospy.loginfo(f"Executing state {method_name}")
+            # Call the corresponding method dynamically using getattr
+            outcome = getattr(self, method_name)()
+            
+            return outcome
+        else:
+            # Log that the board object is invalid
+            rospy.loginfo('Invalid board object')
+            rospy.loginfo(f'Is {self.board_object} in OBJECTS, {BoardObjects}, and a method of the class {self.__class__.__name__}?')
+            return 'packages_not_dropped_off'
+    
+    def DropOffSmallPackages(self):
+        pass
+
+    def DropOffBigPackages(self):
+        # Set the misc angles
+        bridge = 2048
+        top_bulk = globals['drop_bulk_top']
+        bottom_bulk = globals['drop_bulk_bottom']
+        flag = 2048
+
+        # TODO: format this method better
+        # Publish the misc angles to set the bulk grabber arms to the init pose
+        if publish_command(self.misc_angles_pub, Float32MultiArray, [bridge, top_bulk, bottom_bulk, flag]):
+            # Wait for the bulk grabber arms to reach the pose
+            rospy.wait_for_message("Misc_Done", Int8, timeout=5)
+
+            # Raise bot arm to avoid interferring with TOF_Right readings
+            top_bulk = globals['raise_bulk_top']
+            bottom_bulk = globals['raise_bulk_bottom']
+            publish_command(self.misc_angles_pub, Float32MultiArray, [bridge, top_bulk, bottom_bulk, flag])
+            
+            # Wait for the bulk grabber arms to reach the pose
+            rospy.wait_for_message("Misc_Done", Int8, timeout=5)
+
+            return 'packages_dropped_off'
+        else:
+            return 'packages_not_dropped_off'
 
 class SpiritCelebration(smach.State):
     def __init__(self, misc_angles_publisher = None,arm_angles_publisher = None):
@@ -826,7 +929,7 @@ class ScanPose(smach.State):
         # Reset the arm_done global variable
         globals['arm_done'] = False
         speed = 1
-        jaw = 2000
+        jaw = globals['gripper_bulk_hold']
         angles_ = Float32MultiArray()
         angles_.data = [2135, 1627, 1628, 2949, 2019, 629, 2110, jaw, speed]
         self.arm_angles_pub.publish(angles_)
@@ -852,7 +955,7 @@ class RestPose(smach.State):
             # Reset the arm_done global variable
             globals['arm_done'] = False
             speed = 1
-            jaw = 2000
+            jaw = globals['gripper_bulk_hold']
             angles_ = Float32MultiArray()
             angles_.data = [1058.0, 2852.0, 2847.0, 1405.0, 2109.0, 1736.0, 1038.0, jaw, speed]
             self.arm_angles_pub.publish(angles_)
@@ -937,7 +1040,7 @@ class VerifyPose(smach.State):
             return 'pose_reached'
         
         task_space = Float32MultiArray()
-        jaw = 2000
+        jaw = globals['gripper_bulk_hold']
 
         for i in range(len(coordinates)):
             # Reset the arm_done global variable

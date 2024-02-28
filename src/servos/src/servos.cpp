@@ -318,7 +318,7 @@ public:
             if(abs(Arm_Angles.data[i] - groupBulkRead.getData((i + 1), 132, 4)) > ARM_TOLERANCE){ // Used to use uint32_t pos[8]; for storing
                 arm_moving = 1;                 // Joint error is to large que up another check
                 Arm_Done.data = 0;              //  mark arm as not done moving
-                Arm_Done_pub.publish(Arm_Done); //  publish not done moving result
+                //Arm_Done_pub.publish(Arm_Done); //  publish not done moving result
                 return;                         //  break out of function
             }
         }

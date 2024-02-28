@@ -16,17 +16,23 @@ globals: Dict[str, Union[bool, int, None]] = {
 
     'small_package_Y_arm_offset': -20,
 
+    # Arm Macros
+    'gripper_bulk_hold': 2000,
+    'gripper_bulk_release': 2048,
+
     # Big Package Macros
     'big_package_Y_offset': -248,
 
     'set_bulk_top': 1300,
     'set_bulk_bottom': 3000,
 
-    'close_bulk_top': 1200,
+    'close_bulk_top': 1100,
 
     'raise_bulk_offset': 1000,
     # 'raise_bulk_top & raise_bulk_bottom declared outside globals dict
 
+    'drop_bulk_top': 1500,
+    'drop_bulk_bottom': 3000,
     'big_packages_picked_up': False,
     
     'tof_front': None,
