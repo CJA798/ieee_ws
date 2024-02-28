@@ -124,10 +124,10 @@ def main():
             small_packages_sm = smach.StateMachine(outcomes=['packages_dropped_off', 'packages_not_dropped_off'])
             
             with small_packages_sm:
-                smach.StateMachine.add('DROP_OFF_SMALL_PACKAGES_POSE', SetPose(pose=Poses.DROP_OFF_SMALL_PACKAGES, arm_angles_publisher=arm_angles_pub),
-                                        transitions={'pose_reached':'RELEASE', 'pose_not_reached':'DROP_OFF_SMALL_PACKAGES_POSE'})
-                smach.StateMachine.add('RELEASE', SetPose(pose=Poses.RELEASE_SMALL_PACKAGES, arm_angles_publisher=arm_angles_pub),
-                                        transitions={'pose_reached':'FUEL_TANK_SCAN_POSE', 'pose_not_reached':'RELEASE'})
+                #smach.StateMachine.add('DROP_OFF_SMALL_PACKAGES_POSE', SetPose(pose=Poses.DROP_OFF_SMALL_PACKAGES, arm_angles_publisher=arm_angles_pub),
+                                        #transitions={'pose_reached':'RELEASE', 'pose_not_reached':'DROP_OFF_SMALL_PACKAGES_POSE'})
+                #smach.StateMachine.add('RELEASE', SetPose(pose=Poses.RELEASE_SMALL_PACKAGES, arm_angles_publisher=arm_angles_pub),
+                                        #transitions={'pose_reached':'FUEL_TANK_SCAN_POSE', 'pose_not_reached':'RELEASE'})
                 smach.StateMachine.add('FUEL_TANK_SCAN_POSE', SetPose(pose=Poses.FUEL_TANK_SCAN, arm_angles_publisher=arm_angles_pub),
                                         transitions={'pose_reached':'packages_dropped_off', 'pose_not_reached':'FUEL_TANK_SCAN_POSE'})
             
