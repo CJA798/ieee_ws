@@ -17,7 +17,6 @@ from utils.fuel_tank_utils import fuel_tanks
 # Create publishers
 task_space_pub = rospy.Publisher('Task_Space', Float32MultiArray, queue_size=1)
 arm_angles_pub = rospy.Publisher('Arm_Angles', Float32MultiArray, queue_size=10)
-#state_SM2Nav_pub = rospy.Publisher('State_SM2Nav', Int8, queue_size=10)
 move_pub = rospy.Publisher('Move', Float32MultiArray, queue_size=10)
 misc_angles_pub = rospy.Publisher('Misc_Angles', Float32MultiArray, queue_size=10)
 init_state_pub = rospy.Publisher('Init_State', Bool, queue_size=10)
@@ -27,8 +26,6 @@ init_state_pub = rospy.Publisher('Init_State', Bool, queue_size=10)
 start_led_state_sub = rospy.Subscriber("LED_State", Bool, callback=start_led_callback)
 arm_done_sub = rospy.Subscriber("Arm_Done", Int8, callback=state_arm2sm_cb)
 misc_done = rospy.Subscriber("Misc_Done", Int8, callback=misc_done_cb)
-#state_Nav2SM_sub = rospy.Subscriber("State_Nav2SM", Int8, callback=state_nav2arm_cb)
-#TOF_Front = rospy.Subscriber("TOF_Front", Int16, callback=tof_front_cb)
 move_done_sub = rospy.Subscriber("Move_Done", Int8, callback=move_done_cb)
 gravity_vector_sub = rospy.Subscriber("IMU_Grav", Int16, callback=gravity_vector_cb)
 bearing_sub = rospy.Subscriber("IMU_Bearing", Int16, callback=bearing_cb)
@@ -47,8 +44,8 @@ def main():
 
         # Initialize all devices, variables, windows, etc.
         smach.StateMachine.add('INITIALIZE', Initialize(init_state_pub=init_state_pub), 
-                               transitions={'succeeded':'READING_START_LED', 'aborted':'INITIALIZE'})
-                               #transitions={'succeeded':'PACKAGE_PICKUP', 'aborted':'INITIALIZE'})
+                               #transitions={'succeeded':'READING_START_LED', 'aborted':'INITIALIZE'})
+                               transitions={'succeeded':'PACKAGE_PICKUP', 'aborted':'INITIALIZE'})
         
         # Read the start green LED and wait for it to be detected
         smach.StateMachine.add('READING_START_LED', ReadingStartLED(), 
@@ -90,8 +87,10 @@ def main():
                 smach.StateMachine.add('PUSH_BIG_PACKAGES', GoTo_(Areas.PUSH_BIG_PACKAGES, move_publisher=move_pub),
                                         transitions={'arrived':'packages_picked_up', 'not_arrived':'PUSH_BIG_PACKAGES'})
 
-            smach.Concurrence.add('PICK_BIG_PACKAGES', PickUpBigPackages())
+            smach.Concurrence.add('PICK_BIG_PACKAGES', big_packages_sm)
             smach.Concurrence.add('PICK_SMALL_PACKAGES', small_packages_sm)
+            #smach.Concurrence.add('PICK_SMALL_PACKAGES', PickUpBigPackages())
+
 
         smach.StateMachine.add('PACKAGE_PICKUP', package_pickup_sm,
                                 transitions={'packages_picked_up':'GO_TO_DROP_OFF_AREA',
@@ -99,8 +98,10 @@ def main():
 
         # Go to dropoff area
         smach.StateMachine.add('GO_TO_DROP_OFF_AREA', GoTo_(Areas.DROP_OFF, move_publisher=move_pub), 
-                                   transitions={'arrived':'GO_TO_FUEL_TANK_AREA', 'not_arrived':'GO_TO_DROP_OFF_AREA'})
-        
+                                   #transitions={'arrived':'GO_TO_FUEL_TANK_AREA', 'not_arrived':'GO_TO_DROP_OFF_AREA'})
+                               transitions={'arrived':'END', 'not_arrived':'GO_TO_DROP_OFF_AREA'})
+
+
         # TODO: Add dropoff states
 
         # Go to fuel tank area

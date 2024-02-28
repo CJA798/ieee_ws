@@ -20,6 +20,8 @@ from image_utils.poses import Poses
 from image_utils.board_objects import BoardObjects
 
 
+def publish_move():
+    pass
 class SM2NavStates(Enum):
     DROP_OFF_AREA = 0
     FUEL_TANK_AREA = 1
@@ -137,7 +139,13 @@ class GoTo_(smach.State):
             # Log the execution of the state
             rospy.loginfo(f"Executing state {method_name}")
             # Call the corresponding method dynamically using getattr
-            outcome = getattr(self, method_name)()
+            try:
+                outcome = getattr(self, method_name)()
+
+            # Handle any exceptions that occur during the state execution
+            except Exception as e:
+                rospy.logerr(f"Error in GoTo{self.area}: {e}")
+                return 'not_arrived'
             
             return outcome
         else:
@@ -148,25 +156,20 @@ class GoTo_(smach.State):
     def GoToBigPackageWall(self):
         '''State to move the robot to the big package wall'''
         rate = rospy.Rate(20)
-        try:
-            # Reset the move_done global variable
-            globals['move_done'] = False
+        # Reset the move_done global variable
+        globals['move_done'] = False
 
-            # Move to the big package wall
-            message = Float32MultiArray()
-            message.data = [-235, 0, 0, 20]
-            self.move_pub.publish(message)
+        # Move to the big package wall
+        message = Float32MultiArray()
+        message.data = [-235, 0, 0, 20]
+        self.move_pub.publish(message)
 
-            # Wait for the move to complete
-            while not globals['move_done']  and not rospy.is_shutdown():
-                rate.sleep()
-            
-            return 'arrived'
+        # Wait for the move to complete
+        while not globals['move_done']  and not rospy.is_shutdown():
+            rate.sleep()
         
-        # Handle any exceptions that occur during the state execution
-        except Exception as e:
-            rospy.logerr(f"Error in GoToBigPackageWall: {e}")
-            return 'not_arrived'
+        return 'arrived'
+
         
     def GoToPushBigPackages(self):
         '''State to move the robot to the push big packages area'''
