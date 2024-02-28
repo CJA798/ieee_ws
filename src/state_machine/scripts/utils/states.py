@@ -3,6 +3,11 @@
 import rospy
 import smach
 import smach_ros
+
+from typing import Optional, Iterable
+from rospy import Publisher
+from rospy.msg import AnyMsg
+
 from enum import Enum
 from math import sqrt, atan2, sin, cos, degrees, radians
 
@@ -30,17 +35,37 @@ def publish_move(move_pub, message=Float32MultiArray(), data=[0, 0, 0, 0]):
     # Publish the message
     move_pub.publish(message)
 
-class SM2NavStates(Enum):
-    DROP_OFF_AREA = 0
-    FUEL_TANK_AREA = 1
-    THRUSTER_AREA = 2
+def publish_command(pub: Publisher, message_type: AnyMsg, message_data: Iterable) -> bool:
+    """
+    Publishes a command message using the provided publisher.
 
-class Nav2SMStates(Enum):
-    RESET = 0
-    IN_PROGRESS = 0
-    DONE = 1
+    Args:
+    - pub (Publisher): The ROS publisher object.
+    - message_type  AnyMsg): The message type of the command.
+    - message_data (Any): The data to be included in the command message.
 
+    Returns:
+    - bool: True if the message was successfully published, False otherwise.
+    """
+    try:
+        # Create the message
+        message = message_type()
+        message.data = message_data
 
+        # Publish the message
+        pub.publish(message)
+        return True
+    except Exception as e:
+        rospy.logerr(f"Error in publish_command: {e}")
+        return False
+
+def stop_move(move_pub: Publisher) -> bool:
+    try:
+        return publish_command(move_pub, Float32MultiArray, [0, 0, 0, 0])
+    except Exception as e:
+        rospy.logerr(f"Error in stop_move: {e}")
+        return False
+    
 # define state Initialize
 class Initialize(smach.State):
     ''' State to initialize the robot'''
@@ -62,10 +87,7 @@ class Initialize(smach.State):
         try:
             rospy.loginfo('Executing state Initialize')
             rospy.sleep(5)
-            rate = rospy.Rate(50)
-            #while not rospy.is_shutdown():
-            #    rate.sleep()
-            # Publish the initial state
+
             init_msg = Bool()
             init_msg.data = True
             self.init_state_pub.publish(init_msg)
@@ -163,51 +185,31 @@ class GoTo_(smach.State):
     
     def GoToBigPackageWall(self):
         '''State to move the robot to the big package wall'''
-        rate = rospy.Rate(20)
-        # Reset the move_done global variable
-        globals['move_done'] = False
+        # Publish move to the big package wall
+        y_offset = globals['big_package_Y_offset']
+        publish_move(self.move_pub, data=[y_offset, 0, 0, 100])
 
-        # Move to the big package wall
-        message = Float32MultiArray()
-        message.data = [-235, 0, 0, 20]
-        self.move_pub.publish(message)
+        # Wait for the move_done message
+        rospy.wait_for_message("Move_Done", Int8, timeout=5)
+        # TODO: implement timeout routine
 
-        # Wait for the move to complete
-        while not globals['move_done']  and not rospy.is_shutdown():
-            rate.sleep()
-        
         return 'arrived'
 
-        
     def GoToPushBigPackages(self):
         '''State to move the robot to the push big packages area'''
-        rate = rospy.Rate(20)
-        rate2 = rospy.Rate(1/1.5)
-        
-        # Reset the move_done global variable
-        globals['move_done'] = False
-
-        # Move to the push big packages area
-        message = Float32MultiArray()
-        message.data = [-235, 1, 0, 100]
-        self.move_pub.publish(message)
+        # Publish command to push the big packages forward
+        y_offset = globals['big_package_Y_offset']
+        publish_command(self.move_pub, Float32MultiArray, [y_offset, 1, 0, 20])
 
         # Wait for the move to complete
+        # This one is an exception bc we don't have a rear TOF
         rospy.sleep(1)
 
-        # Reset the move_done global variable
-        globals['move_done'] = False
-
         # Stop
-        message.data = [0, 0, 0, 0]
-        self.move_pub.publish(message)
-
-        #while not globals['move_done']  and not rospy.is_shutdown():
-            #rate.sleep()
-        
-        globals['move_done'] = False
-        
-        return 'arrived'
+        if stop_move(self.move_pub):
+            return 'arrived'
+        else:
+            return 'not_arrived'
         
 
         
@@ -477,6 +479,100 @@ class GoTo_(smach.State):
 
         # next state
         return 'arrived'
+
+class SetPose(smach.State):
+    POSES = {
+        Poses.SET_BULK_GRABBER_ARMS: "SetBulkGrabberArms",
+        Poses.CLOSE_TOP_BULK_GRABBER_ARM: "CloseTopBulkGrabberArm",
+        Poses.RAISE_BULK_GRABBER: "RaiseBulkGrabberArms"
+    }
+
+    def __init__(self, pose: str,
+                 move_publisher: Optional[Publisher] = None,
+                 arm_angles_publisher: Optional[Publisher] = None,
+                 task_space_publisher: Optional[Publisher] = None,
+                 misc_angles_publisher: Optional[Publisher] = None) -> None:
+        # Initialize the state with outcomes 'pose_reached' and 'pose_not_reached'
+        smach.State.__init__(self, outcomes=['pose_reached','pose_not_reached']) 
+        
+        # Store the pose and publishers
+        self.pose = pose
+        self.move_pub = move_publisher
+        self.arm_angles_pub = arm_angles_publisher
+        self.task_space_pub = task_space_publisher
+        self.misc_angles_pub = misc_angles_publisher
+
+        rospy.loginfo(f"Executing state SetPose: {self.pose}")
+
+    def execute(self, userdata):
+        # Check if the pose is valid and has a corresponding action
+        if self.pose in self.POSES:
+            # Get the action name corresponding to the pose
+            method_name = self.POSES[self.pose]
+            # Log the execution of the state
+            rospy.loginfo(f"Executing state {method_name}")
+            # Call the corresponding method dynamically using getattr
+            try:
+                outcome = getattr(self, method_name)()
+            except Exception as e:
+                rospy.logerr(f"Error in SetPose: {e}")
+                return 'pose_not_reached'
+            
+            return outcome
+        else:
+            # Log that the pose is invalid
+            rospy.logwarn('Invalid pose')
+            rospy.logwarn(f'Is {self.pose} in POSES, {Poses}, and a method of the class {self.__class__.__name__}?')
+            return 'pose_not_reached'
+    
+    def SetBulkGrabberArms(self):
+        # Set the misc angles
+        bridge = 2048
+        top_bulk = globals['set_bulk_top']
+        bottom_bulk = globals['set_bulk_bottom']
+        flag = 2048
+
+        # Publish the misc angles to set the bulk grabber arms to the init pose
+        if publish_command(self.misc_angles_pub, Float32MultiArray, [bridge, top_bulk, bottom_bulk, flag]):
+            # Waitfor the bulk grabber arms to reach the pose
+            rospy.wait_for_message("Misc_Done", Int8, timeout=5)
+            # TODO: remove this sleep without breaking anything
+            #rospy.sleep(2)
+            return 'pose_reached'
+        else:
+            return 'pose_not_reached'
+        
+    def CloseTopBulkGrabberArm(self):
+        # Set the misc angles
+        bridge = 2048
+        top_bulk = globals['close_bulk_top']
+        bottom_bulk = globals['set_bulk_bottom']
+        flag = 2048
+
+        # Publish the misc angles to close the top bulk grabber arm
+        if publish_command(self.misc_angles_pub, Float32MultiArray, [bridge, top_bulk, bottom_bulk, flag]):
+            # Waitfor the bulk grabber arms to reach the pose
+            rospy.wait_for_message("Misc_Done", Int8, timeout=5)
+            return 'pose_reached'
+        else:
+            return 'pose_not_reached'
+        
+    def RaiseBulkGrabberArms(self):
+        # Set the misc angles
+        bridge = 2048
+        top_bulk = globals['raise_bulk_top']
+        bottom_bulk = globals['raise_bulk_bottom']
+        flag = 2048
+
+        # Publish the misc angles to raise the bulk grabber arms
+        if publish_command(self.move_pub, Float32MultiArray, [-175, 0, 0, 100]) and publish_command(self.misc_angles_pub, Float32MultiArray, [bridge, top_bulk, bottom_bulk, flag]):
+            # Waitfor the bulk grabber arms to reach the pose
+            rospy.wait_for_message("Move_Done", Int8, timeout=5)
+            # Set big package pick up flag to True
+            globals['big_package_pick_up'] = True
+            return 'pose_reached'
+        else:
+            return 'pose_not_reached'
 
 
 # Define state PickUp
@@ -946,24 +1042,6 @@ class PickUp_(smach.State):
 ####################################################################################################
 #    
 ####################################################################################################
-
-
-
-# define state Store
-class Store(smach.State):
-    def __init__(self, task_space_pub):
-        smach.State.__init__(self, outcomes=['packages_stored','packages_not_stored'])
-        self.task_space_pub = task_space_pub
-
-    def execute(self, userdata):
-        task_space = Float32MultiArray()
-        task_space.data = [100, 100, 0, 2048, 2200, 10]
-        self.task_space_pub.publish(task_space)
-
-        if True:
-            rospy.sleep(5)
-            return 'packages_stored'
-        return 'packages_not_stored'
     
 # define state PickUpBigPackages
 class PickUpBigPackages(smach.State):
@@ -975,57 +1053,5 @@ class PickUpBigPackages(smach.State):
         #rospy.sleep(5)
         if True:
             return 'packages_picked_up'
-        return 'packages_not_picked_up'
+        return 'packages_not_picked_up'  
 
-# define state PickUpFuelTanks
-class PickUpFuelTanks(smach.State):
-    def __init__(self, arm_angles_pub):
-        smach.State.__init__(self, outcomes=['fuel_tanks_picked_up','fuel_tanks_not_picked_up'])
-
-    def execute(self, userdata):
-        rospy.loginfo('Executing state PickUpFuelTanks')
-        rospy.sleep(5)
-        if True:
-            return 'fuel_tanks_picked_up'
-        return 'fuel_tanks_not_picked_up'
-    
-     
-# define state GoToDropOffArea
-class GoTo(smach.State):
-    def __init__(self, state_SM2Nav_pub, area):
-        smach.State.__init__(self, outcomes=['succeeded','aborted'])
-        self.state_SM2Nav_pub = state_SM2Nav_pub
-        self.area = area
-
-    def execute(self, userdata):
-        state_SM2Nav = Int8()
-        state_SM2Nav.data = self.area
-
-        rospy.sleep(0.2)
-        self.state_SM2Nav_pub.publish(state_SM2Nav)
-        rospy.loginfo('Executing state GoToDropOffArea')
-        return 'succeeded'
-
-# define state DropOffBigPackages
-class DropOffBigPackages(smach.State):
-    def __init__(self):
-        smach.State.__init__(self, outcomes=['packages_dropped_off','packages_not_dropped_off'])
-    
-    def execute(self, userdata):
-        rospy.loginfo('Executing state DropOffBigPackages')
-        rospy.sleep(5)
-        if True:
-            return 'packages_dropped_off'
-        return 'packages_not_dropped_off'
-    
-# define state DropOffSmallPackages
-class DropOffSmallPackages(smach.State):
-    def __init__(self):
-        smach.State.__init__(self, outcomes=['packages_dropped_off','packages_not_dropped_off'])
-    
-    def execute(self, userdata):
-        rospy.loginfo('Executing state DropOffSmallPackages')
-        rospy.sleep(5)
-        if True:
-            return 'packages_dropped_off'
-        return 'packages_not_dropped_off'

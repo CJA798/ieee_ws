@@ -40,8 +40,8 @@ using namespace dynamixel;
 #define POS_I_GAIN              500     // Angle mode I gain
 #define POS_D_GAIN              4000    // Angle mode D gain
 #define STOP                    0       // Velocity mode stop
-#define MISC_COUNT              1       // Number of misc servos hooked up
-#define MISC_ANGLE_TOLERANCE    50      // Counts we need to be off to count as arrived
+#define MISC_COUNT              4       // Number of misc servos hooked up
+#define MISC_ANGLE_TOLERANCE    10      // Counts we need to be off to count as arrived
 #define ARM_TOLERANCE           10      // Allowable error in arm before declareing arrived
 #define STEPS_DOWN              10      // Number of millimeters to move down per step
 

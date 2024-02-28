@@ -82,25 +82,34 @@ def main():
                 # Finish moving top arm
                 # Go back to start and make done flag true for arm-camera to start
                 # raise both arms
+                smach.StateMachine.add('SET_BULK_GRABBER_ARMS', SetPose(pose=Poses.SET_BULK_GRABBER_ARMS, misc_angles_publisher=misc_angles_pub),
+                                        transitions={'pose_reached':'MOVE_TO_BIG_PACKAGE_WALL', 'pose_not_reached':'SET_BULK_GRABBER_ARMS'})
                 smach.StateMachine.add('MOVE_TO_BIG_PACKAGE_WALL', GoTo_(Areas.BIG_PACKAGE_WALL, move_publisher=move_pub),
-                                        transitions={'arrived':'PUSH_BIG_PACKAGES', 'not_arrived':'MOVE_TO_BIG_PACKAGE_WALL'})
-                smach.StateMachine.add('PUSH_BIG_PACKAGES', GoTo_(Areas.PUSH_BIG_PACKAGES, move_publisher=move_pub),
-                                        transitions={'arrived':'packages_picked_up', 'not_arrived':'PUSH_BIG_PACKAGES'})
+                                        transitions={'arrived':'CLOSE_TOP_BULK_GRABBER_ARM', 'not_arrived':'MOVE_TO_BIG_PACKAGE_WALL'})
+                
+                # TODO: figure out why PUSH_BIG_PACKAGES makes the bot rotate a bit instead of just going straight
+                # TODO: add this state cack when the above is fixed
+                #smach.StateMachine.add('PUSH_BIG_PACKAGES', GoTo_(Areas.PUSH_BIG_PACKAGES, move_publisher=move_pub),
+                                        #transitions={'arrived':'packages_picked_up', 'not_arrived':'PUSH_BIG_PACKAGES'})
 
-            #smach.Concurrence.add('PICK_BIG_PACKAGES', big_packages_sm)
-            smach.Concurrence.add('PICK_BIG_PACKAGES', PickUpBigPackages())
-            smach.Concurrence.add('PICK_SMALL_PACKAGES', small_packages_sm)
-            #smach.Concurrence.add('PICK_SMALL_PACKAGES', PickUpBigPackages())
+                smach.StateMachine.add('CLOSE_TOP_BULK_GRABBER_ARM', SetPose(pose=Poses.CLOSE_TOP_BULK_GRABBER_ARM, misc_angles_publisher=misc_angles_pub),
+                                        transitions={'pose_reached':'RAISE_BULK_GRABBER', 'pose_not_reached':'CLOSE_TOP_BULK_GRABBER_ARM'})
+                smach.StateMachine.add('RAISE_BULK_GRABBER', SetPose(pose=Poses.RAISE_BULK_GRABBER, move_publisher=move_pub, misc_angles_publisher=misc_angles_pub),
+                                        transitions={'pose_reached':'packages_picked_up', 'pose_not_reached':'RAISE_BULK_GRABBER'})
+            smach.Concurrence.add('PICK_BIG_PACKAGES', big_packages_sm)
+            #smach.Concurrence.add('PICK_BIG_PACKAGES', PickUpBigPackages())
+            #smach.Concurrence.add('PICK_SMALL_PACKAGES', small_packages_sm)
+            smach.Concurrence.add('PICK_SMALL_PACKAGES', PickUpBigPackages())
 
 
         smach.StateMachine.add('PACKAGE_PICKUP', package_pickup_sm,
-                                transitions={'packages_picked_up':'GO_TO_DROP_OFF_AREA',
+                                transitions={'packages_picked_up':'END',
                                             'packages_not_picked_up':'PACKAGE_PICKUP'})
 
         # Go to dropoff area
         smach.StateMachine.add('GO_TO_DROP_OFF_AREA', GoTo_(Areas.DROP_OFF, move_publisher=move_pub), 
-                                   #transitions={'arrived':'GO_TO_FUEL_TANK_AREA', 'not_arrived':'GO_TO_DROP_OFF_AREA'})
-                               transitions={'arrived':'END', 'not_arrived':'GO_TO_DROP_OFF_AREA'})
+                                transitions={'arrived':'GO_TO_FUEL_TANK_AREA', 'not_arrived':'GO_TO_DROP_OFF_AREA'})
+                               #transitions={'arrived':'END', 'not_arrived':'GO_TO_DROP_OFF_AREA'})
 
 
         # TODO: Add dropoff states

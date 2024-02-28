@@ -60,8 +60,8 @@ while not rospy.is_shutdown():
     ret, raw_image = cap.read()
 
     if ret:
-        cv2.imshow("Raw Image", raw_image)
-        cv2.waitKey(5)
+        #cv2.imshow("Raw Image", raw_image)
+        #cv2.waitKey(5)
         #rospy.loginfo("Frame2 received successfully")
 
         # Convert frame to msg format

@@ -85,7 +85,7 @@ def move_done_cb(data):
     # Update the global move done value
     try:
         globals['move_done'] = data.data
-        #rospy.loginfo("Move Done: %s", globals['move_done'])
+        rospy.loginfo("Move Done: %s", bool(globals['move_done']))
     
     # Handle any exceptions that occur during the state execution
     except Exception as e:
@@ -130,7 +130,7 @@ def state_arm2sm_cb(data):
     # Update the global arm done value
     try:
         globals['arm_done'] = data.data
-        #rospy.loginfo("Arm Done: %s", globals['arm_done'])
+        rospy.loginfo("Arm Done: %s", bool(globals['arm_done']))
     
     # Handle any exceptions that occur during the state execution
     except Exception as e:
@@ -155,7 +155,7 @@ def misc_done_cb(data):
     # Update the global misc done value
     try:
         globals['misc_done'] = data.data
-        #rospy.loginfo("Misc Done: %s", globals['misc_done'])
+        rospy.loginfo("Misc Done: %s", bool(globals['misc_done']))
     
     # Handle any exceptions that occur during the state execution
     except Exception as e:
