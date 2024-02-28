@@ -175,320 +175,300 @@ class GoTo_(smach.State):
         '''State to move the robot to the push big packages area'''
         rate = rospy.Rate(20)
         rate2 = rospy.Rate(1/1.5)
-        try:
-            # Reset the move_done global variable
-            globals['move_done'] = False
-
-            # Move to the push big packages area
-            message = Float32MultiArray()
-            message.data = [-235, 1, 0, 100]
-            self.move_pub.publish(message)
-
-            # Wait for the move to complete
-            rospy.sleep(1)
-
-            # Reset the move_done global variable
-            globals['move_done'] = False
-
-            # Stop
-            message.data = [0, 0, 0, 0]
-            self.move_pub.publish(message)
-
-            #while not globals['move_done']  and not rospy.is_shutdown():
-                #rate.sleep()
-            
-            globals['move_done'] = False
-            
-            return 'arrived'
         
-        # Handle any exceptions that occur during the state execution
-        except Exception as e:
-            rospy.logerr(f"Error in GoToPushBigPackages: {e}")
-            return 'not_arrived'
+        # Reset the move_done global variable
+        globals['move_done'] = False
+
+        # Move to the push big packages area
+        message = Float32MultiArray()
+        message.data = [-235, 1, 0, 100]
+        self.move_pub.publish(message)
+
+        # Wait for the move to complete
+        rospy.sleep(1)
+
+        # Reset the move_done global variable
+        globals['move_done'] = False
+
+        # Stop
+        message.data = [0, 0, 0, 0]
+        self.move_pub.publish(message)
+
+        #while not globals['move_done']  and not rospy.is_shutdown():
+            #rate.sleep()
+        
+        globals['move_done'] = False
+        
+        return 'arrived'
+        
+
         
     def GoToDropOffArea(self):
         '''State to move the robot to the drop off area'''
         rate = rospy.Rate(20)
-        try:
-            # Reset the move_done global variable
-            globals['move_done'] = False
-
-            # Move to the second slope
-            message = Float32MultiArray()
-            message.data = [200, 1, 0, 100]
-            self.move_pub.publish(message)
-
-            # Wait for the move to complete
-            while globals['gravity_vector'] > -25  and not rospy.is_shutdown():
-                rate.sleep()
-
-            rospy.loginfo('Second slope reached')
-
-            # Keep moving until the robot crosses the second slope
-            while globals['gravity_vector'] < -10  and not rospy.is_shutdown():
-                rate.sleep()
-
-            # Reset the move_done global variable
-            globals['move_done'] = False
-
-            # Move to the drop off area
-            message.data = [200, 200, 0, 100]
-            self.move_pub.publish(message)
-
-            # Wait for the move to complete
-            while not globals['move_done']  and not rospy.is_shutdown():
-                rate.sleep()
-            
-            # Reset the move_done global variable
-            globals['move_done'] = False
-            return 'arrived'
         
-        # Handle any exceptions that occur during the state execution
-        except Exception as e:
-            rospy.logerr(f"Error in GoToDropOffArea: {e}")
-            return 'not_arrived'
+        # Reset the move_done global variable
+        globals['move_done'] = False
+
+        # Move to the second slope
+        message = Float32MultiArray()
+        message.data = [200, 1, 0, 100]
+        self.move_pub.publish(message)
+
+        # Wait for the move to complete
+        while globals['gravity_vector'] > -25  and not rospy.is_shutdown():
+            rate.sleep()
+
+        rospy.loginfo('Second slope reached')
+
+        # Keep moving until the robot crosses the second slope
+        while globals['gravity_vector'] < -10  and not rospy.is_shutdown():
+            rate.sleep()
+
+        # Reset the move_done global variable
+        globals['move_done'] = False
+
+        # Move to the drop off area
+        message.data = [200, 200, 0, 100]
+        self.move_pub.publish(message)
+
+        # Wait for the move to complete
+        while not globals['move_done']  and not rospy.is_shutdown():
+            rate.sleep()
+        
+        # Reset the move_done global variable
+        globals['move_done'] = False
+        return 'arrived'
+        
+
 
 
     def GoToFuelTankArea(self):
         '''State to move the robot to the fuel tank area'''
         rate = rospy.Rate(20)
-        try:
-            # Reset the move_done global variable
-            globals['move_done'] = False
-            
-            # Turn 90 degrees
-            message = Float32MultiArray()
-            message.data = [0, 0, -90, 100]
-            self.move_pub.publish(message)
-
-            # Wait for the move to complete
-            while not globals['move_done']  and not rospy.is_shutdown():
-                rate.sleep()
         
-            rospy.loginfo('Turned 90 degrees')
+        # Reset the move_done global variable
+        globals['move_done'] = False
+        
+        # Turn 90 degrees
+        message = Float32MultiArray()
+        message.data = [0, 0, -90, 100]
+        self.move_pub.publish(message)
 
-            # Reset the move_done global variable
-            globals['move_done'] = False
+        # Wait for the move to complete
+        while not globals['move_done']  and not rospy.is_shutdown():
+            rate.sleep()
+    
+        rospy.loginfo('Turned 90 degrees')
 
-            # Move to the fuel tank area
-            message.data = [150, 270, -90, 100]
-            self.move_pub.publish(message)
+        # Reset the move_done global variable
+        globals['move_done'] = False
 
-            # Wait for the move to complete
-            while not globals['move_done']  and not rospy.is_shutdown():
-                rate.sleep()
-            #rospy.sleep(4)
-            # Reset the move_done global variable
-            globals['move_done'] = False
-            return 'arrived'
+        # Move to the fuel tank area
+        message.data = [150, 270, -90, 100]
+        self.move_pub.publish(message)
 
-        # Handle any exceptions that occur during the state execution
-        except Exception as e:
-            rospy.logerr(f"Error in GoToFuelTankArea: {e}")
-            return 'not_arrived'
+        # Wait for the move to complete
+        while not globals['move_done']  and not rospy.is_shutdown():
+            rate.sleep()
+        #rospy.sleep(4)
+        # Reset the move_done global variable
+        globals['move_done'] = False
+        return 'arrived'
+
         
     def GoToCraterArea(self):
         rate = rospy.Rate(30)
         angle = 180
-        try:
-            # Reset the move_done global variable
-            globals['move_done'] = False
+      
+        # Reset the move_done global variable
+        globals['move_done'] = False
 
-            # Rotate
-            message = Float32MultiArray() # create an instance of the Float32MultiArray message
-            message.data = [0, 0, angle, 100]
-            self.move_pub.publish(message)
+        # Rotate
+        message = Float32MultiArray() # create an instance of the Float32MultiArray message
+        message.data = [0, 0, angle, 100]
+        self.move_pub.publish(message)
 
-            # Wait for the move to complete
-            while not globals['move_done']  and not rospy.is_shutdown():
-                rate.sleep()
-            
-            rospy.loginfo('Rotated 180 degrees')
-
-            # Reset the move_done global variable 
-            globals['move_done'] = False
-
-            # Move to the top second ramp
-            message.data = [200, 1, angle, 75]
-            self.move_pub.publish(message)
-
-            # Wait for the move to complete
-            while globals['gravity_vector'] < 15  and not rospy.is_shutdown():
-                rate.sleep()
-            
-            rospy.loginfo('Half second ramp reached')
-            while globals['gravity_vector'] > 2  and not rospy.is_shutdown():
-                rate.sleep()
-
-
-            rate2 = rospy.Rate(1)
-            rate3 = rospy.Rate(2)
-            rate3.sleep()
-
-            
-            # Move to the top second ramp
-            message.data = [0, 0, angle, 0]
-            self.move_pub.publish(message)
-
-            rospy.loginfo('Top second ramp reached')
-
-            # Reset the move_done global variable
-            globals['move_done'] = False
-
-            # Rotate to place bridge
-            message.data = [0, 0, 0, 100]
-            self.move_pub.publish(message)
-
-            # Wait for the move to complete
-            while not globals['move_done']  and not rospy.is_shutdown():
-                rate.sleep()
-
-            rospy.loginfo('Rotated to place bridge')
-
-            # Reset the move_done global variable
-            globals['move_done'] = False
-
-            # Back up until back tof reads over 70
-            message.data = [0, -1, 0, 20]
-            self.move_pub.publish(message)
-
-            # Wait for the move to complete
-            while globals['tof_back'] < 70  and not rospy.is_shutdown():
-                rate.sleep()
-             
-
-            rospy.loginfo('Backed up')
-
-            globals['move_done'] = False
-
-            # Stop
-            message.data = [0, 0, 0, 0]
-            self.move_pub.publish(message)
-            
-            # Reset the misc_done global variable
-            globals['misc_done'] = False
-            
-            # Drop bridge
-            bridge_message = Float32MultiArray()
-            bridge_message.data = [3225, -1, -1, -1, -1, -1, -1, -1]
-            self.misc_angles_pub.publish(bridge_message)
-
-            # Wait for the move to complete
-           
-            #bridge_rate = rospy.Rate(1/3)
-            #bridge_rate.sleep()
-
-            # Wait for bridge to drop
-            while not globals['misc_done']  and not rospy.is_shutdown():
-                rate.sleep()
-
-            rospy.loginfo('Bridge dropped')
-
-            # Reset the misc_done variable
-            globals['misc_done'] = False
-            globals['move_done'] = False
-
-            # Forward for ~2 seconds
-            message.data = [0, 1, 0, 40]
-            self.move_pub.publish(message)
-            rate2.sleep()
-            rate2.sleep()
-            
-            
-
-
-            # Reset the move_done global variable
-            globals['move_done'] = False
-
-            # Stop
-            message.data = [0, 0, 0, 0]
-            self.move_pub.publish(message)
-            
-            # Reset the move_done global variable
-            globals['move_done'] = False
-
-            # Raise the bridge back up
-            bridge_message.data = [2048, -1, -1, -1, -1, -1, -1, -1]
-            self.misc_angles_pub.publish(bridge_message)
-
-            # Go backwards on the bridge, move to next state
-
-            return 'arrived'
-
-        # Handle any exceptions that occur during the state execution
-        except Exception as e:
-            rospy.logerr(f"Error in GoToCraterArea: {e}")
-            return 'not_arrived'
+        # Wait for the move to complete
+        while not globals['move_done']  and not rospy.is_shutdown():
+            rate.sleep()
         
+        rospy.loginfo('Rotated 180 degrees')
+
+        # Reset the move_done global variable 
+        globals['move_done'] = False
+
+        # Move to the top second ramp
+        message.data = [200, 1, angle, 75]
+        self.move_pub.publish(message)
+
+        # Wait for the move to complete
+        while globals['gravity_vector'] < 15  and not rospy.is_shutdown():
+            rate.sleep()
+        
+        rospy.loginfo('Half second ramp reached')
+        while globals['gravity_vector'] > 2  and not rospy.is_shutdown():
+            rate.sleep()
+
+
+        rate2 = rospy.Rate(1)
+        rate3 = rospy.Rate(2)
+        rate3.sleep()
+
+        
+        # Move to the top second ramp
+        message.data = [0, 0, angle, 0]
+        self.move_pub.publish(message)
+
+        rospy.loginfo('Top second ramp reached')
+
+        # Reset the move_done global variable
+        globals['move_done'] = False
+
+        # Rotate to place bridge
+        message.data = [0, 0, 0, 100]
+        self.move_pub.publish(message)
+
+        # Wait for the move to complete
+        while not globals['move_done']  and not rospy.is_shutdown():
+            rate.sleep()
+
+        rospy.loginfo('Rotated to place bridge')
+
+        # Reset the move_done global variable
+        globals['move_done'] = False
+
+        # Back up until back tof reads over 70
+        message.data = [0, -1, 0, 20]
+        self.move_pub.publish(message)
+
+        # Wait for the move to complete
+        while globals['tof_back'] < 70  and not rospy.is_shutdown():
+            rate.sleep()
+            
+
+        rospy.loginfo('Backed up')
+
+        globals['move_done'] = False
+
+        # Stop
+        message.data = [0, 0, 0, 0]
+        self.move_pub.publish(message)
+        
+        # Reset the misc_done global variable
+        globals['misc_done'] = False
+        
+        # Drop bridge
+        bridge_message = Float32MultiArray()
+        bridge_message.data = [3225, -1, -1, -1, -1, -1, -1, -1]
+        self.misc_angles_pub.publish(bridge_message)
+
+        # Wait for the move to complete
+        
+        #bridge_rate = rospy.Rate(1/3)
+        #bridge_rate.sleep()
+
+        # Wait for bridge to drop
+        while not globals['misc_done']  and not rospy.is_shutdown():
+            rate.sleep()
+
+        rospy.loginfo('Bridge dropped')
+
+        # Reset the misc_done variable
+        globals['misc_done'] = False
+        globals['move_done'] = False
+
+        # Forward for ~2 seconds
+        message.data = [0, 1, 0, 40]
+        self.move_pub.publish(message)
+        rate2.sleep()
+        rate2.sleep()
+        
+        
+
+
+        # Reset the move_done global variable
+        globals['move_done'] = False
+
+        # Stop
+        message.data = [0, 0, 0, 0]
+        self.move_pub.publish(message)
+        
+        # Reset the move_done global variable
+        globals['move_done'] = False
+
+        # Raise the bridge back up
+        bridge_message.data = [2048, -1, -1, -1, -1, -1, -1, -1]
+        self.misc_angles_pub.publish(bridge_message)
+
+        # Go backwards on the bridge, move to next state
+
+        return 'arrived'
+
+
     def GoToButtonArea(self):
         rate = rospy.Rate(20)
 
-        try:
-            # Reset the move_done global variable
-            globals['move_done'] = False
+        
+        # Reset the move_done global variable
+        globals['move_done'] = False
 
-            # Rotate
-            message = Float32MultiArray() # create an instance of the Float32MultiArray message
-            #Back until finding the flat area
-            message.data = [0, -1, 0, 40]
-            self.move_pub.publish(message)
+        # Rotate
+        message = Float32MultiArray() # create an instance of the Float32MultiArray message
+        #Back until finding the flat area
+        message.data = [0, -1, 0, 40]
+        self.move_pub.publish(message)
 
-            #wait until we cross bridge
-            while globals['gravity_vector'] < 10  and not rospy.is_shutdown():
-                rate.sleep()
-            rospy.loginfo('Crossing bridge')
+        #wait until we cross bridge
+        while globals['gravity_vector'] < 10  and not rospy.is_shutdown():
+            rate.sleep()
+        rospy.loginfo('Crossing bridge')
 
-            while globals['gravity_vector'] > 2  and not rospy.is_shutdown():
-                rate.sleep()
-            rospy.loginfo('Crossed bridge')
+        while globals['gravity_vector'] > 2  and not rospy.is_shutdown():
+            rate.sleep()
+        rospy.loginfo('Crossed bridge')
 
-            while globals['gravity_vector'] < 10  and not rospy.is_shutdown():
-                rate.sleep()
-            rospy.loginfo('Going down the ramp')
+        while globals['gravity_vector'] < 10  and not rospy.is_shutdown():
+            rate.sleep()
+        rospy.loginfo('Going down the ramp')
 
-            while globals['gravity_vector'] > 2  and not rospy.is_shutdown():
-                rate.sleep()
-            rospy.loginfo('Flat area reached')
+        while globals['gravity_vector'] > 2  and not rospy.is_shutdown():
+            rate.sleep()
+        rospy.loginfo('Flat area reached')
 
-            #reset move_done
-            globals['move_done'] = False
+        #reset move_done
+        globals['move_done'] = False
 
-            # Rotate
-            message.data = [0, 0, 90, 100]
-            self.move_pub.publish(message)
+        # Rotate
+        message.data = [0, 0, 90, 100]
+        self.move_pub.publish(message)
 
-            while not globals['move_done']  and not rospy.is_shutdown():
-                rate.sleep()
+        while not globals['move_done']  and not rospy.is_shutdown():
+            rate.sleep()
 
-            # Reset the move_done global variable
-            globals['move_done'] = False
+        # Reset the move_done global variable
+        globals['move_done'] = False
 
-            # Aim camera to thruster assembly
-            message.data = [100, 250, 90, 100]
-            self.move_pub.publish(message)
+        # Aim camera to thruster assembly
+        message.data = [100, 250, 90, 100]
+        self.move_pub.publish(message)
 
-            # Wait for the move to complete
-            while not globals['move_done']  and not rospy.is_shutdown():
-                rate.sleep()
+        # Wait for the move to complete
+        while not globals['move_done']  and not rospy.is_shutdown():
+            rate.sleep()
 
-            # Reset the move_done global variable
-            globals['move_done'] = False
+        # Reset the move_done global variable
+        globals['move_done'] = False
 
-            #Stop and hit the button
-            message.data = [0, 0, 0, 0]
-            self.move_pub.publish(message)
+        #Stop and hit the button
+        message.data = [0, 0, 0, 0]
+        self.move_pub.publish(message)
 
-            # Reset the move_done global variable
-            globals['move_done'] = False
+        # Reset the move_done global variable
+        globals['move_done'] = False
 
-            # next state
-            return 'arrived'
-
-
-        # Handle any exceptions that occur during the state execution    
-        except Exception as e:
-            rospy.logerr(f"Error in GoToButtonArea: {e}")
-            return 'not_arrived'
+        # next state
+        return 'arrived'
 
 
 # Define state PickUp
