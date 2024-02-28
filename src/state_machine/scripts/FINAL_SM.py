@@ -76,12 +76,12 @@ def main():
 
             with big_packages_sm:
                 # TODO:
-                # Lower top grabber arm a bit
-                # Move to big package wall
+                # Lower top grabber arm a bit -> Done, needs fine-tunning
+                # Move to big package wall -> Done, needs fine-tunning
                 # Move forward a little bit
-                # Finish moving top arm
-                # Go back to start and make done flag true for arm-camera to start
-                # raise both arms
+                # Finish moving top arm -> Done, needs fine-tunning
+                # Go back to start while raising bulk grabber arms -> Done, will be modified as needed
+                # Set 'big_package_pick_up' flag to True -> Done
                 smach.StateMachine.add('SET_BULK_GRABBER_ARMS', SetPose(pose=Poses.SET_BULK_GRABBER_ARMS, misc_angles_publisher=misc_angles_pub),
                                         transitions={'pose_reached':'MOVE_TO_BIG_PACKAGE_WALL', 'pose_not_reached':'SET_BULK_GRABBER_ARMS'})
                 smach.StateMachine.add('MOVE_TO_BIG_PACKAGE_WALL', GoTo_(Areas.BIG_PACKAGE_WALL, move_publisher=move_pub),
