@@ -87,7 +87,8 @@ def main():
                 smach.StateMachine.add('PUSH_BIG_PACKAGES', GoTo_(Areas.PUSH_BIG_PACKAGES, move_publisher=move_pub),
                                         transitions={'arrived':'packages_picked_up', 'not_arrived':'PUSH_BIG_PACKAGES'})
 
-            smach.Concurrence.add('PICK_BIG_PACKAGES', big_packages_sm)
+            #smach.Concurrence.add('PICK_BIG_PACKAGES', big_packages_sm)
+            smach.Concurrence.add('PICK_BIG_PACKAGES', PickUpBigPackages())
             smach.Concurrence.add('PICK_SMALL_PACKAGES', small_packages_sm)
             #smach.Concurrence.add('PICK_SMALL_PACKAGES', PickUpBigPackages())
 

@@ -20,8 +20,16 @@ from image_utils.poses import Poses
 from image_utils.board_objects import BoardObjects
 
 
-def publish_move():
-    pass
+def publish_move(move_pub, message=Float32MultiArray(), data=[0, 0, 0, 0]):
+    # Reset the move_done global variable
+    globals['move_done'] = False
+
+    # Add the data to the message
+    message.data = data
+
+    # Publish the message
+    move_pub.publish(message)
+
 class SM2NavStates(Enum):
     DROP_OFF_AREA = 0
     FUEL_TANK_AREA = 1
