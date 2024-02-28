@@ -252,36 +252,16 @@ class GoTo_(smach.State):
 
     def GoToFuelTankArea(self):
         '''State to move the robot to the fuel tank area'''
-        rate = rospy.Rate(20)
-        
-        # Reset the move_done global variable
-        globals['move_done'] = False
-        
-        # Turn 90 degrees
-        message = Float32MultiArray()
-        message.data = [0, 0, -90, 100]
-        self.move_pub.publish(message)
+
+        # Publish command to reach to the drop off area
+        if publish_command(self.move_pub, Float32MultiArray, [170, 180, -90, 100]):
 
         # Wait for the move to complete
-        while not globals['move_done']  and not rospy.is_shutdown():
-            rate.sleep()
-    
-        rospy.loginfo('Turned 90 degrees')
+            rospy.wait_for_message("Move_Done", Int8, timeout=10)
+            return 'arrived'
+        else:
+            return 'not arrived'
 
-        # Reset the move_done global variable
-        globals['move_done'] = False
-
-        # Move to the fuel tank area
-        message.data = [170, 180, -90, 100]
-        self.move_pub.publish(message)
-
-        # Wait for the move to complete
-        while not globals['move_done']  and not rospy.is_shutdown():
-            rate.sleep()
-        #rospy.sleep(4)
-        # Reset the move_done global variable
-        globals['move_done'] = False
-        return 'arrived'
 
         
     def GoToCraterArea(self):
