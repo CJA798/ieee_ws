@@ -50,7 +50,7 @@ using namespace dynamixel;
 
 // PID's and Move constants x = left/right, y = forward/backwards, z = rotation
 #if CUSTOM_PIDS// Custom PIDs for use with publishing
-double KP_X = 7.0, KI_X = 0.1, KD_X = 0.8, KP_Y = 7.0, KI_Y = 0.1, KD_Y = 0.8, KP_Z = 10.0, KI_Z = 0.01, KD_Z = 0.5, ALLOWABLE_ERROR = 5, SEQUENTIAL_READS = 5;
+double KP_X = 4.0, KI_X = 0.01, KD_X = 0.5, KP_Y = 4.0, KI_Y = 0.01, KD_Y = 0.5, KP_Z = 6.0, KI_Z = 0.01, KD_Z = 0.3, ALLOWABLE_ERROR = 5, SEQUENTIAL_READS = 5;
 
 #else // Preset PIDs
 #define KP_X    7.0//7.0
