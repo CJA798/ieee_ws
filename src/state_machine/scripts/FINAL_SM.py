@@ -44,8 +44,8 @@ def main():
 
         # Initialize all devices, variables, windows, etc.
         smach.StateMachine.add('INITIALIZE', Initialize(init_state_pub=init_state_pub), 
-                               transitions={'succeeded':'READING_START_LED', 'aborted':'INITIALIZE'})
-                               #transitions={'succeeded':'PACKAGE_PICKUP', 'aborted':'INITIALIZE'})
+                               #transitions={'succeeded':'READING_START_LED', 'aborted':'INITIALIZE'})
+                               transitions={'succeeded':'GO_TO_CRATER_AREA', 'aborted':'INITIALIZE'})
         
         # Read the start green LED and wait for it to be detected
         smach.StateMachine.add('READING_START_LED', ReadingStartLED(), 

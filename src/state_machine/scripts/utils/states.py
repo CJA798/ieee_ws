@@ -296,7 +296,7 @@ class GoTo_(smach.State):
         publish_command(self.move_pub, Float32MultiArray, [200, 1, -180, 100])
 
         # Wait for the move to complete
-        rospy.wait_for_message("Move_Done", Int8, timeout=10)
+        #rospy.wait_for_message("Move_Done", Int8, timeout=10)
 
         # Reset the move_done global variable 
         #globals['move_done'] = False
@@ -306,24 +306,28 @@ class GoTo_(smach.State):
         #self.move_pub.publish(message)
 
         # Wait for the move to complete
-        while globals['gravity_vector'] < 15  and not rospy.is_shutdown():
+        while globals['gravity_vector'] < 28  and not rospy.is_shutdown():
             rate.sleep()
         
         rospy.loginfo('Half second ramp reached')
        
 
-        while globals['gravity_vector'] > 2  and not rospy.is_shutdown():
-            if (globals['tof_back'] - record_tof_back) < 6:
-                break
+        while globals['gravity_vector'] > 5  and not rospy.is_shutdown():
             rate.sleep()
+   
+            
+        while ((globals['tof_back'] - record_tof_back) > 5) and not rospy.is_shutdown():
+            rospy.loginfo('Top second ramp reached')
+            rospy.sleep(0.5)
+            break
 
-
-        rate2 = rospy.Rate(1)
+        #stop_move(self.move_pub)
+        #rospy.wait_for_message("Move_Done", Int8, timeout=10)
+        #rate2 = rospy.Rate(1)
         #rate3 = rospy.Rate(2)
         #rate3.sleep()
-            
         # Publish command to reach to the drop off area
-        publish_command(self.move_pub, Float32MultiArray, [0, 0, -180, 0])
+        publish_command(self.move_pub, Float32MultiArray, [0, 0, 0, 100])
 
         # Wait for the move to complete
         rospy.wait_for_message("Move_Done", Int8, timeout=10)
@@ -333,114 +337,32 @@ class GoTo_(smach.State):
         #message.data = [0, 0, angle, 0]
         #self.move_pub.publish(message)
 
-        rospy.loginfo('Top second ramp reached')
+        
 
-        # Reset the move_done global variable
-        #globals['move_done'] = False
-
-        # Publish command to reach to the drop off area
-        publish_command(self.move_pub, Float32MultiArray, [0, 0, 0, 100])
-
-        # Wait for the move to complete
-        rospy.wait_for_message("Move_Done", Int8, timeout=10)
-
-        # Rotate to place bridge
-        #message.data = [0, 0, 0, 100]
-        #self.move_pub.publish(message)
-
-        # Wait for the move to complete
-        #while not globals['move_done']  and not rospy.is_shutdown():
-        #    rate.sleep()
-
+    
         rospy.loginfo('Rotated to place bridge')
 
-        # Reset the move_done global variable
-       # globals['move_done'] = False
-        
-         # Publish command to reach to the drop off area
+  
+         # Publish command 
         publish_command(self.move_pub, Float32MultiArray, [0, -1, 0, 20])
-
-        # Wait for the move to complete
-        rospy.wait_for_message("Move_Done", Int8, timeout=10)
-
-        # Back up until back tof reads over 70
-        #message.data = [0, -1, 0, 20]
-        #self.move_pub.publish(message)
-
-        # Wait for the move to complete
-        while globals['tof_back'] < 70  and not rospy.is_shutdown():
-            rate.sleep()
-            
-
         rospy.loginfo('Backed up')
 
-        #globals['move_done'] = False
-
-        # Publish command to reach to the drop off area
-        publish_command(self.move_pub, Float32MultiArray, [200, 1, -180, 100])
-
-        # Wait for the move to complete
-        rospy.wait_for_message("Move_Done", Int8, timeout=10)
-
-        # Stop
-        #message.data = [0, 0, 0, 0]
-        #self.move_pub.publish(message)
-        
-        # Reset the misc_done global variable
-       # globals['misc_done'] = False
-        
-         # Publish command to reach to the drop off area
-        publish_command(self.move_pub, Float32MultiArray, [0, 0, 0, 0])
-
-        # Wait for the move to complete
-        rospy.wait_for_message("Move_Done", Int8, timeout=10)
-        
-        # Drop bridge
-        bridge_message = Float32MultiArray()
-        bridge_message.data = [3225, -1, -1, -1, -1, -1, -1, -1]
-        self.misc_angles_pub.publish(bridge_message)
-
-        # Wait for the move to complete
-        
-        #bridge_rate = rospy.Rate(1/3)
-        #bridge_rate.sleep()
-
-        # Wait for bridge to drop
-        while not globals['misc_done']  and not rospy.is_shutdown():
-            rate.sleep()
-
+        # Publish command to drop the bridge
+        publish_command(self.misc_angles_pub, Float32MultiArray, [3225, -1, -1, -1])
+        rospy.wait_for_message("Misc_Done", Int8, timeout=10)
         rospy.loginfo('Bridge dropped')
 
-        # Reset the misc_done variable
-        globals['misc_done'] = False
-        globals['move_done'] = False
+        # Publish command to go fwd 
+        publish_command(self.move_pub, Float32MultiArray, [0, 1, 0, 20])
+        rospy.sleep(2)
+        stop_move(self.move_pub)
 
-        # Forward for ~2 seconds
-        message.data = [0, 1, 0, 40]
-        self.move_pub.publish(message)
-        rate2.sleep()
-        rate2.sleep()
-        
-        
+        # Publiish command to raise the bridge
+        if publish_command(self.misc_angles_pub, Float32MultiArray, [2048, -1, -1, -1]):
+            rospy.loginfo('Bridge raised')
+            return 'arrived'
 
-
-        # Reset the move_done global variable
-        globals['move_done'] = False
-
-        # Stop
-        message.data = [0, 0, 0, 0]
-        self.move_pub.publish(message)
-        
-        # Reset the move_done global variable
-        globals['move_done'] = False
-
-        # Raise the bridge back up
-        bridge_message.data = [2048, -1, -1, -1, -1, -1, -1, -1]
-        self.misc_angles_pub.publish(bridge_message)
-
-        # Go backwards on the bridge, move to next state
-
-        return 'arrived'
+        return 'not_arrived'
 
 
     def GoToButtonArea(self):
