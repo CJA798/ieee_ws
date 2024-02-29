@@ -520,7 +520,7 @@ public:
 
         }
         // Call kinematics with updated linear_y value
-        botKinematics();
+        //botKinematics();
     }
 
 
@@ -556,7 +556,7 @@ public:
                 arrived_x = 0;
         }
         // Call kinematics with updated linear_x value
-        botKinematics();
+        //botKinematics();
     }
 
 
@@ -592,7 +592,19 @@ public:
                 arrived_x = 0;
         }
         // Call kinematics with updated linear_x value
-        botKinematics();
+        //botKinematics();
+    }
+
+    
+    // Backup and liftoff safety stops all wheel movement
+    void TOF_BackCallback(const std_msgs::Int16& TOF_Back){
+        // More sensitive back up safety
+        if(TOF_Back.data > BACKUP_SAFETY && desired_y < 0)
+            e_stop = 1;
+
+        // Standard lift up to stop safety
+        if(TOF_Back.data > LIFTUP_SAFETY)
+            e_stop = 1;
     }
 
 
@@ -634,18 +646,6 @@ public:
 
         // Call kinematics with updated linear_z value
         botKinematics();
-    }
-
-
-    // Backup and liftoff safety stops all wheel movement
-    void TOF_BackCallback(const std_msgs::Int16& TOF_Back){
-        // More sensitive back up safety
-        if(TOF_Back.data > BACKUP_SAFETY && desired_y < 0)
-            e_stop = 1;
-
-        // Standard lift up to stop safety
-        if(TOF_Back.data > LIFTUP_SAFETY)
-            e_stop = 1;
     }
 
 
