@@ -1118,7 +1118,7 @@ class VerifyPose(smach.State):
 
             rospy.loginfo('Picking object')
             globals['arm_done'] = False
-            rospy.sleep(0.7)
+            rospy.sleep(0.2)
             
         return 'pose_reached'
 
