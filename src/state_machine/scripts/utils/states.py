@@ -382,8 +382,9 @@ class GoTo_(smach.State):
         # Rotate
         message = Float32MultiArray() # create an instance of the Float32MultiArray message
         #Back until finding the flat area
-        message.data = [0, -1, 0, 40]
-        self.move_pub.publish(message)
+        
+        publish_command(self.move_pub, Float32MultiArray, [0, -1, 0, 40])
+        rospy.wait_for_message("Move_Done", Int8, timeout=10)
 
         #wait until we cross bridge
         while globals['gravity_vector'] < 10  and not rospy.is_shutdown():
@@ -402,39 +403,54 @@ class GoTo_(smach.State):
             rate.sleep()
         rospy.loginfo('Flat area reached')
 
+        publish_command(self.move_pub, Float32MultiArray, [0, 0, 90, 100])
+        rospy.wait_for_message("Move_Done", Int8, timeout=10)
+
+        publish_command(self.move_pub, Float32MultiArray, [100, 250, 90, 100])
+        rospy.wait_for_message("Move_Done", Int8, timeout=10)
+
+        if publish_command(self.move_pub, Float32MultiArray, [0, 0, 0, 0]):
+           rospy.loginfo('Button Pressed')
+           return 'arrived'
+        
+        return 'not arrived'
+
+        
+       
+
         #reset move_done
-        globals['move_done'] = False
+        #globals['move_done'] = False
 
         # Rotate
-        message.data = [0, 0, 90, 100]
-        self.move_pub.publish(message)
+        #message.data = [0, 0, 90, 100]
+        #self.move_pub.publish(message)
 
-        while not globals['move_done']  and not rospy.is_shutdown():
-            rate.sleep()
+        #while not globals['move_done']  and not rospy.is_shutdown():
+        #    rate.sleep()
 
         # Reset the move_done global variable
-        globals['move_done'] = False
+       # globals['move_done'] = False
 
         # Aim camera to thruster assembly
-        message.data = [100, 250, 90, 100]
-        self.move_pub.publish(message)
+        #message.data = [100, 250, 90, 100]
+        #self.move_pub.publish(message)
 
         # Wait for the move to complete
-        while not globals['move_done']  and not rospy.is_shutdown():
-            rate.sleep()
+       # while not globals['move_done']  and not rospy.is_shutdown():
+        #    rate.sleep()
 
         # Reset the move_done global variable
-        globals['move_done'] = False
+        #globals['move_done'] = False
 
         #Stop and hit the button
-        message.data = [0, 0, 0, 0]
-        self.move_pub.publish(message)
+        #message.data = [0, 0, 0, 0]
+        #self.move_pub.publish(message)
 
         # Reset the move_done global variable
-        globals['move_done'] = False
+        #globals['move_done'] = False
 
         # next state
-        return 'arrived'
+        #return 'arrived'
 
 class SetPose(smach.State):
     POSES = {
