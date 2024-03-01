@@ -20,7 +20,7 @@ criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 objp = np.zeros((chessboardSize[0] * chessboardSize[1], 3), np.float32)
 objp[:,:2] = np.mgrid[0:chessboardSize[0],0:chessboardSize[1]].T.reshape(-1,2)
 
-size_of_chessboard_squares_mm = 23.5
+size_of_chessboard_squares_mm = 24.5
 objp = objp * size_of_chessboard_squares_mm
 
 
@@ -28,8 +28,9 @@ objp = objp * size_of_chessboard_squares_mm
 objpoints = [] # 3d point in real world space
 imgpoints = [] # 2d points in image plane.
 
-
-images = glob.glob('/home/pi/CameraCalibration/images/*.png')
+images_dir = '/home/pi/ieee_ws/src/vision_system/scripts/image_utils/images/*.png'
+images = glob.glob(images_dir)
+print(len(images))
 
 for image in images:
 
@@ -49,7 +50,9 @@ for image in images:
         # Draw and display the corners
         cv.drawChessboardCorners(img, chessboardSize, corners2, ret)
         cv.imshow('img', img)
-        cv.waitKey(1000)
+        cv.waitKey(700)
+    else:
+        print("No corners found in image: ", image)
 
 
 cv.destroyAllWindows()
@@ -60,16 +63,18 @@ cv.destroyAllWindows()
 ############## CALIBRATION #######################################################
 
 ret, cameraMatrix, dist, rvecs, tvecs = cv.calibrateCamera(objpoints, imgpoints, frameSize, None, None)
-
+calibration_path = "/home/pi/ieee_ws/src/vision_system/scripts/image_utils/calibration.pkl"
+camera_matrix_path = "/home/pi/ieee_ws/src/vision_system/scripts/image_utils/cameraMatrix.pkl"
+dist_path = "/home/pi/ieee_ws/src/vision_system/scripts/image_utils/dist.pkl"
 # Save the camera calibration result for later use (we won't worry about rvecs / tvecs)
-pickle.dump((cameraMatrix, dist), open( "/home/pi/CameraCalibration/calibration.pkl", "wb" ))
-pickle.dump(cameraMatrix, open( "/home/pi/CameraCalibration/cameraMatrix.pkl", "wb" ))
-pickle.dump(dist, open( "/home/pi/CameraCalibration/dist.pkl", "wb" ))
+pickle.dump((cameraMatrix, dist), open( calibration_path, "wb" ))
+pickle.dump(cameraMatrix, open( camera_matrix_path, "wb" ))
+pickle.dump(dist, open( dist_path, "wb" ))
 
 
 ############## UNDISTORTION #####################################################
 
-img = cv.imread('/home/pi/CameraCalibration/images/img14.png')
+img = cv.imread('/home/pi/ieee_ws/src/vision_system/scripts/image_utils/images/1.png')
 h,  w = img.shape[:2]
 newCameraMatrix, roi = cv.getOptimalNewCameraMatrix(cameraMatrix, dist, (w,h), 1, (w,h))
 
@@ -81,7 +86,7 @@ dst = cv.undistort(img, cameraMatrix, dist, None, newCameraMatrix)
 # crop the image
 x, y, w, h = roi
 dst = dst[y:y+h, x:x+w]
-cv.imwrite('/home/pi/CameraCalibration/results/caliResult1.png', dst)
+cv.imwrite('/home/pi/ieee_ws/src/vision_system/scripts/image_utils/results/caliResult1.png', dst)
 print("Size of original image: ", img.shape)
 print("Size of undistorted image: ", dst.shape)
 
@@ -93,7 +98,7 @@ dst = cv.remap(img, mapx, mapy, cv.INTER_LINEAR)
 # crop the image
 x, y, w, h = roi
 dst = dst[y:y+h, x:x+w]
-cv.imwrite('/home/pi/CameraCalibration/results/caliResult2.png', dst)
+cv.imwrite('/home/pi/ieee_ws/src/vision_system/scripts/image_utils/results/caliResult2.png', dst)
 
 
 

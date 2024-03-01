@@ -39,6 +39,7 @@ class ImageProcessor_():
     def __init__(self) -> None:
         self.image = None
         self.undistorted_image = None
+        self.undistorted_image_roi = None
 
         # TODO: Make the resolution an d everything related to it more flexible
         # Hardcoded values for the camera resolution
@@ -161,12 +162,12 @@ class ImageProcessor_():
             return (None, None)
         
         # Remove distortion from the image
-        undistorted_image = self.remove_distortion(image)
+        undistorted_image, undistorted_roi = self.remove_distortion(image)
 
         # TODO: resize image if latency is too bad
 
         # Apply blurs to remove noise
-        blur = cv2.GaussianBlur(undistorted_image, (3, 3), 0)
+        blur = cv2.GaussianBlur(undistorted_roi, (3, 3), 0)
         median = cv2.medianBlur(blur, 3)
 
         # Convert to HSV
@@ -190,19 +191,27 @@ class ImageProcessor_():
         
         return (coordinates, coords_image)
     
-    def remove_distortion(self, image=None) -> np.ndarray:
+    def remove_distortion(self, image=None) -> Tuple[np.ndarray, np.ndarray]:
         # Check if the current image is not None
         if image is None:
             logwarn("undistort - Image is None")
             return None
     
         h,  w = image.shape[:2]
-        newCameraMatrix, _ = cv2.getOptimalNewCameraMatrix(self.camera_matrix, self.dist, (w,h), 1, (w,h))
+        newCameraMatrix, roi = cv2.getOptimalNewCameraMatrix(self.camera_matrix, self.dist, (w,h), 1, (w,h))
         # Undistort
         reprojection = cv2.undistort(image, self.camera_matrix, self.dist, None, newCameraMatrix)
         self.undistorted_image = reprojection
 
-        return reprojection
+        x, y, w, h = roi
+        reprojection_roi = reprojection[y:y+h, x:x+w]
+        self.undistorted_image_roi = reprojection_roi
+        self.image_height, self.image_width = reprojection_roi.shape[:2]
+        print(f"Image Height: {self.image_height}    |   Image Width: {self.image_width}")
+        #print(reprojection_roi.shape)
+        #cv2.imshow('Undistorted Image', reprojection_roi)
+        #cv2.waitKey(200)
+        return reprojection, reprojection_roi
 
     def find_contours(self, image: np.ndarray, pose: Poses, area_range_factor: Iterable[Sized] = (0.01,1)) -> Tuple[List[Point], np.ndarray]:
         '''
@@ -228,7 +237,7 @@ class ImageProcessor_():
         image_area = image.size
         max_area = image_area * area_range_factor[1]
         min_area = image_area * area_range_factor[0]
-        coords_image = self.undistorted_image
+        coords_image = self.undistorted_image_roi
         if len(contours) > 0:
             for contour in contours:
                 M = cv2.moments(contour)
@@ -268,57 +277,58 @@ class ImageProcessor_():
         if pose == Poses.SMALL_PACKAGE_SCAN:
             #print("image_height: ", self.image_height)
             #print("image_width: ", self.image_width)
-            KX = 57/47
-            PX2MM_Y = 410/self.image_height
-            PX2MM_X = 580/self.image_width * KX
+            KX = 59/60
+            PX2MM_Y = 470/self.image_height
+            PX2MM_X = 610/self.image_width * KX
 
             # Offset from bottom of image to arm base
-            A = 45
+            A = -60
+            KY = 384/360
 
-            Xarm_xi_obj = (self.image_height - y) * PX2MM_Y + A
+            # Convert px to mm
+            Xarm_xi_obj = ((self.image_height - y) * PX2MM_Y + A) * KY
             Yarm_xi_obj = globals['small_package_Y_arm_offset']
-            Zarm_xi_obj = (x - self.image_width/2) * PX2MM_X
+            Zarm_xi_obj = (x - self.image_width/2) * PX2MM_X * KX
             #print(f"Y: {y}  |   Max_Cam_Height: {self.image_height}     |   Conversion Factior: {PX2MM_Y}")
 
-            Xarm_offset = 50
-            Zarm_offset = 51
+            # Correction offsets
+            Xarm_offset = self.map_offset(y, (50,350), (10,50))
+            Zarm_offset = 0
 
             return Xarm_xi_obj + Xarm_offset, Yarm_xi_obj, Zarm_xi_obj + Zarm_offset
         
-            #Xarm = y
-            #Yarm = globals['small_package_Y_arm_offset']
-            #Zarm = x
-            #return Xarm, Yarm, Zarm
-        
-        if pose == Poses.SCAN:
-            #print("image_height: ", self.image_height)
-            #print("image_width: ", self.image_width)
-            KX = 57/47
-            PX2MM_Y = 410/self.image_height
-            PX2MM_X = 580/self.image_width * KX
-
-            # Offset from bottom of image to arm base
-            A = 45
-
-            Xarm_xi_obj = (self.image_height - y) * PX2MM_Y + A
-            Yarm_xi_obj = -50
-            Zarm_xi_obj = (x - self.image_width/2) * PX2MM_X
-            #print(f"Y: {y}  |   Max_Cam_Height: {self.image_height}     |   Conversion Factior: {PX2MM_Y}")
-
-            Xarm_offset = 50
-            Zarm_offset = 51
-
-            return Xarm_xi_obj + Xarm_offset, Yarm_xi_obj, Zarm_xi_obj + Zarm_offset
-        elif pose == Poses.VERIFY.value:
-            # TODO: find and add the conversion factor for the verify pose
-            return x*(600/1080*2.5), y*(600/1080*2.5) - self.image_width/2, z
-        elif pose == Poses.FRONT.value:
-            x_img = x*70/160
-            y_img = -20
-            z_img = 260 #TODO: make this variable depend on the TOF_Front reading
-            return x_img, y_img, z_img
         else:
             raise ValueError(f"Arm pose {pose} not recognized.")
+        
+    def map_offset(self, value: float, map_from: Tuple[float, float], map_to: Tuple[float, float]) -> float:
+        '''
+        Map the value from one range to another.
+        Arguments:
+            map_from: Iterable[Sized, Sized] - The range to map the value from.
+            map_to: Iterable[Sized, Sized] - The range to map the value to.
+        Returns:
+            mapped_value: Float - The value mapped to the new range.
+        '''
+        x1 = map_from[0]
+        x2 = map_from[1]
+        y1 = map_to[0]
+        y2 = map_to[1]
+
+        m = (y2 - y1) / (x2 - x1)
+        x = value
+        b = y1 - m * x1
+
+        if 5 > value > 35:
+            return 0
+        
+        elif 10 <= value < 15:
+            b = b - 2.5
+        else:
+            b = b - 5
+            
+        mapped_offset = -(m * x + b)
+        print(f"Value: {value}    |   Mapped Offset: {mapped_offset}")
+        return   mapped_offset
         
 
 class ImageProcessor():

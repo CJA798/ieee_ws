@@ -881,22 +881,18 @@ class ScanPose(smach.State):
         self.arm_angles_pub = arm_angles_pub
 
     def execute(self, userdata):
-        rate = rospy.Rate(100)
-        # Reset the arm_done global variable
-        globals['arm_done'] = False
         speed = 1
         jaw = globals['gripper_bulk_hold']
-        angles_ = Float32MultiArray()
-        angles_.data = [2135, 1627, 1628, 2949, 2019, 629, 2110, jaw, speed]
-        self.arm_angles_pub.publish(angles_)
         rospy.loginfo('Moving to scan pose')
-        #while not globals['arm_done'] and not rospy.is_shutdown():
-        #    rate.sleep()
-        rospy.sleep(5)
-        globals['arm_done'] = False
-        #rospy.sleep(2000)
-        return 'pose_reached'
-        return 'pose_not_reached'
+        # Publish command to set the arm to the scan pose
+        if publish_command(self.arm_angles_pub, Float32MultiArray, [2041.0, 2023.0, 2015.0, 2660.0, 2083.0, 489.0, 2039.0, jaw, speed]):
+            # Wait for the arm to reach the pose
+            #rospy.wait_for_message("Arm_Done", Int8, timeout=15)
+            rospy.sleep(5)
+            return 'pose_reached'
+        else:
+            return 'pose_not_reached'
+
     
 # define state SetPose
 class RestPose(smach.State):
@@ -936,10 +932,10 @@ class GetCoords(smach.State):
         #rospy.sleep(5)
 
     def execute(self, userdata):
-        if not globals['big_packages_picked_up']:
-            rospy.logwarn('Big package pick up not done yet')
-            rospy.sleep(1)
-            return 'coords_not_received'
+        #if not globals['big_packages_picked_up']:
+        #    rospy.logwarn('Big package pick up not done yet')
+        #    rospy.sleep(1)
+        #    return 'coords_not_received'
         try:
             rospy.loginfo('Executing state GetCoords(small_packages, scan)')
             

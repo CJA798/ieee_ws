@@ -44,8 +44,8 @@ def main():
 
         # Initialize all devices, variables, windows, etc.
         smach.StateMachine.add('INITIALIZE', Initialize(init_state_pub=init_state_pub), 
-                               #transitions={'succeeded':'READING_START_LED', 'aborted':'INITIALIZE'})
-                               transitions={'succeeded':'GO_TO_CRATER_AREA', 'aborted':'INITIALIZE'})
+                               transitions={'succeeded':'READING_START_LED', 'aborted':'INITIALIZE'})
+                               #transitions={'succeeded':'PACKAGE_PICKUP', 'aborted':'INITIALIZE'})
         
         # Read the start green LED and wait for it to be detected
         smach.StateMachine.add('READING_START_LED', ReadingStartLED(), 
@@ -97,8 +97,8 @@ def main():
                 smach.StateMachine.add('RAISE_BULK_GRABBER', SetPose(pose=Poses.RAISE_BULK_GRABBER, move_publisher=move_pub, misc_angles_publisher=misc_angles_pub),
                                         transitions={'pose_reached':'packages_picked_up', 'pose_not_reached':'RAISE_BULK_GRABBER'})
             
-            smach.Concurrence.add('PICK_BIG_PACKAGES', big_packages_sm)
-            #smach.Concurrence.add('PICK_BIG_PACKAGES', PickUpBigPackages())
+            #smach.Concurrence.add('PICK_BIG_PACKAGES', big_packages_sm)
+            smach.Concurrence.add('PICK_BIG_PACKAGES', PickUpBigPackages())
             smach.Concurrence.add('PICK_SMALL_PACKAGES', small_packages_sm)
             #smach.Concurrence.add('PICK_SMALL_PACKAGES', PickUpBigPackages())
 
@@ -109,8 +109,8 @@ def main():
 
         # Go to dropoff area
         smach.StateMachine.add('GO_TO_DROP_OFF_AREA', GoTo_(Areas.DROP_OFF, move_publisher=move_pub), 
-                                transitions={'arrived':'PACKAGE_DROP_OFF', 'not_arrived':'GO_TO_DROP_OFF_AREA'})
-                               #transitions={'arrived':'END', 'not_arrived':'GO_TO_DROP_OFF_AREA'})
+                               #transitions={'arrived':'PACKAGE_DROP_OFF', 'not_arrived':'GO_TO_DROP_OFF_AREA'})
+                               transitions={'arrived':'GO_TO_FUEL_TANK_AREA', 'not_arrived':'GO_TO_DROP_OFF_AREA'})
 
         # Create a concurrent state machine for package drop off
         package_dropoff_sm = smach.Concurrence(outcomes=['packages_dropped_off','packages_not_dropped_off'],
