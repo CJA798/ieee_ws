@@ -18,7 +18,7 @@ globals: Dict[str, Union[bool, int, None]] = {
 
     # Arm Macros
     'gripper_bulk_hold': 2000,
-    'gripper_bulk_release': 2048,
+    'gripper_bulk_release': 1750,
 
     # Big Package Macros
     'big_package_Y_offset': -248,
@@ -35,8 +35,13 @@ globals: Dict[str, Union[bool, int, None]] = {
     'drop_bulk_bottom': 3000,
     'big_packages_picked_up': False,
     
-    'tof_front': None,
-    'tof_back': None,
+    # Bridge Macros
+    'raised_bridge': 2048,
+    'mid_bridge': 2400,
+    'lowered_bridge': 3225,
+
+    # Flag Macros
+    'lowered_flag': 2048
 }
 
 # Macros that depend on other macros

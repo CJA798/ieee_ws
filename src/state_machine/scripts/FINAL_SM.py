@@ -109,8 +109,8 @@ def main():
 
         # Go to dropoff area
         smach.StateMachine.add('GO_TO_DROP_OFF_AREA', GoTo_(Areas.DROP_OFF, move_publisher=move_pub), 
-                               #transitions={'arrived':'PACKAGE_DROP_OFF', 'not_arrived':'GO_TO_DROP_OFF_AREA'})
-                               transitions={'arrived':'GO_TO_FUEL_TANK_AREA', 'not_arrived':'GO_TO_DROP_OFF_AREA'})
+                               transitions={'arrived':'PACKAGE_DROP_OFF', 'not_arrived':'GO_TO_DROP_OFF_AREA'})
+                               #transitions={'arrived':'GO_TO_FUEL_TANK_AREA', 'not_arrived':'GO_TO_DROP_OFF_AREA'})
 
         # Create a concurrent state machine for package drop off
         package_dropoff_sm = smach.Concurrence(outcomes=['packages_dropped_off','packages_not_dropped_off'],
@@ -128,9 +128,11 @@ def main():
                                         #transitions={'pose_reached':'RELEASE', 'pose_not_reached':'DROP_OFF_SMALL_PACKAGES_POSE'})
                 #smach.StateMachine.add('RELEASE', SetPose(pose=Poses.RELEASE_SMALL_PACKAGES, arm_angles_publisher=arm_angles_pub),
                                         #transitions={'pose_reached':'FUEL_TANK_SCAN_POSE', 'pose_not_reached':'RELEASE'})
-                smach.StateMachine.add('FUEL_TANK_SCAN_POSE', SetPose(pose=Poses.FUEL_TANK_SCAN, arm_angles_publisher=arm_angles_pub),
-                                        transitions={'pose_reached':'packages_dropped_off', 'pose_not_reached':'FUEL_TANK_SCAN_POSE'})
-            
+                #smach.StateMachine.add('FUEL_TANK_SCAN_POSE', SetPose(pose=Poses.FUEL_TANK_SCAN, arm_angles_publisher=arm_angles_pub),
+                                        #transitions={'pose_reached':'packages_dropped_off', 'pose_not_reached':'FUEL_TANK_SCAN_POSE'})
+                smach.StateMachine.add('DROP_OFF_PACKAGES', DropOff(BoardObjects.SMALL_PACKAGE, arm_angles_publisher=arm_angles_pub, misc_angles_publisher=misc_angles_pub),
+                                    transitions={'packages_dropped_off':'packages_dropped_off', 'packages_not_dropped_off':'DROP_OFF_PACKAGES'})
+
             big_packages_sm = smach.StateMachine(outcomes=['packages_dropped_off', 'packages_not_dropped_off'])
 
             with big_packages_sm:
@@ -147,13 +149,15 @@ def main():
 
         # Go to fuel tank area
         smach.StateMachine.add('GO_TO_FUEL_TANK_AREA', GoTo_(Areas.FUEL_TANK, move_publisher=move_pub), 
-                                   transitions={'arrived':'GO_TO_CRATER_AREA', 'not_arrived':'GO_TO_FUEL_TANK_AREA'})
+                                   transitions={'arrived':'PICK_UP_FUEL_TANKS', 'not_arrived':'GO_TO_FUEL_TANK_AREA'})
 
         # TODO: Add fuel tank pickup states
 
       # smach.StateMachine.add('PICK_UP_FUEL_TANKS', PickUpFuelTanks(arm_angles_publisher=arm_angles_pub),
                           #        transitions={'fuel_tanks_picked_up':'END', 'fuel_tanks_not_picked_up':'PICK_UP_FUEL_TANKS'})
-
+        smach.StateMachine.add('PICK_UP_FUEL_TANKS', RestPose(arm_angles_pub=arm_angles_pub),
+                                        transitions={'pose_reached':'GO_TO_CRATER_AREA', 'pose_not_reached':'PICK_UP_FUEL_TANKS'})
+                
         # Go to crater
         smach.StateMachine.add('GO_TO_CRATER_AREA', GoTo_(Areas.CRATER, move_publisher=move_pub, misc_angles_publisher=misc_angles_pub), 
                                    transitions={'arrived':'GO_TO_FINAL', 'not_arrived':'GO_TO_CRATER_AREA'})
