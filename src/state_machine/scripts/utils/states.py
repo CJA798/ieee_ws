@@ -826,7 +826,7 @@ class DropOff(smach.State):
             return 'packages_not_dropped_off'
 
 class SpiritCelebration(smach.State):
-    def __init__(self, misc_angles_publisher = None,arm_angles_publisher = None):
+    def __init__(self, misc_angles_publisher = None, arm_angles_publisher = None):
         smach.State.__init__(self, outcomes = ['succeeded','aborted'])
         self.misc_angles_pub = misc_angles_publisher
         self.arm_angles_pub = arm_angles_publisher
@@ -844,22 +844,21 @@ class SpiritCelebration(smach.State):
             Exception: Any exception that occurs during the state execution'''
         
         try:
-            rate = rospy.Rate(30)
-            globals['misc_done'] = False
+            # Set the misc angles
+            bridge = globals['raised_bridge']
+            top_bulk = globals['close_bulk_top']
+            bottom_bulk = globals['set_bulk_bottom']
+            flag = globals['raised_flag']
 
-            flag = Float32MultiArray()
-            flag.data = [2048,2048,2048,2048,2048,2048,2048,2048,1]
-            self.arm_angles_pub.publish(flag)
-
-            while not globals['misc_done'] and not rospy.is_shutdown():
-                rate.sleep()
-
-            globals['misc_done'] = False
+            # Publish the misc angles to close the top bulk grabber arm
+            if publish_command(self.misc_angles_pub, Float32MultiArray, [bridge, top_bulk, bottom_bulk, flag]):
+                # Waitfor the bulk grabber arms to reach the pose
+                rospy.wait_for_message("Misc_Done", Int8, timeout=10)
+                return 'succeeded'
+            else:
+                return 'aborted'
             
-            
-            return 'succeeded'
-        
-         # Handle any exceptions that occur during the state execution
+        # Handle any exceptions that occur during the state execution
         except Exception as e:
             rospy.logerr(f"Error in SpiritCelebration: {e}")
             return 'aborted'

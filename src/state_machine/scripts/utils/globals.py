@@ -41,7 +41,8 @@ globals: Dict[str, Union[bool, int, None]] = {
     'lowered_bridge': 3225,
 
     # Flag Macros
-    'lowered_flag': 2048
+    'lowered_flag': 2048,
+    'raised_flag': 2400
 }
 
 # Macros that depend on other macros
