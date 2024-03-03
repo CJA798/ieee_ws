@@ -1,9 +1,13 @@
 from typing import Dict, Union
+from rospy import get_time
 
 globals: Dict[str, Union[bool, int, None]] = {
     'green_detected': False,
     'gravity_vector': 0,
     'bearing': 0,
+    # Heartbeat Macros
+    'last_heartbeat_time': 0,
+    'heartbeat_on':False,
     'move_done': False,
     'misc_done': False,
     'arm_done': False,
@@ -38,11 +42,11 @@ globals: Dict[str, Union[bool, int, None]] = {
     # Bridge Macros
     'raised_bridge': 2048,
     'mid_bridge': 2400,
-    'lowered_bridge': 3225,
+    'lowered_bridge': 3220,
 
     # Flag Macros
     'lowered_flag': 2048,
-    'raised_flag': 2400
+    'raised_flag': 1800
 }
 
 # Macros that depend on other macros

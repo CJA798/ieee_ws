@@ -1,6 +1,26 @@
 import rospy
 from utils.globals import globals
+from subprocess import run
 
+def heartbeat_cb(msg):
+    if globals['heartbeat_on'] == False:
+        globals['heartbeat_on'] = True
+        rospy.loginfo("Arduino heartbeat detected")
+    globals['last_heartbeat_time']= rospy.get_time()
+    #print(globals['last_heartbeat_time'])
+
+def check_heartbeat_cb(event):
+    last_heartbeat_time = globals['last_heartbeat_time']
+    current_time = rospy.get_time()
+    #print(f'Last heartbeat time: {last_heartbeat_time} | Current time: {current_time} | Difference: {int(current_time - last_heartbeat_time)}')
+    if last_heartbeat_time is not None and int(current_time - last_heartbeat_time) > 2:
+        rospy.logerr("Arduino heartbeat lost, restarting rosserial node...")
+        run(["rosnode", "kill", "/serial_node_1"])
+        rospy.sleep(5)
+        run(["rosrun", "serial_node", "serial_node_1.py", "/dev/serial/by-id/usb-1a86_USB2.0-Serial-if00-port0"])  # Adjust port as needed
+        rospy.sleep(5)
+    #else:
+        #rospy.loginfo("Arduino heartbeat OK")
 
 def start_led_callback(data):
     '''Callback function to handle start green LED state updates

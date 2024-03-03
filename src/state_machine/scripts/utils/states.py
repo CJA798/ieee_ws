@@ -95,6 +95,12 @@ class Initialize(smach.State):
             rospy.loginfo('Executing state Initialize')
             rospy.sleep(2)
 
+            # Check if the heartbeat is received, i.e. the Arduino is connected
+            if not globals['heartbeat_on']:
+                rospy.logerr('Heartbeat not received')
+                return 'aborted'
+            
+            # Publish the init message to the Arduino
             init_msg = Bool()
             init_msg.data = True
             self.init_state_pub.publish(init_msg)
@@ -355,7 +361,8 @@ class GoTo_(smach.State):
         rospy.loginfo('Backed up')
 
         # Publish command to drop the bridge
-        publish_command(self.misc_angles_pub, Float32MultiArray, [3225, -1, -1, -1])
+        bridge = globals['lowered_bridge']
+        publish_command(self.misc_angles_pub, Float32MultiArray, [bridge, -1, -1, -1])
         rospy.wait_for_message("Misc_Done", Int8, timeout=10)
         rospy.loginfo('Bridge dropped')
 
@@ -365,7 +372,8 @@ class GoTo_(smach.State):
         stop_move(self.move_pub)
 
         # Publiish command to raise the bridge
-        if publish_command(self.misc_angles_pub, Float32MultiArray, [2048, -1, -1, -1]):
+        bridge = globals['raised_bridge']
+        if publish_command(self.misc_angles_pub, Float32MultiArray, [bridge, -1, -1, -1]):
             rospy.loginfo('Bridge raised')
             return 'arrived'
 
@@ -375,16 +383,8 @@ class GoTo_(smach.State):
     def GoToButtonArea(self):
         rate = rospy.Rate(20)
 
-        
-        # Reset the move_done global variable
-        globals['move_done'] = False
-
-        # Rotate
-        message = Float32MultiArray() # create an instance of the Float32MultiArray message
-        #Back until finding the flat area
-        
+        #Back until finding the flat area        
         publish_command(self.move_pub, Float32MultiArray, [0, -1, 0, 40])
-        rospy.wait_for_message("Move_Done", Int8, timeout=10)
 
         #wait until we cross bridge
         while globals['gravity_vector'] < 10  and not rospy.is_shutdown():
@@ -787,7 +787,7 @@ class DropOff(smach.State):
 
         # Lower the arm
         jaw = globals['gripper_bulk_hold']
-        speed = 1
+        speed = 2
         angles = [493.0, 1459.0, 1460.0, 2196.0, 2087.0, 1432.0, 3824.0, jaw, speed]
         publish_command(self.arm_angles_pub, Float32MultiArray, angles, delay=4)
         rospy.loginfo('Lowering arm')

@@ -5,7 +5,7 @@ import rospy
 import smach
 import smach_ros
 import sys
-from std_msgs.msg import Int8, Int16, Bool, Float32MultiArray
+from std_msgs.msg import Empty, Int8, Int16, Bool, Float32MultiArray
 from image_utils.board_objects import BoardObjects
 from image_utils.poses import Poses
 from utils.states import *
@@ -30,7 +30,7 @@ move_done_sub = rospy.Subscriber("Move_Done", Int8, callback=move_done_cb)
 gravity_vector_sub = rospy.Subscriber("IMU_Grav", Int16, callback=gravity_vector_cb)
 bearing_sub = rospy.Subscriber("IMU_Bearing", Int16, callback=bearing_cb)
 tof_back_sub = rospy.Subscriber("TOF_Back", Int16, callback=tof_back_cb)
-
+heartbeat_sub = rospy.Subscriber("Heartbeat", Empty, callback=heartbeat_cb)
 
 def main():
     rospy.init_node('STATE_MACHINE')
@@ -174,10 +174,12 @@ def main():
                                transitions={'succeeded':'END', 'aborted':'BUTTON_PRESS'})
  
 
-
     # Create and start the introspection server
     sis = smach_ros.IntrospectionServer('server_name', sm, '/START')
     sis.start()
+
+    # Create a timer to check the Arduino's heartbeat every second
+    rospy.Timer(rospy.Duration(1), check_heartbeat_cb)
 
     # Execute SMACH plan
     outcome = sm.execute()
