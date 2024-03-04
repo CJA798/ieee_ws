@@ -149,15 +149,15 @@ def main():
 
         # Go to fuel tank area
         smach.StateMachine.add('GO_TO_FUEL_TANK_AREA', GoTo_(Areas.FUEL_TANK, move_publisher=move_pub), 
-                                   transitions={'arrived':'PICK_UP_FUEL_TANKS', 'not_arrived':'GO_TO_FUEL_TANK_AREA'})
+                                       transitions={'arrived':'PICK_UP_FUEL_TANKS', 'not_arrived':'GO_TO_FUEL_TANK_AREA'})
 
         # TODO: Add fuel tank pickup states
 
-      # smach.StateMachine.add('PICK_UP_FUEL_TANKS', PickUpFuelTanks(arm_angles_publisher=arm_angles_pub),
-                          #        transitions={'fuel_tanks_picked_up':'END', 'fuel_tanks_not_picked_up':'PICK_UP_FUEL_TANKS'})
-        smach.StateMachine.add('PICK_UP_FUEL_TANKS', RestPose(arm_angles_pub=arm_angles_pub),
-                                        transitions={'pose_reached':'GO_TO_CRATER_AREA', 'pose_not_reached':'PICK_UP_FUEL_TANKS'})
-                
+        smach.StateMachine.add('PICK_UP_FUEL_TANKS', PickUp(board_object=BoardObjects.FUEL_TANK, arm_angles_publisher=arm_angles_pub, camera_pose=Poses.FUEL_TANK_SCAN.value, misc_angles_publisher=misc_angles_pub, move_publisher=move_pub),
+                                      transitions={'packages_picked_up':'GO_TO_CRATER_AREA', 'packages_not_picked_up':'PICK_UP_FUEL_TANKS'})
+        #smach.StateMachine.add('PICK_UP_FUEL_TANKS', RestPose(arm_angles_pub=arm_angles_pub),
+                                            #transitions={'pose_reached':'GO_TO_CRATER_AREA', 'pose_not_reached':'PICK_UP_FUEL_TANKS'})
+                    
         # Go to crater
         smach.StateMachine.add('GO_TO_CRATER_AREA', GoTo_(Areas.CRATER, move_publisher=move_pub, misc_angles_publisher=misc_angles_pub), 
                                    transitions={'arrived':'GO_TO_FINAL', 'not_arrived':'GO_TO_CRATER_AREA'})
