@@ -39,6 +39,10 @@ globals: Dict[str, Union[bool, int, None]] = {
     'drop_bulk_bottom': 3000,
     'big_packages_picked_up': False,
     
+    # Fuel Tank Macros
+    'bulk_top_close': 1025,
+    'bulk_fuel_bottom': 2910, 
+
     # Bridge Macros
     'raised_bridge': 2048,
     'mid_bridge': 2400,
