@@ -29,6 +29,7 @@ using namespace dynamixel;
 #define POS_P_GAIN_ADDR         84
 #define POS_I_GAIN_ADDR         82
 #define POS_D_GAIN_ADDR         80
+#define GOAL_CURRENT_ADDR       102
 
 // Defined servo and arm values
 #define ARM_SECONDARY_ID        100     // Secondary ID for writing multiple servos at once
@@ -44,6 +45,7 @@ using namespace dynamixel;
 #define MISC_ANGLE_TOLERANCE    10      // Counts we need to be off to count as arrived
 #define ARM_TOLERANCE           10      // Allowable error in arm before declareing arrived
 #define STEPS_DOWN              10      // Number of millimeters to move down per step
+#define MAX_CURRENT             500     // Max current small servos can pull
 
 
 #define CUSTOM_PIDS             1       // Set to 1 for custom variable pids, or 0 for preset
@@ -172,6 +174,7 @@ public:
             packetHandler->write2ByteTxOnly(portHandler, ARM_SECONDARY_ID, POS_P_GAIN_ADDR, POS_P_GAIN);            // Sets posistion P gain
             packetHandler->write2ByteTxOnly(portHandler, ARM_SECONDARY_ID, POS_I_GAIN_ADDR, POS_I_GAIN);            // Sets posistion I gain
             packetHandler->write2ByteTxOnly(portHandler, ARM_SECONDARY_ID, POS_D_GAIN_ADDR, POS_D_GAIN);            // Sets posistion D gain
+            packetHandler->write2ByteTxOnly(portHandler, ARM_SECONDARY_ID, GOAL_CURRENT_ADDR, MAX_CURRENT);         // Sets small servo current limit
 
             // Publish 8 starting servo angles and speed to Arm_Angles
             int Arm_Start_Angles[9] = { 1586, 2902, 2898, 1471, 2063, 1802, 1041, 1980, 1 };
