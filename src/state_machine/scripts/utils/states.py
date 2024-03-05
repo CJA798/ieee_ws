@@ -608,7 +608,7 @@ class PickUp(smach.State):
         BoardObjects.BIG_PACKAGE: "PickUpBigPackages",
         BoardObjects.FUEL_TANK: "PickUpFuelTanks"
     }
-    def __init__(self, board_object, camera_pose, arm_angles_publisher, task_space_publisher=None, misc_angles_publisher=None, move_publisher=None):
+    def __init__(self, board_object, arm_angles_publisher= None, camera_pose=None, task_space_publisher=None, misc_angles_publisher=None, move_publisher=None):
         smach.State.__init__(self, outcomes=['packages_picked_up','packages_not_picked_up'])
         self.board_object = board_object
         self.camera_pose = camera_pose
@@ -747,18 +747,19 @@ class PickUp(smach.State):
 
     def PickUpFuelTanks(self):
         
-                # Set the misc angles
+        # Set the misc angles
         raised_bridge = globals['raised_bridge']
         raised_bridge = globals['raised_bridge']
         top_bulk = globals['bulk_top_close']
         bottom_bulk = globals['bulk_fuel_bottom']
         flag = globals['lowered_flag']
-        raise_bulk_offset = globals['raise_bulk_offset']
+        raise_bulk_offset = globals['fuel_tank_raise_bulk_offset']
 
         # TODO: format this method better
         # Publish the misc angles to set the bulk grabber arms to the init pose
         publish_command(self.misc_angles_pub, Float32MultiArray, [raised_bridge, -1, bottom_bulk, flag])
-            # Wait for the bulk grabber arms to reach the pose
+        
+        # Wait for the bulk grabber arms to reach the pose
         rospy.wait_for_message("Misc_Done", Int8, timeout=10)
         
         publish_command(self.move_pub, Float32MultiArray, [0, 110, -90, 100])
