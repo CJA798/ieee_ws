@@ -176,12 +176,38 @@ public:
             packetHandler->write2ByteTxOnly(portHandler, ARM_SECONDARY_ID, POS_D_GAIN_ADDR, POS_D_GAIN);            // Sets posistion D gain
             packetHandler->write2ByteTxOnly(portHandler, ARM_SECONDARY_ID, GOAL_CURRENT_ADDR, MAX_CURRENT);         // Sets small servo current limit
 
+            packetHandler->write2ByteTxOnly(portHandler, 12, POS_I_GAIN_ADDR, 0);       // Resets misc servo posistion I gain to zero
+            packetHandler->write2ByteTxOnly(portHandler, 13, POS_I_GAIN_ADDR, 0);       // Resets misc servo posistion I gain to zero
+            packetHandler->write2ByteTxOnly(portHandler, 14, POS_I_GAIN_ADDR, 0);       // Resets misc servo posistion I gain to zero
+            packetHandler->write2ByteTxOnly(portHandler, 15, POS_I_GAIN_ADDR, 0);       // Resets misc servo posistion I gain to zero
+            
             // Publish 8 starting servo angles and speed to Arm_Angles
             int Arm_Start_Angles[9] = { 1586, 2902, 2898, 1471, 2063, 1802, 1041, 1980, 1 };
             for (int i = 0; i < 9; i++) {
                 Arm_Angles.data[i] = Arm_Start_Angles[i];
             }
             Arm_Angles_pub.publish(Arm_Angles);
+
+
+            // Create and write misc servos to custom starting pos
+            int Misc_Start_Angles[9] = { 2048, 2048, 2048, 2048, -1, -1, -1, -1 };
+
+            // Clears bulk write stack
+            groupBulkWrite.clearParam();
+
+            // Creates and assigns array with each byte of message
+            uint8_t data_array[4];
+            for (int i = 1; i < 9; i++){     // Do for all 8ish misc servos
+                if(Misc_Start_Angles[i-1] != -1){
+                    uint32_t data = (unsigned int)(Misc_Start_Angles[i - 1]); // Convert int32 to uint32
+                    data_array[0] = DXL_LOBYTE(DXL_LOWORD(data));
+                    data_array[1] = DXL_HIBYTE(DXL_LOWORD(data));
+                    data_array[2] = DXL_LOBYTE(DXL_HIWORD(data));
+                    data_array[3] = DXL_HIBYTE(DXL_HIWORD(data));
+                    groupBulkWrite.addParam((i + 11), GOAL_POSITION_ADDR, 4, data_array);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
+                }
+            }
+            groupBulkWrite.txPacket();  // Write servos with prepared list all at once
         }
     }
 
