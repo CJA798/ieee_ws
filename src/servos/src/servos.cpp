@@ -190,7 +190,7 @@ public:
 
 
             // Create and write misc servos to custom starting pos
-            int Misc_Start_Angles[9] = { 2048, 2048, 2048, 2048, -1, -1, -1, -1 };
+            int Misc_Start_Angles[9] = { 2048, 2500, 3096, 2048, -1, -1, -1, -1 };
 
             // Clears bulk write stack
             groupBulkWrite.clearParam();
