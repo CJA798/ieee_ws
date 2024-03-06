@@ -89,7 +89,11 @@ PacketHandler* packetHandler = PacketHandler::getPacketHandler(PROTOCOL_VERSION)
 
 // Create objects for bult reading and writing of servos
 GroupBulkRead groupBulkRead(portHandler, packetHandler);
-GroupBulkWrite groupBulkWrite(portHandler, packetHandler);
+//GroupBulkWrite groupBulkWrite(portHandler, packetHandler);
+GroupBulkWrite groupBulkWriteArm(portHandler, packetHandler);
+GroupBulkWrite groupBulkWriteMisc(portHandler, packetHandler);
+GroupBulkWrite groupBulkWriteWheel(portHandler, packetHandler);
+
 
 // Main class holding all servo declarations, functions, and variables
 class ServoClass{
@@ -193,7 +197,7 @@ public:
             int Misc_Start_Angles[9] = { 2048, 2500, 3075, 2048, -1, -1, -1, -1 };
 
             // Clears bulk write stack
-            groupBulkWrite.clearParam();
+            groupBulkWriteMisc.clearParam();
 
             // Creates and assigns array with each byte of message
             uint8_t data_array[4];
@@ -204,10 +208,10 @@ public:
                     data_array[1] = DXL_HIBYTE(DXL_LOWORD(data));
                     data_array[2] = DXL_LOBYTE(DXL_HIWORD(data));
                     data_array[3] = DXL_HIBYTE(DXL_HIWORD(data));
-                    groupBulkWrite.addParam((i + 11), GOAL_POSITION_ADDR, 4, data_array);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
+                    groupBulkWriteMisc.addParam((i + 11), GOAL_POSITION_ADDR, 4, data_array);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
                 }
             }
-            groupBulkWrite.txPacket();  // Write servos with prepared list all at once
+            groupBulkWriteMisc.txPacket();  // Write servos with prepared list all at once
         }
     }
 
@@ -301,7 +305,7 @@ public:
         armSpeed(Arm_Angles.data[8]);
 
         // Clears bulk write stack
-        groupBulkWrite.clearParam();
+        groupBulkWriteArm.clearParam();
 
         // Creates and assigns array with each byte of message
         uint8_t data_array[4];
@@ -311,9 +315,9 @@ public:
             data_array[1] = DXL_HIBYTE(DXL_LOWORD(data));
             data_array[2] = DXL_LOBYTE(DXL_HIWORD(data));
             data_array[3] = DXL_HIBYTE(DXL_HIWORD(data));
-            groupBulkWrite.addParam(i, GOAL_POSITION_ADDR, 4, data_array);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
+            groupBulkWriteArm.addParam(i, GOAL_POSITION_ADDR, 4, data_array);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
         }
-        groupBulkWrite.txPacket();  // Write servos with prepared list all at once
+        groupBulkWriteArm.txPacket();  // Write servos with prepared list all at once
 
         // Sets the arm moving flag to start checking for arm to complete move
         arm_moving = 1;
@@ -374,7 +378,7 @@ public:
             speed = 1;
 
         // Clears bulk write stack
-        groupBulkWrite.clearParam();
+        groupBulkWriteArn.clearParam();
 
         // Scales speed of vel and acc
         uint32_t max_acc = (uint32_t)(MAX_ACC * speed / 100);
@@ -386,10 +390,10 @@ public:
         
         // Adds messages to stack to write
         for (int i = 1; i < 9; i++){     // Do for all 8 servos
-            groupBulkWrite.addParam((i), MAX_ACC_ADDR, 4, data_array_acc);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
-            groupBulkWrite.addParam((i), MAX_VEL_ADDR, 4, data_array_vel);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
+            groupBulkWriteArm.addParam((i), MAX_ACC_ADDR, 4, data_array_acc);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
+            groupBulkWriteArm.addParam((i), MAX_VEL_ADDR, 4, data_array_vel);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
         }
-        groupBulkWrite.txPacket();  // Write servos with prepared list all at once
+        groupBulkWriteArm.txPacket();  // Write servos with prepared list all at once
     }
 
 
@@ -420,7 +424,7 @@ public:
     // Takes 8 Misc_Angles and writes to servos ID 12-21
     void Misc_AnglesCallback(const std_msgs::Float32MultiArray& Misc_Angles){
         // Clears bulk write stack
-        groupBulkWrite.clearParam();
+        groupBulkWriteMisc.clearParam();
 
         // Creates and assigns array with each byte of message
         uint8_t data_array[4];
@@ -434,7 +438,7 @@ public:
                 groupBulkWrite.addParam((i + 11), GOAL_POSITION_ADDR, 4, data_array);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
             }
         }
-        groupBulkWrite.txPacket();  // Write servos with prepared list all at once
+        groupBulkWriteMisc.txPacket();  // Write servos with prepared list all at once
 
         // Sets the misc moving flag to start checking for servos to complete move
         misc_moving = 1;
@@ -740,7 +744,7 @@ public:
     // Takes 3 Wheel_Speeds and writes to servos ID 9-11
     void Wheel_SpeedsCallback(const std_msgs::Float32MultiArray& Wheel_Speeds){
         // Clears bulk write stack
-        groupBulkWrite.clearParam();
+        groupBulkWriteWheel.clearParam();
 
         // Creates and assigns array with each byte of message
         uint8_t data_array[4];
@@ -750,9 +754,9 @@ public:
             data_array[1] = DXL_HIBYTE(DXL_LOWORD(data));
             data_array[2] = DXL_LOBYTE(DXL_HIWORD(data));
             data_array[3] = DXL_HIBYTE(DXL_HIWORD(data));
-            groupBulkWrite.addParam((i + 8), GOAL_VELOCITY_ADDR, 4, data_array);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
+            groupBulkWriteWheel.addParam((i + 8), GOAL_VELOCITY_ADDR, 4, data_array);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
         }
-        groupBulkWrite.txPacket();  // Write servos with prepared list all at once
+        groupBulkWriteWheel.txPacket();  // Write servos with prepared list all at once
 
         // Print final servo values to ros
         //ROS_INFO("Angles: %f, %f, %f", Wheel_Speeds.data[0], Wheel_Speeds.data[1], Wheel_Speeds.data[2]);
