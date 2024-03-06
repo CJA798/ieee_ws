@@ -9,10 +9,8 @@ from std_msgs.msg import Empty, Int8, Int16, Bool, Float32MultiArray
 from image_utils.board_objects import BoardObjects
 from image_utils.poses import Poses
 from utils.states import *
-from utils.globals import globals
 from utils.areas import Areas
 from utils.callbacks import *
-from utils.fuel_tank_utils import fuel_tanks
 
 # Create publishers
 task_space_pub = rospy.Publisher('Task_Space', Float32MultiArray, queue_size=1)
@@ -65,7 +63,7 @@ def main():
             with small_packages_sm:
                 smach.StateMachine.add('SCAN_POSE', ScanPose(arm_angles_pub=arm_angles_pub),
                                         transitions={'pose_reached':'GET_SP_COORDS', 'pose_not_reached':'SCAN_POSE'})
-                smach.StateMachine.add('GET_SP_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value),
+                smach.StateMachine.add('GET_SP_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value, timeout=5.0, expected_pairs=3),
                                         transitions={'coords_received':'VERIFY_POSE', 'coords_not_received':'GET_SP_COORDS'})
                 smach.StateMachine.add('VERIFY_POSE', VerifyPose(task_space_pub=task_space_pub),
                                         transitions={'pose_reached':'REST_POSE', 'pose_not_reached':'VERIFY_POSE'})
@@ -154,15 +152,41 @@ def main():
         # TODO: Add fuel tank pickup states
 
         smach.StateMachine.add('PICK_UP_FUEL_TANKS', PickUp(board_object=BoardObjects.FUEL_TANK, arm_angles_publisher=arm_angles_pub, misc_angles_publisher=misc_angles_pub, move_publisher=move_pub),
-                                      transitions={'packages_picked_up':'GO_TO_CRATER_AREA', 'packages_not_picked_up':'PICK_UP_FUEL_TANKS'})
+                                      transitions={'packages_picked_up':'FUEL_TANK_SORT_AND_FINAL_AREA', 'packages_not_picked_up':'PICK_UP_FUEL_TANKS'})
               
         
-        # Go to crater
-        smach.StateMachine.add('GO_TO_CRATER_AREA', GoTo_(Areas.CRATER, move_publisher=move_pub, misc_angles_publisher=misc_angles_pub), 
-                                   transitions={'arrived':'GO_TO_FINAL', 'not_arrived':'GO_TO_CRATER_AREA'})
+        # Create a concurrent state machine for movement to final area and fuel tank sorting
+        fuel_tank_sort_and_final_area_sm = smach.Concurrence(outcomes=['succeeded','aborted'],
+                                    default_outcome='aborted',
+                                    outcome_map={'succeeded':{
+                                        'SORT_FUEL_TANKS':'fuel_tanks_sorted',
+                                        'GO_TO_FINAL':'arrived'
+                                    }})
         
-        smach.StateMachine.add('GO_TO_FINAL', GoTo_(Areas.BUTTON, move_publisher=move_pub), 
-                               transitions={'arrived':'SPIRIT_CELEBRATION', 'not_arrived':'GO_TO_FINAL'})
+        with fuel_tank_sort_and_final_area_sm:
+            # State machine for fuel tank sorting
+            fuel_tank_sort_sm = smach.StateMachine(outcomes=['fuel_tanks_sorted', 'fuel_tanks_not_sorted'])
+            with fuel_tank_sort_sm:
+                smach.StateMachine.add('GET_SP_COORDS', GetCoords(object_type=BoardObjects.FUEL_TANK.value, pose=Poses.FUEL_TANK_SCAN.value, timeout=5.0, expected_pairs=3),
+                                        transitions={'coords_received':'fuel_tanks_sorted', 'coords_not_received':'GET_SP_COORDS'})
+                
+            # State machine for movement to final area
+            go_to_final_sm = smach.StateMachine(outcomes=['arrived', 'not_arrived'])
+            with go_to_final_sm:
+                # Go to crater and deploy bridge
+                smach.StateMachine.add('GO_TO_CRATER_AREA', GoTo_(Areas.CRATER, move_publisher=move_pub, misc_angles_publisher=misc_angles_pub), 
+                                        transitions={'arrived':'GO_TO_FINAL', 'not_arrived':'GO_TO_CRATER_AREA'})
+                
+                # Cross bridge and go to final area
+                smach.StateMachine.add('GO_TO_FINAL', GoTo_(Areas.BUTTON, move_publisher=move_pub), 
+                                    transitions={'arrived':'arrived', 'not_arrived':'GO_TO_FINAL'})
+                
+            smach.Concurrence.add('SORT_FUEL_TANKS', fuel_tank_sort_sm)
+            smach.Concurrence.add('GO_TO_FINAL', go_to_final_sm)
+        
+        smach.StateMachine.add('FUEL_TANK_SORT_AND_FINAL_AREA', fuel_tank_sort_and_final_area_sm,
+                                transitions={'succeeded':'SPIRIT_CELEBRATION', 'aborted':'FUEL_TANK_SORT_AND_FINAL_AREA'})
+        
         
         
         smach.StateMachine.add('SPIRIT_CELEBRATION', SpiritCelebration(misc_angles_publisher = misc_angles_pub),

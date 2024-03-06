@@ -16,9 +16,9 @@ def check_heartbeat_cb(event):
     if last_heartbeat_time is not None and int(current_time - last_heartbeat_time) > 2:
         rospy.logerr("Arduino heartbeat lost, restarting rosserial node...")
         run(["rosnode", "kill", "/serial_node_1"])
-        rospy.sleep(5)
+        rospy.sleep(2)
         run(["rosrun", "serial_node", "serial_node_1.py", "/dev/serial/by-id/usb-1a86_USB2.0-Serial-if00-port0"])  # Adjust port as needed
-        rospy.sleep(5)
+        rospy.sleep(1)
     #else:
         #rospy.loginfo("Arduino heartbeat OK")
 
