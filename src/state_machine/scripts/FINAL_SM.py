@@ -86,7 +86,7 @@ def main():
                                         transitions={'arrived':'CLOSE_TOP_BULK_GRABBER_ARM', 'not_arrived':'MOVE_TO_BIG_PACKAGE_WALL'})
                 
                 # TODO: figure out why PUSH_BIG_PACKAGES makes the bot rotate a bit instead of just going straight
-                # TODO: add this state cack when the above is fixed
+                # TODO: add this state back when the above is fixed
                 #smach.StateMachine.add('PUSH_BIG_PACKAGES', GoTo_(Areas.PUSH_BIG_PACKAGES, move_publisher=move_pub),
                                         #transitions={'arrived':'packages_picked_up', 'not_arrived':'PUSH_BIG_PACKAGES'})
 
@@ -95,8 +95,8 @@ def main():
                 smach.StateMachine.add('RAISE_BULK_GRABBER', SetPose(pose=Poses.RAISE_BULK_GRABBER, move_publisher=move_pub, misc_angles_publisher=misc_angles_pub),
                                         transitions={'pose_reached':'packages_picked_up', 'pose_not_reached':'RAISE_BULK_GRABBER'})
             
-            #smach.Concurrence.add('PICK_BIG_PACKAGES', big_packages_sm)
-            smach.Concurrence.add('PICK_BIG_PACKAGES', PickUpBigPackages())
+            smach.Concurrence.add('PICK_BIG_PACKAGES', big_packages_sm)
+            #smach.Concurrence.add('PICK_BIG_PACKAGES', PickUpBigPackages())
             smach.Concurrence.add('PICK_SMALL_PACKAGES', small_packages_sm)
             #smach.Concurrence.add('PICK_SMALL_PACKAGES', PickUpBigPackages())
 

@@ -29,12 +29,13 @@ globals: Dict[str, Union[bool, int, None]] = {
     'big_package_Y_offset': -248,
 
     'set_bulk_top': 1300,
-    'set_bulk_bottom': 3000,
+    'set_bulk_bottom': 3055,
 
-    'close_bulk_top': 1100,
+    'close_bulk_top': 1075,
 
     'raise_bulk_offset': 1000,
     'fuel_tank_raise_bulk_offset': 1920,
+    
     # 'raise_bulk_top & raise_bulk_bottom declared outside globals dict
 
     'drop_bulk_top': 1500,
