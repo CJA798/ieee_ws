@@ -19,6 +19,7 @@ globals: Dict[str, Union[bool, int, None]] = {
     'distortion_coefficients_path': '/home/pi/ieee_ws/src/vision_system/scripts/image_utils/dist.pkl',
 
     'small_package_Y_arm_offset': -20,
+    'fuel_tank_Y_arm_offset': 30,
 
     # Arm Macros
     'gripper_bulk_hold': 2000,

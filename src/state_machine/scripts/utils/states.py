@@ -771,7 +771,7 @@ class PickUp(smach.State):
         if publish_command(self.misc_angles_pub, Float32MultiArray, [raised_bridge, (top_bulk+raise_bulk_offset), (bottom_bulk-raise_bulk_offset), flag]):
             rospy.wait_for_message("Misc_Done", Int8, timeout=10)
         
-        
+            rospy.sleep(1000)
             return 'packages_picked_up'
         else:
             return 'packages_not_picked_up'
@@ -821,7 +821,7 @@ class DropOff(smach.State):
         jaw = globals['gripper_bulk_hold']
         speed = 2
         angles = [493.0, 1459.0, 1460.0, 2196.0, 2087.0, 1432.0, 3824.0, jaw, speed]
-        publish_command(self.arm_angles_pub, Float32MultiArray, angles, delay=4)
+        publish_command(self.arm_angles_pub, Float32MultiArray, angles, delay=2)
         rospy.loginfo('Lowering arm')
         #rospy.wait_for_message("Arm_Done", Int8, timeout=10) 
 
@@ -829,7 +829,7 @@ class DropOff(smach.State):
         jaw = globals['gripper_bulk_release']
         speed = 5
         angles = [493.0, 1459.0, 1460.0, 2196.0, 2087.0, 1432.0, 3824.0, jaw, speed]
-        publish_command(self.arm_angles_pub, Float32MultiArray, angles, delay=2)
+        publish_command(self.arm_angles_pub, Float32MultiArray, angles, delay=1)
         #rospy.wait_for_message("Arm_Done", Int8, timeout=10) 
         rospy.loginfo('Small packages released')
         
@@ -872,6 +872,18 @@ class DropOff(smach.State):
             return 'packages_dropped_off'
         else:
             return 'packages_not_dropped_off'
+
+class SortFuelTanks(smach.State):
+    def __init__(self, arm_angles_publisher=None, task_space_publisher=None, misc_angles_publisher=None):
+        smach.State.__init__(self, outcomes=['fuel_tanks_sorted','fuel_tanks_not_sorted'])
+        self.arm_angles_pub = arm_angles_publisher
+        self.task_space_pub = task_space_publisher
+        self.misc_angles_pub = misc_angles_publisher
+
+    def execute(self, userdata):
+        rospy.sleep(5)
+        return 'fuel_tanks_sorted'
+
 
 class SpiritCelebration(smach.State):
     def __init__(self, misc_angles_publisher = None, arm_angles_publisher = None):
@@ -1011,11 +1023,13 @@ class RestPose(smach.State):
 
 # define state GetCoords
 class GetCoords(smach.State):
-    def __init__(self, object_type, pose):
+    def __init__(self, object_type, pose, timeout=5.0, expected_pairs=3):
         smach.State.__init__(self, outcomes=['coords_received','coords_not_received'],
                              output_keys=['coordinates_list'])
         self.object_type = object_type
         self.pose = pose
+        self.timeout = timeout
+        self.expected_pairs = expected_pairs
         #TODO for some reason, removing this sleep brings back the fucking
         # raise ValueError(f"Object type {object_type} not recognized.")
         # ValueError: Object type SMALL_PACKAGE not recognized.
@@ -1034,11 +1048,8 @@ class GetCoords(smach.State):
             client.wait_for_server()
 
             goal = GetCoordsGoal()
-            goal.timeout.data = 5.0
-            if self.pose == Poses.FRONT.value and self.object_type == BoardObjects.FUEL_TANK.value:
-                goal.expected_pairs.data = 1
-            else:
-                goal.expected_pairs.data = 3
+            goal.timeout.data = self.timeout
+            goal.expected_pairs.data = self.expected_pairs
             goal.object_type.data = self.object_type
             goal.arm_pose.data = self.pose
 
