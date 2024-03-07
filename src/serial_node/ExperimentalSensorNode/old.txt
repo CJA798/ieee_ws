@@ -37,16 +37,13 @@ std_msgs::Int16 tof1Data;
 std_msgs::Int16 tof2Data;
 std_msgs::Int16 tof3Data;
 std_msgs::Int16 tof4Data;
-std_msgs::Int16 imuBearing;
-std_msgs::Int16 imuGrav;
+
 std_msgs::Bool ledDet;
 
 ros::Publisher tof1pub("TOF_Front", &tof1Data);
 ros::Publisher tof2pub("TOF_Left", &tof2Data);
 ros::Publisher tof3pub("TOF_Right", &tof3Data);
 ros::Publisher tof4pub("TOF_Back", &tof4Data);
-ros::Publisher imubpub("IMU_Bearing", &imuBearing);
-ros::Publisher imugpub("IMU_Grav", &imuGrav);
 ros::Publisher ledpub("LED_State", &ledDet);
 
 
@@ -73,8 +70,7 @@ void setup(){
   nh.advertise(tof2pub);
   nh.advertise(tof3pub);
   nh.advertise(tof4pub);
-  nh.advertise(imubpub);
-  nh.advertise(imugpub);
+
   nh.advertise(ledpub);
 
   nh.subscribe(initsub);
@@ -166,7 +162,6 @@ void setup(){
 
 
 unsigned long lastTofReadTime = 0;
-unsigned long lastImuReadTime = 0;
 
 
 void loop(){

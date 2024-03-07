@@ -14,9 +14,19 @@ ros::NodeHandle nh;
 
 // Globals
 unsigned int event; 
-// create IMU object
+
+// IMU Variables
 Adafruit_BNO055 IMU = Adafruit_BNO055(55, 0x28, &Wire);
 adafruit_bno055_offsets_t calibrationData;
+sensors_event_t gravityData, orientationData;
+
+
+// IMU Publishers
+std_msgs::Int16 imuBearing;
+std_msgs::Int16 imuGrav;
+ros::Publisher imubpub("IMU_Bearing", &imuBearing);
+ros::Publisher imugpub("IMU_Grav", &imuGrav);
+unsigned long last_imu_pub_time = 0;
 
 
 // Setup heartbeat publisher
@@ -36,8 +46,8 @@ void setup() {
 
   // Advertise publishers and subscribers
   nh.advertise(heartbeat_pub);
-  nh.loginfo("Heartbeat Publisher Initialized");
-
+  nh.advertise(imubpub);
+  nh.advertise(imugpub);
 
 
   // Initialize IMU
@@ -54,23 +64,24 @@ void setup() {
   If we need more stability or faster response, we can switch to OPERATION_MODE_NDOF,
   keeping in mind that it might require more processing power and calibration effort.
   */
-  IMU.setMode(OPERATION_MODE_COMPASS);
-  nh.loginfo("IMU mode set to compass");
+  //IMU.setMode(OPERATION_MODE_COMPASS);
+  IMU.setMode(OPERATION_MODE_NDOF);
 
-  // upload calibration data
+  // Upload calibration data
   calibrationData.accel_offset_x = 16908;
-  calibrationData.accel_offset_y = 306;
+  calibrationData.accel_offset_y = 352;
   calibrationData.accel_offset_z = 256;
   calibrationData.gyro_offset_x = 20001;
   calibrationData.gyro_offset_y = 1;
-  calibrationData.gyro_offset_z = 8607;
+  calibrationData.gyro_offset_z = 8564;
   calibrationData.mag_offset_z = 256;
   calibrationData.mag_offset_x = 20001;
   calibrationData.mag_offset_y = 1;
   calibrationData.accel_radius = 17409;
-  calibrationData.mag_radius = 4;
+  calibrationData.mag_radius = 0;
 
   IMU.setSensorOffsets(calibrationData);
+
   // Use external crystal for better accuracy
   // Crystal must be configured AFTER loading calibration data into BNO055
   IMU.setExtCrystalUse(true);
@@ -100,7 +111,7 @@ void loop() {
           nh.logwarn(message);
 
           nh.loginfo("IMU is fully calibrated");
-          event = 99;
+          event = TEST;
         }
         // If the IMU is not fully calibrated, run the calibration function
         else
@@ -109,6 +120,26 @@ void loop() {
           calibrateIMU();
         }
         break;
+
+      case TEST:
+        // Check if it's time to take a new IMU reading
+        if (millis() - last_imu_pub_time >= IMU_READ_INTERVAL) {
+
+          // Read IMU data
+          IMU.getEvent(&gravityData, Adafruit_BNO055::VECTOR_GRAVITY);
+          IMU.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);
+
+          // Prepare IMU data
+          imuGrav.data = gravityData.acceleration.x * 10;
+          imuBearing.data = orientationData.orientation.x;
+
+          // Publish IMU data
+          imubpub.publish(&imuBearing);
+          imugpub.publish(&imuGrav);
+
+          // Update last IMU publish time
+          last_imu_pub_time = millis();
+        }
 
 
      

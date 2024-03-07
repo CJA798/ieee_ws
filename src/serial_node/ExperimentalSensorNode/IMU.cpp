@@ -53,7 +53,7 @@ void calibrateIMU()
     sprintf(message, "CALIBRATION: Sys=%d Gyro=%d Accel=%d Mag=%d", system, gyro, accel, mag);
     nh.loginfo(message);
     
-    if (system == 3 && gyro == 3 && accel == 3 && mag == 3)
+    if (system == 3 && gyro == 3 && mag == 3)
     {
         showCalibrationValues();
 
