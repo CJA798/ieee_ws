@@ -19,6 +19,8 @@ unsigned int event;
 Adafruit_BNO055 IMU = Adafruit_BNO055(55, 0x28, &Wire);
 adafruit_bno055_offsets_t calibrationData;
 sensors_event_t gravityData, orientationData;
+unsigned long last_imu_pub_time = 0;
+
 
 
 // IMU Publishers
@@ -26,7 +28,37 @@ std_msgs::Int16 imuBearing;
 std_msgs::Int16 imuGrav;
 ros::Publisher imubpub("IMU_Bearing", &imuBearing);
 ros::Publisher imugpub("IMU_Grav", &imuGrav);
-unsigned long last_imu_pub_time = 0;
+
+
+// TOF Variables
+VL53L1X TOF1;
+VL53L1X TOF2;
+VL53L1X TOF3;
+VL53L1X TOF4;
+uint8_t xshut1 = 2;
+uint8_t xshut2 = 4;
+uint8_t xshut3 = 3;
+uint8_t xshut4 = 5;
+int T1 = 0;
+int T2 = 0;
+int T3 = 0;
+int T4 = 0;
+int T1prev = 0;
+int T2prev = 0;
+int T3prev = 0;
+unsigned long last_tof_pub_time = 0;
+
+
+// TOF Publishers
+std_msgs::Int16 tof1Data;
+std_msgs::Int16 tof2Data;
+std_msgs::Int16 tof3Data;
+std_msgs::Int16 tof4Data;
+ros::Publisher tof1pub("TOF_Front", &tof1Data);
+ros::Publisher tof2pub("TOF_Left", &tof2Data);
+ros::Publisher tof3pub("TOF_Right", &tof3Data);
+ros::Publisher tof4pub("TOF_Back", &tof4Data);
+//ros::Publisher ledpub("LED_State", &ledDet);
 
 
 // Setup heartbeat publisher
@@ -48,6 +80,10 @@ void setup() {
   nh.advertise(heartbeat_pub);
   nh.advertise(imubpub);
   nh.advertise(imugpub);
+  nh.advertise(tof1pub);
+  nh.advertise(tof2pub);
+  nh.advertise(tof3pub);
+  nh.advertise(tof4pub);
 
 
   // Initialize IMU
@@ -85,6 +121,17 @@ void setup() {
   // Use external crystal for better accuracy
   // Crystal must be configured AFTER loading calibration data into BNO055
   IMU.setExtCrystalUse(true);
+
+
+  // Setup TOF sensors
+  // Toggle xshut pins for reset
+  setXShutPins();
+  setAllTOFAddresses();
+
+  // set previous TOF readings for LPF
+  T1prev = TOF1.read();
+  T2prev = TOF2.read();
+  T3prev = TOF3.read();
 }
 
 void loop() {
@@ -121,6 +168,9 @@ void loop() {
         }
         break;
 
+      case TOF_SETUP:
+        break;
+
       case TEST:
         // Check if it's time to take a new IMU reading
         if (millis() - last_imu_pub_time >= IMU_READ_INTERVAL) {
@@ -140,6 +190,35 @@ void loop() {
           // Update last IMU publish time
           last_imu_pub_time = millis();
         }
+
+        // Check if it's time to take a new TOF reading
+        if (millis() - last_tof_pub_time >= TOF_READ_INTERVAL) {
+          // Read TOF data
+          T1 = (alpha * TOF1.read()) + ((1 - alpha) * T1prev);
+          T2 = (alpha * TOF2.read()) + ((1 - alpha) * T2prev);
+          T3 = (alpha * TOF3.read()) + ((1 - alpha) * T3prev);
+          T4 = TOF4.read();
+          tof1Data.data = T1;
+          tof2Data.data = T2;
+          tof3Data.data = T3;
+          tof4Data.data = T4;
+          
+          // Publish data
+          tof1pub.publish(&tof1Data);
+          tof2pub.publish(&tof2Data);
+          tof3pub.publish(&tof3Data);
+          tof4pub.publish(&tof4Data);
+
+          // Update last TOF publish time
+          last_tof_pub_time = millis();
+
+          // Set previous TOF data
+          T1prev = T1;
+          T2prev = T2;
+          T3prev = T3;
+        }
+
+        break;
 
 
      
