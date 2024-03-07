@@ -1,0 +1,278 @@
+#include <Wire.h>
+#include <VL53L1X.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BNO055.h>
+#include <utility/imumaths.h>
+#include <ros.h>
+#include <std_msgs/Int16.h>
+#include <std_msgs/Bool.h>
+#include <std_msgs/Empty.h>
+#include "macros.h"
+
+
+// variables
+int detVal = 700;
+bool botCal = 0;
+int ledVal = 0;
+int T1 = 0;
+int T2 = 0;
+int T3 = 0;
+int T4 = 0;
+int T1prev = 0;
+int T2prev = 0;
+int T3prev = 0;
+bool initState = 0;
+bool initStarted = 0;
+
+
+void initCb(const std_msgs::Bool& init_msg){
+  initState = init_msg.data;
+}
+
+
+// create node handles and publisher objects
+ros::NodeHandle  nh;
+
+std_msgs::Int16 tof1Data;
+std_msgs::Int16 tof2Data;
+std_msgs::Int16 tof3Data;
+std_msgs::Int16 tof4Data;
+std_msgs::Int16 imuBearing;
+std_msgs::Int16 imuGrav;
+std_msgs::Bool ledDet;
+std_msgs::Empty heartbeat;
+
+ros::Publisher tof1pub("TOF_Front", &tof1Data);
+ros::Publisher tof2pub("TOF_Left", &tof2Data);
+ros::Publisher tof3pub("TOF_Right", &tof3Data);
+ros::Publisher tof4pub("TOF_Back", &tof4Data);
+ros::Publisher imubpub("IMU_Bearing", &imuBearing);
+ros::Publisher imugpub("IMU_Grav", &imuGrav);
+ros::Publisher ledpub("LED_State", &ledDet);
+ros::Publisher heartbeatpub("Heartbeat", &heartbeat);
+
+
+ros::Subscriber<std_msgs::Bool> initsub("Init_State", &initCb );
+
+
+// create IMU object
+uint16_t BNO055_SAMPLERATE_DELAY_MS = 50;
+Adafruit_BNO055 IMU = Adafruit_BNO055(55, 0x28, &Wire);
+
+
+// create TOF sensor objects
+VL53L1X TOF1;
+VL53L1X TOF2;
+VL53L1X TOF3;
+VL53L1X TOF4;
+
+
+void setup(){
+  // set up communication
+  Serial.begin(57600);
+  Wire.begin();
+  Wire.setClock(500000);
+
+
+  // init node and advertise
+  nh.initNode();
+  
+  nh.advertise(tof1pub);
+  nh.advertise(tof2pub);
+  nh.advertise(tof3pub);
+  nh.advertise(tof4pub);
+  nh.advertise(imubpub);
+  nh.advertise(imugpub);
+  nh.advertise(ledpub);
+  nh.advertise(heartbeatpub);
+
+  nh.subscribe(initsub);
+
+  // init published data
+  tof1Data.data = 0;
+  tof2Data.data = 0;
+  tof3Data.data = 0;
+  tof4Data.data = 0;
+
+  imuBearing.data = 0;
+  imuGrav.data = 0;
+
+  ledDet.data = 0;
+
+
+  // init pin for led detection
+  pinMode(A0, INPUT);
+  pinMode(startButton, INPUT_PULLUP);
+  pinMode(red, OUTPUT);
+  pinMode(green, OUTPUT);
+  pinMode(blue, OUTPUT);
+
+
+  // setup IMU sensor
+  Wire.begin();
+  IMU.begin();
+
+
+  // toggle xshut pins for reset
+  uint8_t xshut1 = 2;
+  uint8_t xshut2 = 4;
+  uint8_t xshut3 = 3;
+  uint8_t xshut4 = 5;
+
+  pinMode(xshut1, OUTPUT);
+  digitalWrite(xshut1, LOW);
+  pinMode(xshut2, OUTPUT);
+  digitalWrite(xshut2, LOW);
+  pinMode(xshut3, OUTPUT);
+  digitalWrite(xshut3, LOW);
+  pinMode(xshut4, OUTPUT);
+  digitalWrite(xshut4, LOW);
+
+  // change TOF sensor addresses
+  pinMode(xshut1, INPUT);
+  delay(10);
+  TOF1.init();
+  TOF1.setDistanceMode(VL53L1X::Long);
+  TOF1.setMeasurementTimingBudget(tofTimeBudget+100);
+  TOF1.startContinuous(continuousTime);
+  TOF1.setAddress(42);   
+
+  pinMode(xshut2, INPUT);
+  delay(10);
+  TOF2.init();
+  TOF2.setDistanceMode(VL53L1X::Long);
+  TOF2.setMeasurementTimingBudget(tofTimeBudget+100);
+  TOF2.startContinuous(continuousTime);
+  TOF2.setAddress(43);    
+
+  pinMode(xshut3, INPUT);
+  delay(10);
+  TOF3.init();
+  TOF3.setDistanceMode(VL53L1X::Short);
+  TOF3.setMeasurementTimingBudget(tofTimeBudget);
+  TOF3.startContinuous(continuousTime);
+  TOF3.setAddress(44);   
+  
+  pinMode(xshut4, INPUT);
+  delay(10);
+  TOF4.init();
+  TOF4.setDistanceMode(VL53L1X::Short);
+  TOF4.setMeasurementTimingBudget(tofTimeBudget);
+  TOF4.startContinuous(continuousTime);
+  TOF4.setAddress(45);
+
+  // upload calibration data
+  adafruit_bno055_offsets_t calibrationData;
+  calibrationData.accel_offset_x = 16908;
+  calibrationData.accel_offset_y = 306;
+  calibrationData.accel_offset_z = 256;
+  calibrationData.gyro_offset_x = 20001;
+  calibrationData.gyro_offset_y = 1;
+  calibrationData.gyro_offset_z = 8607;
+  calibrationData.mag_offset_z = 256;
+  calibrationData.mag_offset_x = 20001;
+  calibrationData.mag_offset_y = 1;
+  calibrationData.accel_radius = 17409;
+  calibrationData.mag_radius = -24576;
+
+  IMU.setSensorOffsets(calibrationData);
+
+
+  // publish LED state 
+  ledpub.publish(&ledDet);
+
+  // set previous TOF readings for LPF
+  T1prev = TOF1.read();
+  T2prev = TOF2.read();
+  T3prev = TOF3.read();
+
+  // initial bearing publish
+  sensors_event_t gravityData, orientationData;
+  IMU.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);
+  imuBearing.data = orientationData.orientation.x;
+  imubpub.publish(&imuBearing);
+}
+
+
+unsigned long lastTofReadTime = 0;
+unsigned long lastImuReadTime = 0;
+unsigned long lastHeartbeatReadTime = 0;
+
+
+void loop(){
+  // check if ROS is initialized
+  if(initState && !initStarted){
+    digitalWrite(red, HIGH);
+    digitalWrite(green, LOW);
+    digitalWrite(blue, LOW);
+    initStarted = 1;
+  }
+  
+  // check if bot is ready
+  //Serial.println(analogRead(A0));
+  if(!botCal && digitalRead(startButton) && initState){
+    botCal = 1;
+    detVal = analogRead(A0) + detValOffset;
+    digitalWrite(red, LOW);
+    digitalWrite(green, HIGH);
+    digitalWrite(blue, LOW);
+  }
+
+  unsigned long currentMillis = millis();
+  
+  // Check if it's time to take a new TOF reading
+  if (currentMillis - lastTofReadTime >= TOF_READ_INTERVAL) {
+    lastTofReadTime = currentMillis;
+
+    // Read TOF data
+    T1 = (alpha * TOF1.read()) + ((1 - alpha) * T1prev);
+    T2 = (alpha * TOF2.read()) + ((1 - alpha) * T2prev);
+    T3 = (alpha * TOF3.read()) + ((1 - alpha) * T3prev);
+    T4 = TOF4.read();
+    tof1Data.data = T1;
+    tof2Data.data = T2;
+    tof3Data.data = T3;
+    tof4Data.data = T4;
+
+        // Publish data
+    tof1pub.publish(&tof1Data);
+    tof2pub.publish(&tof2Data);
+    tof3pub.publish(&tof3Data);
+    tof4pub.publish(&tof4Data);
+    imubpub.publish(&imuBearing);
+    imugpub.publish(&imuGrav);
+
+    //set previous TOF data
+    T1prev = T1;
+    T2prev = T2;
+    T3prev = T3;
+  }
+
+  // Check if it's time to take a new IMU reading
+  if (currentMillis - lastImuReadTime >= IMU_READ_INTERVAL) {
+    lastImuReadTime = currentMillis;
+
+    // Read IMU data
+    sensors_event_t gravityData, orientationData;
+    IMU.getEvent(&gravityData, Adafruit_BNO055::VECTOR_GRAVITY);
+    imuGrav.data = gravityData.acceleration.x * 10; 
+    IMU.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);
+    imuBearing.data = orientationData.orientation.x;
+  }
+
+  // Detect LED
+  if (!ledDet.data && (analogRead(0) > detVal) && botCal) {
+    ledDet.data = 1;
+    ledpub.publish(&ledDet);
+  }
+
+
+  // Check if it's time to send a heartbeat message
+  if (currentMillis - lastHeartbeatReadTime >= HEARTBEAT_PUB_INTERVAL) {
+    // Publish heartbeat message
+    heartbeatpub.publish(&heartbeat);
+  }
+
+  // Spin
+  nh.spinOnce();
+}
