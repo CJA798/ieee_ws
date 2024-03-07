@@ -13,15 +13,34 @@
 ros::NodeHandle nh;
 
 // Globals
-unsigned int event; 
+unsigned int event = WAITING_FOR_NH; 
+
+// Init Variables
+bool initState = 0;
+bool initStarted = 0;
+
+// Init Subscriber
+void initCb(const std_msgs::Bool& init_msg){
+  initState = init_msg.data;
+}
+ros::Subscriber<std_msgs::Bool> initsub("Init_State", &initCb );
+
+
+// LED Variables
+int detVal = 700;
+bool botCal = 0;
+int ledVal = 0;
+
+// LED Publisher
+std_msgs::Bool ledDet;
+ros::Publisher ledpub("LED_State", &ledDet);
+
 
 // IMU Variables
 Adafruit_BNO055 IMU = Adafruit_BNO055(55, 0x28, &Wire);
 adafruit_bno055_offsets_t calibrationData;
 sensors_event_t gravityData, orientationData;
 unsigned long last_imu_pub_time = 0;
-
-
 
 // IMU Publishers
 std_msgs::Int16 imuBearing;
@@ -58,7 +77,6 @@ ros::Publisher tof1pub("TOF_Front", &tof1Data);
 ros::Publisher tof2pub("TOF_Left", &tof2Data);
 ros::Publisher tof3pub("TOF_Right", &tof3Data);
 ros::Publisher tof4pub("TOF_Back", &tof4Data);
-//ros::Publisher ledpub("LED_State", &ledDet);
 
 
 // Setup heartbeat publisher
@@ -84,7 +102,12 @@ void setup() {
   nh.advertise(tof2pub);
   nh.advertise(tof3pub);
   nh.advertise(tof4pub);
+  nh.advertise(ledpub);
+  nh.subscribe(initsub);
 
+
+  // Initialize pin for LED detection
+  initLEDDetector();
 
   // Initialize IMU
   if (!IMU.begin())
@@ -132,6 +155,18 @@ void setup() {
   T1prev = TOF1.read();
   T2prev = TOF2.read();
   T3prev = TOF3.read();
+
+  // publish LED state 
+  ledDet.data = 0;
+  ledpub.publish(&ledDet);
+
+  // initial bearing publish
+  sensors_event_t gravityData, orientationData;
+  IMU.getEvent(&orientationData, Adafruit_BNO055::VECTOR_EULER);
+  imuBearing.data = orientationData.orientation.x;
+  imubpub.publish(&imuBearing);
+  
+  event = WAITING_FOR_NH;
 }
 
 void loop() {
@@ -140,9 +175,31 @@ void loop() {
         // If the node handle is connected, move to the next state
         if (nh.connected())
         {
-          event = IMU_SETUP;
+          event = CLEAR;
           nh.loginfo("Arduino node handle connected");
         }
+        break;
+
+      case CLEAR:
+        // Clear all flags and variables
+        initState = 0;
+        initStarted = 0;
+
+        detVal = 700;
+        botCal = 0;
+        ledVal = 0;
+
+        T1 = 0;
+        T2 = 0;
+        T3 = 0;
+        T4 = 0;
+
+        T1prev = 0;
+        T2prev = 0;
+        T3prev = 0;
+
+        nh.logwarn("Cleared all flags and variables");
+        event = IMU_SETUP;
         break;
 
       case IMU_SETUP:
@@ -158,7 +215,7 @@ void loop() {
           nh.logwarn(message);
 
           nh.loginfo("IMU is fully calibrated");
-          event = TEST;
+          event = DETECT_LED;
         }
         // If the IMU is not fully calibrated, run the calibration function
         else
@@ -168,8 +225,33 @@ void loop() {
         }
         break;
 
-      case TOF_SETUP:
-        break;
+      case DETECT_LED:
+        // Check if ROS is initialized
+        if(initState && !initStarted){
+          digitalWrite(red, HIGH);
+          digitalWrite(green, LOW);
+          digitalWrite(blue, LOW);
+          initStarted = 1;
+          nh.loginfo("Init Started");
+        }
+        // Check if bot is ready
+        //Serial.println(analogRead(A0));
+        if(!botCal && digitalRead(startButton) && initState){
+          botCal = 1;
+          detVal = analogRead(A0) + detValOffset;
+          digitalWrite(red, LOW);
+          digitalWrite(green, HIGH);
+          digitalWrite(blue, LOW);
+          nh.loginfo("Bot calibrated");
+        }
+
+        // Check if LED is detected
+        if (!ledDet.data && (analogRead(0) > detVal) && botCal) {
+          ledDet.data = 1;
+          ledpub.publish(&ledDet);
+          event = TEST;
+          nh.loginfo("LED Detected");
+        }
 
       case TEST:
         // Check if it's time to take a new IMU reading
@@ -221,7 +303,6 @@ void loop() {
         break;
 
 
-     
       default: break;
 
     }
@@ -232,6 +313,12 @@ void loop() {
     heartbeat_pub.publish(&heartbeat_msg);
     last_heartbeat_time = millis();
   }
+
+
+  // Publish TOF_Back
+  T4 = TOF4.read();
+  tof4Data.data = T4;
+  tof4pub.publish(&tof4Data);
 
 
   // Handle ROS communication

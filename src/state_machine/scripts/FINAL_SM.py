@@ -80,6 +80,7 @@ def main():
                 # Finish moving top arm -> Done, needs fine-tunning
                 # Go back to start while raising bulk grabber arms -> Done, will be modified as needed
                 # Set 'big_package_pick_up' flag to True -> Done
+                rospy.sleep(2)
                 smach.StateMachine.add('SET_BULK_GRABBER_ARMS', SetPose(pose=Poses.SET_BULK_GRABBER_ARMS, misc_angles_publisher=misc_angles_pub),
                                         transitions={'pose_reached':'MOVE_TO_BIG_PACKAGE_WALL', 'pose_not_reached':'SET_BULK_GRABBER_ARMS'})
                 smach.StateMachine.add('MOVE_TO_BIG_PACKAGE_WALL', GoTo_(Areas.BIG_PACKAGE_WALL, move_publisher=move_pub),
@@ -95,10 +96,10 @@ def main():
                 smach.StateMachine.add('RAISE_BULK_GRABBER', SetPose(pose=Poses.RAISE_BULK_GRABBER, move_publisher=move_pub, misc_angles_publisher=misc_angles_pub),
                                         transitions={'pose_reached':'packages_picked_up', 'pose_not_reached':'RAISE_BULK_GRABBER'})
             
-            smach.Concurrence.add('PICK_BIG_PACKAGES', big_packages_sm)
-            #smach.Concurrence.add('PICK_BIG_PACKAGES', PickUpBigPackages())
-            smach.Concurrence.add('PICK_SMALL_PACKAGES', small_packages_sm)
-            #smach.Concurrence.add('PICK_SMALL_PACKAGES', PickUpBigPackages())
+            #smach.Concurrence.add('PICK_BIG_PACKAGES', big_packages_sm)
+            smach.Concurrence.add('PICK_BIG_PACKAGES', PickUpBigPackages())
+            #smach.Concurrence.add('PICK_SMALL_PACKAGES', small_packages_sm)
+            smach.Concurrence.add('PICK_SMALL_PACKAGES', PickUpBigPackages())
 
 
         smach.StateMachine.add('PACKAGE_PICKUP', package_pickup_sm,

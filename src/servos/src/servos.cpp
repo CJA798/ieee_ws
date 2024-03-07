@@ -194,7 +194,7 @@ public:
 
 
             // Create and write misc servos to custom starting pos
-            int Misc_Start_Angles[9] = { 2048, 2500, 3075, 2048, -1, -1, -1, -1 };
+            int Misc_Start_Angles[9] = { 2048, 2500, 2600, 2048, -1, -1, -1, -1 };
 
             // Clears bulk write stack
             groupBulkWriteMisc.clearParam();
@@ -378,7 +378,7 @@ public:
             speed = 1;
 
         // Clears bulk write stack
-        groupBulkWriteArn.clearParam();
+        groupBulkWriteArm.clearParam();
 
         // Scales speed of vel and acc
         uint32_t max_acc = (uint32_t)(MAX_ACC * speed / 100);
@@ -435,7 +435,7 @@ public:
                 data_array[1] = DXL_HIBYTE(DXL_LOWORD(data));
                 data_array[2] = DXL_LOBYTE(DXL_HIWORD(data));
                 data_array[3] = DXL_HIBYTE(DXL_HIWORD(data));
-                groupBulkWrite.addParam((i + 11), GOAL_POSITION_ADDR, 4, data_array);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
+                groupBulkWriteMisc.addParam((i + 11), GOAL_POSITION_ADDR, 4, data_array);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
             }
         }
         groupBulkWriteMisc.txPacket();  // Write servos with prepared list all at once

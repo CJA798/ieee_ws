@@ -1,3 +1,5 @@
+void initLEDDetector();
+
 void showCalibrationValues();
 void calibrateIMU();
 

@@ -27,7 +27,7 @@
 
 // State machine states
 #define WAITING_FOR_NH 0
-#define IMU_SETUP 1
-#define TOF_SETUP 2
-
+#define CLEAR 1
+#define IMU_SETUP 2
+#define DETECT_LED 3
 #define TEST 99

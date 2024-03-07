@@ -93,7 +93,7 @@ class Initialize(smach.State):
             Exception: Any exception that occurs during the state execution'''
         try:
             rospy.loginfo('Executing state Initialize')
-            rospy.sleep(2)
+            rospy.sleep(10)
 
             # Check if the heartbeat is received, i.e. the Arduino is connected
             if not globals['heartbeat_on']:
@@ -840,7 +840,7 @@ class DropOff(smach.State):
         #rospy.wait_for_message("Arm_Done", Int8, timeout=10)
 
         # Go to scan fuel tank position
-        angles = [799.0, 2419.0, 2401.0, 1808.0, 2024.0, 836.0, 1788.0, jaw, speed]
+        angles = [1026.0, 2462.0, 2453.0, 1928.0, 2010.0, 676.0, 2004.0, jaw, speed]
         if publish_command(self.arm_angles_pub, Float32MultiArray, angles):
             rospy.loginfo('Moving arm to fuel tank scan position')
             return 'packages_dropped_off'
@@ -850,11 +850,11 @@ class DropOff(smach.State):
 
     def DropOffBigPackages(self):
         # Set the misc angles
-        raised_bridge = globals['raised_bridge']
+        raised_bridge = -1
         mid_bridge = globals['mid_bridge']
         top_bulk = globals['drop_bulk_top']
         bottom_bulk = globals['drop_bulk_bottom']
-        flag = globals['lowered_flag']
+        flag = -1
 
         # TODO: format this method better
         # Publish the misc angles to set the bulk grabber arms to the init pose
@@ -1039,10 +1039,10 @@ class GetCoords(smach.State):
         #rospy.sleep(5)
 
     def execute(self, userdata):
-        if not globals['big_packages_picked_up']:
-            rospy.logwarn('Big package pick up not done yet')
-            rospy.sleep(1)
-            return 'coords_not_received'
+        #if not globals['big_packages_picked_up']:
+        #    rospy.logwarn('Big package pick up not done yet')
+        #    rospy.sleep(1)
+        #    return 'coords_not_received'
         try:
             rospy.loginfo('Executing state GetCoords(small_packages, scan)')
             
