@@ -8,6 +8,12 @@
 #define blue 8
 #define alpha 0.7 //0.15
 
+
+#define BNO055_SAMPLERATE_DELAY_MS 100
+
 #define TOF_READ_INTERVAL 0.05
 #define IMU_READ_INTERVAL 0.02
 #define HEARTBEAT_PUB_INTERVAL 500
+
+#define WAITING_FOR_NH 0
+#define IMU_SETUP 1

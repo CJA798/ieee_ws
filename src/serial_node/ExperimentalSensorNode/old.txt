@@ -40,7 +40,6 @@ std_msgs::Int16 tof4Data;
 std_msgs::Int16 imuBearing;
 std_msgs::Int16 imuGrav;
 std_msgs::Bool ledDet;
-std_msgs::Empty heartbeat;
 
 ros::Publisher tof1pub("TOF_Front", &tof1Data);
 ros::Publisher tof2pub("TOF_Left", &tof2Data);
@@ -49,15 +48,11 @@ ros::Publisher tof4pub("TOF_Back", &tof4Data);
 ros::Publisher imubpub("IMU_Bearing", &imuBearing);
 ros::Publisher imugpub("IMU_Grav", &imuGrav);
 ros::Publisher ledpub("LED_State", &ledDet);
-ros::Publisher heartbeatpub("Heartbeat", &heartbeat);
 
 
 ros::Subscriber<std_msgs::Bool> initsub("Init_State", &initCb );
 
 
-// create IMU object
-uint16_t BNO055_SAMPLERATE_DELAY_MS = 50;
-Adafruit_BNO055 IMU = Adafruit_BNO055(55, 0x28, &Wire);
 
 
 // create TOF sensor objects
@@ -68,10 +63,7 @@ VL53L1X TOF4;
 
 
 void setup(){
-  // set up communication
-  Serial.begin(57600);
-  Wire.begin();
-  Wire.setClock(500000);
+  
 
 
   // init node and advertise
@@ -84,7 +76,6 @@ void setup(){
   nh.advertise(imubpub);
   nh.advertise(imugpub);
   nh.advertise(ledpub);
-  nh.advertise(heartbeatpub);
 
   nh.subscribe(initsub);
 
@@ -107,10 +98,6 @@ void setup(){
   pinMode(green, OUTPUT);
   pinMode(blue, OUTPUT);
 
-
-  // setup IMU sensor
-  Wire.begin();
-  IMU.begin();
 
 
   // toggle xshut pins for reset
@@ -161,22 +148,6 @@ void setup(){
   TOF4.startContinuous(continuousTime);
   TOF4.setAddress(45);
 
-  // upload calibration data
-  adafruit_bno055_offsets_t calibrationData;
-  calibrationData.accel_offset_x = 16908;
-  calibrationData.accel_offset_y = 306;
-  calibrationData.accel_offset_z = 256;
-  calibrationData.gyro_offset_x = 20001;
-  calibrationData.gyro_offset_y = 1;
-  calibrationData.gyro_offset_z = 8607;
-  calibrationData.mag_offset_z = 256;
-  calibrationData.mag_offset_x = 20001;
-  calibrationData.mag_offset_y = 1;
-  calibrationData.accel_radius = 17409;
-  calibrationData.mag_radius = -24576;
-
-  IMU.setSensorOffsets(calibrationData);
-
 
   // publish LED state 
   ledpub.publish(&ledDet);
@@ -196,7 +167,6 @@ void setup(){
 
 unsigned long lastTofReadTime = 0;
 unsigned long lastImuReadTime = 0;
-unsigned long lastHeartbeatReadTime = 0;
 
 
 void loop(){
@@ -266,12 +236,6 @@ void loop(){
     ledpub.publish(&ledDet);
   }
 
-
-  // Check if it's time to send a heartbeat message
-  if (currentMillis - lastHeartbeatReadTime >= HEARTBEAT_PUB_INTERVAL) {
-    // Publish heartbeat message
-    heartbeatpub.publish(&heartbeat);
-  }
 
   // Spin
   nh.spinOnce();
