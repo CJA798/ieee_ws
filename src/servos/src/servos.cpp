@@ -199,8 +199,8 @@ public:
             packetHandler->write2ByteTxOnly(portHandler, 15, POS_I_GAIN_ADDR, 0);       // Resets misc servo posistion I gain to zero
 
             packetHandler->write4ByteTxOnly(portHandler, 13, MAX_ACC_ADDR, 20);          // Set acc limit of posistion mode
-            packetHandler->write4ByteTxOnly(portHandler, 14, MAX_VEL_ADDR, 1000);        // Set vel limit of posistion mode
-            packetHandler->write4ByteTxOnly(portHandler, 13, MAX_ACC_ADDR, 20);          // Set acc limit of posistion mode
+            packetHandler->write4ByteTxOnly(portHandler, 13, MAX_VEL_ADDR, 1000);        // Set vel limit of posistion mode
+            packetHandler->write4ByteTxOnly(portHandler, 14, MAX_ACC_ADDR, 20);          // Set acc limit of posistion mode
             packetHandler->write4ByteTxOnly(portHandler, 14, MAX_VEL_ADDR, 1000);        // Set vel limit of posistion mode
             
             
