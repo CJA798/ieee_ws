@@ -14,8 +14,10 @@
 
 #include "dynamixel_sdk/dynamixel_sdk.h"
 #include "std_msgs/Float32MultiArray.h"
+#include "std_msgs/Int16MultiArray.h"
 #include "std_msgs/Int8.h"
 #include "std_msgs/Int16.h"
+#include "std_msgs/Bool.h"
 
 using namespace dynamixel;
 
@@ -119,6 +121,7 @@ public:
         Wheel_Speeds_pub = nh.advertise<std_msgs::Float32MultiArray>("/Wheel_Speeds", 1);
         Misc_Done_pub = nh.advertise<std_msgs::Int8>("/Misc_Done", 1);
         Task_Space_pub = nh.advertise<std_msgs::Float32MultiArray>("/Task_Space", 1);
+        Local_En_pub = nh.advertise<std_msgs::Bool>("/Local_En", 1);
 
         // Subscribers
         Get_Feedback_sub = nh.subscribe("/Get_Feedback", 1, &ServoClass::Get_FeedbackCallback, this);
@@ -127,12 +130,13 @@ public:
         Wheel_Speeds_sub = nh.subscribe("/Wheel_Speeds", 1, &ServoClass::Wheel_SpeedsCallback, this);
         Arm_Angles_sub = nh.subscribe("/Arm_Angles", 1, &ServoClass::Arm_AnglesCallback, this);
         Move_sub = nh.subscribe("/Move", 1, &ServoClass::MoveCallback, this);
-        TOF_Front_sub = nh.subscribe("/TOF_Front", 1, &ServoClass::TOF_FrontCallback, this);
-        TOF_Left_sub = nh.subscribe("/TOF_Left", 1, &ServoClass::TOF_LeftCallback, this);
-        TOF_Right_sub = nh.subscribe("/TOF_Right", 1, &ServoClass::TOF_RightCallback, this);
-        TOF_Back_sub = nh.subscribe("/TOF_Back", 1, &ServoClass::TOF_BackCallback, this);
-        IMU_Bearing_sub = nh.subscribe("/IMU_Bearing", 1, &ServoClass::IMU_BearingCallback, this);
+        //TOF_Front_sub = nh.subscribe("/TOF_Front", 1, &ServoClass::TOF_FrontCallback, this);
+        //TOF_Left_sub = nh.subscribe("/TOF_Left", 1, &ServoClass::TOF_LeftCallback, this);
+        //TOF_Right_sub = nh.subscribe("/TOF_Right", 1, &ServoClass::TOF_RightCallback, this);
+        //TOF_Back_sub = nh.subscribe("/TOF_Back", 1, &ServoClass::TOF_BackCallback, this);
+        //IMU_Bearing_sub = nh.subscribe("/IMU_Bearing", 1, &ServoClass::IMU_BearingCallback, this);
         PIDs_sub = nh.subscribe("/PIDs", 1, &ServoClass::PIDsCallback, this);
+        Local_Data_sub = nh.subscribe("/Local_Data", 1, &ServoClass::Local_DataCallback, this);
     }
 
 
@@ -506,11 +510,27 @@ public:
         error_x_cumulative = 0;
         error_y_cumulative = 0;
         error_z_cumulative = 0;
+
+        Local_En.data = true;
+        Local_En_pub.publish(Local_En);
+    }
+
+
+    // Accepts sensor data and calls individual funtions to calculate pids
+    void Local_DataCallback(const std_msgs::Int16MultiArray& Local_Data){
+        tofFront(Local_Data.data[0]);
+        tofLeft(Local_Data.data[1]);
+        tofRight(Local_Data.data[2]);
+        tofBack(Local_Data.data[3]);
+        imuBearing(Local_Data.data[4]);
+
+        botKinematics();
     }
 
 
     // Triggers on /TOF_Front post sets linear y speed based on pids
-    void TOF_FrontCallback(const std_msgs::Int16& TOF_Front){
+    //void TOF_FrontCallback(const std_msgs::Int16& TOF_Front){
+    void tofFront(int tof_front){
         // If desired_y = 0 stop y movement, ingore y sensor, declare arrived
         if(desired_y == 0){
             linear_y = 0;
@@ -530,7 +550,7 @@ public:
 
         // If desired y is positive use sensor data to calculate pid for y velocity
         else{
-            double error_y = desired_y - TOF_Front.data;
+            double error_y = desired_y - tof_front;
             error_y_cumulative += error_y;
 
             // Constrain error to plus or minus CUMLATIVE_CAP
@@ -558,7 +578,8 @@ public:
 
 
     // Triggers on /TOF_Left post sets linear x speed based on pids
-    void TOF_LeftCallback(const std_msgs::Int16& TOF_Left){
+    //void TOF_LeftCallback(const std_msgs::Int16& TOF_Left){
+    void tofLeft(int tof_left){
         // If desired_x = 0 stop x movement, ingore x sensor, declare arrived
         if(desired_x == 0){
             linear_x = 0;
@@ -567,7 +588,7 @@ public:
 
         // If desired x is negative use sensor data to calculate pid for x velocity from left sensor
         else if(desired_x < 0){
-            double error_x = -desired_x - TOF_Left.data;
+            double error_x = -desired_x - tof_left;
             error_x_cumulative += error_x;
 
             // Constrain error to plus or minus CUMLATIVE_CAP
@@ -594,7 +615,8 @@ public:
 
 
     // Triggers on /TOF_Right post sets linear x speed based on pids
-    void TOF_RightCallback(const std_msgs::Int16& TOF_Right){
+    //void TOF_RightCallback(const std_msgs::Int16& TOF_Right){
+    void tofRight(int tof_right){
         // If desired_x = 0 stop x movement, ingore x sensor, declare arrived
         if(desired_x == 0){
             linear_x = 0;
@@ -603,7 +625,7 @@ public:
 
         // If desired x is positive use sensor data to calculate pid for x velocity from right sensor
         else if(desired_x > 0){
-            double error_x = -1 * (desired_x - TOF_Right.data);
+            double error_x = -1 * (desired_x - tof_right);
             error_x_cumulative += error_x;
 
             // Constrain error to plus or minus CUMLATIVE_CAP
@@ -630,25 +652,27 @@ public:
 
     
     // Backup and liftoff safety stops all wheel movement
-    void TOF_BackCallback(const std_msgs::Int16& TOF_Back){
+    //void TOF_BackCallback(const std_msgs::Int16& TOF_Back){
+    void tofBack(int tof_back){
         // More sensitive back up safety
-        if(TOF_Back.data > BACKUP_SAFETY && desired_y < 0)
+        if(tof_back > BACKUP_SAFETY && desired_y < 0)
             e_stop = 1;
 
         // Standard lift up to stop safety
-        if(TOF_Back.data > LIFTUP_SAFETY)
+        if(tof_back > LIFTUP_SAFETY)
             e_stop = 1;
     }
 
 
     // Triggers on /IMU_Bearing post sets rotation z spead based on pids and offset
-    void IMU_BearingCallback(const std_msgs::Int16& IMU_Bearing){
+    //void IMU_BearingCallback(const std_msgs::Int16& IMU_Bearing){
+    void imuBearing(int imu_bearing){
         // If bearing_offset is negative it is uninitialized, so set it as offset
         if(bearing_offset == -1 && desired_z != -1)
-            bearing_offset = IMU_Bearing.data;
+            bearing_offset = imu_bearing;
         
         // Find difference or errot between desired and actual
-        double error_z = desired_z - (IMU_Bearing.data - bearing_offset);
+        double error_z = desired_z - (imu_bearing - bearing_offset);
 
         // Constrain error to plus or minus 180 deg
         if(error_z > 180)
@@ -678,7 +702,7 @@ public:
             arrived_z = 0;
 
         // Call kinematics with updated linear_z value
-        botKinematics();
+        //botKinematics();
     }
 
 
@@ -727,6 +751,8 @@ public:
             // Publish move done
             Move_Done.data = 1;
             Move_Done_pub.publish(Move_Done);
+            Local_En.data = false;
+        Local_En_pub.publish(Local_En);
         }
 
         // If max_Speed 0 overide all orders with stop
@@ -775,6 +801,7 @@ private:
     ros::Publisher Wheel_Speeds_pub;
     ros::Publisher Misc_Done_pub;
     ros::Publisher Task_Space_pub;
+    ros::Publisher Local_En_pub;
 
     // Subscriber ros declarations
     ros::Subscriber Get_Feedback_sub;
@@ -783,12 +810,13 @@ private:
     ros::Subscriber Wheel_Speeds_sub;
     ros::Subscriber Arm_Angles_sub;
     ros::Subscriber Move_sub;
-    ros::Subscriber TOF_Front_sub;
-    ros::Subscriber TOF_Left_sub;
-    ros::Subscriber TOF_Right_sub;
-    ros::Subscriber TOF_Back_sub;
-    ros::Subscriber IMU_Bearing_sub;
+    //ros::Subscriber TOF_Front_sub;
+    //ros::Subscriber TOF_Left_sub;
+    //ros::Subscriber TOF_Right_sub;
+    //ros::Subscriber TOF_Back_sub;
+    //ros::Subscriber IMU_Bearing_sub;
     ros::Subscriber PIDs_sub;
+    ros::Subscriber Local_Data_sub;
 
     // Publisher variable declarations
     std_msgs::Float32MultiArray Feedback;
@@ -800,6 +828,7 @@ private:
     std_msgs::Int8 Arm_Done;
     std_msgs::Int8 Move_Done;
     std_msgs::Int8 Misc_Done;
+    std_msgs::Bool Local_En;
 
     // Variables for bot movement functions
     double  desired_x = 0, error_x_prev = 0, error_x_cumulative = 0, linear_x = 0, arrived_x = 0,
