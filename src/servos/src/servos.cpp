@@ -32,6 +32,9 @@ using namespace dynamixel;
 #define POS_I_GAIN_ADDR         82
 #define POS_D_GAIN_ADDR         80
 #define GOAL_CURRENT_ADDR       102
+#define NUM_BYTES_1             1
+#define NUM_BYTES_2             2
+#define NUM_BYTES_4             4
 
 // Defined servo and arm values
 #define ARM_SECONDARY_ID        100     // Secondary ID for writing multiple servos at once
@@ -96,6 +99,17 @@ GroupBulkWrite groupBulkWriteArm(portHandler, packetHandler);
 GroupBulkWrite groupBulkWriteMisc(portHandler, packetHandler);
 GroupBulkWrite groupBulkWriteWheel(portHandler, packetHandler);
 
+// Creates objects for sync reading and writing of servos
+GroupSyncRead groupSyncRead_armPresPos(portHandler, packetHandler, PRESENT_POSITION_ADDR, NUM_BYTES_4);
+GroupSyncRead groupSyncRead_miscGoalPos(portHandler, packetHandler, GOAL_POSITION_ADDR, NUM_BYTES_4);
+GroupSyncRead groupSyncRead_miscPresPos(portHandler, packetHandler, PRESENT_POSITION_ADDR, NUM_BYTES_4);
+
+GroupSyncWrite groupSyncWrite_armGoalPos(portHandler, packetHandler, GOAL_POSITION_ADDR, NUM_BYTES_4);
+GroupSyncWrite groupSyncWrite_armAcc(portHandler, packetHandler, MAX_ACC_ADDR, NUM_BYTES_4);
+GroupSyncWrite groupSyncWrite_armVel(portHandler, packetHandler, MAX_VEL_ADDR, NUM_BYTES_4);
+GroupSyncWrite groupSyncWrite_miscGoalPos(portHandler, packetHandler, GOAL_POSITION_ADDR, NUM_BYTES_4);
+GroupSyncWrite groupSyncWrite_wheelGoalVel(portHandler, packetHandler, GOAL_VELOCITY_ADDR, NUM_BYTES_4);
+
 
 // Main class holding all servo declarations, functions, and variables
 class ServoClass{
@@ -110,7 +124,7 @@ public:
         // Resize Publisher Arrays
         Arm_Angles.data.resize(9);
         Feedback.data.resize(8);
-        Wheel_Speeds.data.resize(3);
+        //Wheel_Speeds.data.resize(3);
         Task_Space.data.resize(6);
 
         // Publishers
@@ -118,7 +132,7 @@ public:
         Arm_Angles_pub = nh.advertise<std_msgs::Float32MultiArray>("/Arm_Angles", 1);
         Arm_Done_pub = nh.advertise<std_msgs::Int8>("/Arm_Done", 1);
         Move_Done_pub = nh.advertise<std_msgs::Int8>("/Move_Done", 1);
-        Wheel_Speeds_pub = nh.advertise<std_msgs::Float32MultiArray>("/Wheel_Speeds", 1);
+        //Wheel_Speeds_pub = nh.advertise<std_msgs::Float32MultiArray>("/Wheel_Speeds", 1);
         Misc_Done_pub = nh.advertise<std_msgs::Int8>("/Misc_Done", 1);
         Task_Space_pub = nh.advertise<std_msgs::Float32MultiArray>("/Task_Space", 1);
         Local_En_pub = nh.advertise<std_msgs::Bool>("/Local_En", 1);
@@ -127,14 +141,9 @@ public:
         Get_Feedback_sub = nh.subscribe("/Get_Feedback", 1, &ServoClass::Get_FeedbackCallback, this);
         Task_Space_sub = nh.subscribe("/Task_Space", 1, &ServoClass::Task_SpaceCallback, this);
         Misc_Angles_sub = nh.subscribe("/Misc_Angles", 1, &ServoClass::Misc_AnglesCallback, this);
-        Wheel_Speeds_sub = nh.subscribe("/Wheel_Speeds", 1, &ServoClass::Wheel_SpeedsCallback, this);
+        //Wheel_Speeds_sub = nh.subscribe("/Wheel_Speeds", 1, &ServoClass::Wheel_SpeedsCallback, this);
         Arm_Angles_sub = nh.subscribe("/Arm_Angles", 1, &ServoClass::Arm_AnglesCallback, this);
         Move_sub = nh.subscribe("/Move", 1, &ServoClass::MoveCallback, this);
-        //TOF_Front_sub = nh.subscribe("/TOF_Front", 1, &ServoClass::TOF_FrontCallback, this);
-        //TOF_Left_sub = nh.subscribe("/TOF_Left", 1, &ServoClass::TOF_LeftCallback, this);
-        //TOF_Right_sub = nh.subscribe("/TOF_Right", 1, &ServoClass::TOF_RightCallback, this);
-        //TOF_Back_sub = nh.subscribe("/TOF_Back", 1, &ServoClass::TOF_BackCallback, this);
-        //IMU_Bearing_sub = nh.subscribe("/IMU_Bearing", 1, &ServoClass::IMU_BearingCallback, this);
         PIDs_sub = nh.subscribe("/PIDs", 1, &ServoClass::PIDsCallback, this);
         Local_Data_sub = nh.subscribe("/Local_Data", 1, &ServoClass::Local_DataCallback, this);
     }
@@ -188,6 +197,12 @@ public:
             packetHandler->write2ByteTxOnly(portHandler, 13, POS_I_GAIN_ADDR, 0);       // Resets misc servo posistion I gain to zero
             packetHandler->write2ByteTxOnly(portHandler, 14, POS_I_GAIN_ADDR, 0);       // Resets misc servo posistion I gain to zero
             packetHandler->write2ByteTxOnly(portHandler, 15, POS_I_GAIN_ADDR, 0);       // Resets misc servo posistion I gain to zero
+
+            packetHandler->write4ByteTxOnly(portHandler, 13, MAX_ACC_ADDR, 5);          // Set acc limit of posistion mode
+            packetHandler->write4ByteTxOnly(portHandler, 14, MAX_VEL_ADDR, 250);        // Set vel limit of posistion mode
+            packetHandler->write4ByteTxOnly(portHandler, 13, MAX_ACC_ADDR, 5);          // Set acc limit of posistion mode
+            packetHandler->write4ByteTxOnly(portHandler, 14, MAX_VEL_ADDR, 250);        // Set vel limit of posistion mode
+            
             
             // Publish 8 starting servo angles and speed to Arm_Angles
             int Arm_Start_Angles[9] = { 1586, 2902, 2898, 1471, 2063, 1802, 1041, 1980, 1 };
@@ -511,6 +526,7 @@ public:
         error_y_cumulative = 0;
         error_z_cumulative = 0;
 
+        //
         Local_En.data = true;
         Local_En_pub.publish(Local_En);
     }
@@ -529,7 +545,6 @@ public:
 
 
     // Triggers on /TOF_Front post sets linear y speed based on pids
-    //void TOF_FrontCallback(const std_msgs::Int16& TOF_Front){
     void tofFront(int tof_front){
         // If desired_y = 0 stop y movement, ingore y sensor, declare arrived
         if(desired_y == 0){
@@ -578,7 +593,6 @@ public:
 
 
     // Triggers on /TOF_Left post sets linear x speed based on pids
-    //void TOF_LeftCallback(const std_msgs::Int16& TOF_Left){
     void tofLeft(int tof_left){
         // If desired_x = 0 stop x movement, ingore x sensor, declare arrived
         if(desired_x == 0){
@@ -615,7 +629,6 @@ public:
 
 
     // Triggers on /TOF_Right post sets linear x speed based on pids
-    //void TOF_RightCallback(const std_msgs::Int16& TOF_Right){
     void tofRight(int tof_right){
         // If desired_x = 0 stop x movement, ingore x sensor, declare arrived
         if(desired_x == 0){
@@ -652,7 +665,6 @@ public:
 
     
     // Backup and liftoff safety stops all wheel movement
-    //void TOF_BackCallback(const std_msgs::Int16& TOF_Back){
     void tofBack(int tof_back){
         // More sensitive back up safety
         if(tof_back > BACKUP_SAFETY && desired_y < 0)
@@ -665,7 +677,6 @@ public:
 
 
     // Triggers on /IMU_Bearing post sets rotation z spead based on pids and offset
-    //void IMU_BearingCallback(const std_msgs::Int16& IMU_Bearing){
     void imuBearing(int imu_bearing){
         // If bearing_offset is negative it is uninitialized, so set it as offset
         if(bearing_offset == -1 && desired_z != -1)
@@ -710,6 +721,7 @@ public:
     void botKinematics(){
         // Find angle of linear movement for kinematics
         double theta = atan2(linear_y, linear_x);
+        double wheel_speeds[3];
         // Make angle positive
         if(theta < 0)
             theta += 6.28;
@@ -720,22 +732,22 @@ public:
             speed = max_speed;
 
         // Inverse wheel kinematics
-        Wheel_Speeds.data[0] = speed * cos(theta) + linear_z;
-        Wheel_Speeds.data[1] = speed * cos(theta + (2.0 / 3.0 * 3.1415)) + linear_z;
-        Wheel_Speeds.data[2] = speed * cos(theta - (2.0 / 3.0 * 3.1415)) + linear_z;
+        wheel_speeds[0] = speed * cos(theta) + linear_z;
+        wheel_speeds[1] = speed * cos(theta + (2.0 / 3.0 * 3.1415)) + linear_z;
+        wheel_speeds[2] = speed * cos(theta - (2.0 / 3.0 * 3.1415)) + linear_z;
         
         // Find max value of wheels
-        double max = abs(Wheel_Speeds.data[0]);
-        if(abs(Wheel_Speeds.data[1]) > max)
-            max = abs(Wheel_Speeds.data[1]); 
-        if(abs(Wheel_Speeds.data[2]) > max) 
-            max = abs(Wheel_Speeds.data[2]); 
+        double max = abs(wheel_speeds[0]);
+        if(abs(wheel_speeds[1]) > max)
+            max = abs(wheel_speeds[1]); 
+        if(abs(wheel_speeds[2]) > max) 
+            max = abs(wheel_speeds[2]); 
 
         // If max value greater than fastest wheel speeds scale all speeds down
         if(max > 255){
-            Wheel_Speeds.data[0] = Wheel_Speeds.data[0] / max * 255;
-            Wheel_Speeds.data[1] = Wheel_Speeds.data[1] / max * 255;
-            Wheel_Speeds.data[2] = Wheel_Speeds.data[2] / max * 255;
+            wheel_speeds[0] = wheel_speeds[0] / max * 255;
+            wheel_speeds[1] = wheel_speeds[1] / max * 255;
+            wheel_speeds[2] = wheel_speeds[2] / max * 255;
         }
 
         //ROS_INFO("Arrived array: %f, %f, %f", arrived_x, arrived_y, arrived_z);
@@ -754,26 +766,28 @@ public:
             
             Local_En.data = false;
             Local_En_pub.publish(Local_En);
-            
-            Wheel_Speeds.data[0] = 0;
-            Wheel_Speeds.data[1] = 0;
-            Wheel_Speeds.data[2] = 0;
+
+            wheel_speeds[0] = 0;
+            wheel_speeds[1] = 0;
+            wheel_speeds[2] = 0;
         }
 
         // Publish speed to wheels
-        Wheel_Speeds_pub.publish(Wheel_Speeds); 
+        //Wheel_Speeds_pub.publish(Wheel_Speeds);
+        wheelSpeeds(wheel_speeds);
     }
 
 
     // Takes 3 Wheel_Speeds and writes to servos ID 9-11
-    void Wheel_SpeedsCallback(const std_msgs::Float32MultiArray& Wheel_Speeds){
+    void wheelSpeeds(double& wheel_speeds){
         // Clears bulk write stack
         groupBulkWriteWheel.clearParam();
 
         // Creates and assigns array with each byte of message
         uint8_t data_array[4];
         for (int i = 1; i < 4; i++){    // Do for all 3 wheel servos
-            int32_t data = (int32_t)(Wheel_Speeds.data[i - 1]); // Convert int32 to uint32
+            //int32_t data = (int32_t)(Wheel_Speeds.data[i - 1]); // Convert int32 to uint32
+            int32_t data = (int32_t)(wheel_speeds[i - 1]); // Convert int32 to uint32
             data_array[0] = DXL_LOBYTE(DXL_LOWORD(data));
             data_array[1] = DXL_HIBYTE(DXL_LOWORD(data));
             data_array[2] = DXL_LOBYTE(DXL_HIWORD(data));
@@ -796,7 +810,7 @@ private:
     ros::Publisher Arm_Angles_pub;
     ros::Publisher Arm_Done_pub;
     ros::Publisher Move_Done_pub;
-    ros::Publisher Wheel_Speeds_pub;
+    //ros::Publisher Wheel_Speeds_pub;
     ros::Publisher Misc_Done_pub;
     ros::Publisher Task_Space_pub;
     ros::Publisher Local_En_pub;
@@ -805,14 +819,9 @@ private:
     ros::Subscriber Get_Feedback_sub;
     ros::Subscriber Task_Space_sub;
     ros::Subscriber Misc_Angles_sub;
-    ros::Subscriber Wheel_Speeds_sub;
+    //ros::Subscriber Wheel_Speeds_sub;
     ros::Subscriber Arm_Angles_sub;
     ros::Subscriber Move_sub;
-    //ros::Subscriber TOF_Front_sub;
-    //ros::Subscriber TOF_Left_sub;
-    //ros::Subscriber TOF_Right_sub;
-    //ros::Subscriber TOF_Back_sub;
-    //ros::Subscriber IMU_Bearing_sub;
     ros::Subscriber PIDs_sub;
     ros::Subscriber Local_Data_sub;
 
@@ -822,7 +831,7 @@ private:
     std_msgs::Float32MultiArray Task_Space;
 
     // Local publisher variables
-    std_msgs::Float32MultiArray Wheel_Speeds;
+    //std_msgs::Float32MultiArray Wheel_Speeds;
     std_msgs::Int8 Arm_Done;
     std_msgs::Int8 Move_Done;
     std_msgs::Int8 Misc_Done;
