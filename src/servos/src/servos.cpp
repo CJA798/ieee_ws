@@ -743,20 +743,18 @@ public:
         // Checks to see if xyz are all stable and happy and we arn't about to die
         if(e_stop == 1 || (max_speed != 0 && arrived_x >= SEQUENTIAL_READS && arrived_y >= SEQUENTIAL_READS && arrived_z >= SEQUENTIAL_READS)){
             // Ignore sensors and set speed to 0
-            //desired_x = 0;
-            //desired_y = 0;
-            //desired_z = 0;
             max_speed = 0;
-
-            // Publish move done
-            Move_Done.data = 1;
-            Move_Done_pub.publish(Move_Done);
-            Local_En.data = false;
-        Local_En_pub.publish(Local_En);
         }
 
         // If max_Speed 0 overide all orders with stop
         if(max_speed == 0){
+            // Publish move done
+            Move_Done.data = 1;
+            Move_Done_pub.publish(Move_Done);
+            
+            Local_En.data = false;
+            Local_En_pub.publish(Local_En);
+            
             Wheel_Speeds.data[0] = 0;
             Wheel_Speeds.data[1] = 0;
             Wheel_Speeds.data[2] = 0;
