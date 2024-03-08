@@ -37,7 +37,7 @@ using namespace dynamixel;
 #define NUM_BYTES_4             4
 
 // Defined servo and arm values
-#define ARM_SECONDARY_ID        100     // Secondary ID for writing multiple servos at once
+#define SECONDARY_ID            100     // Secondary ID for writing multiple servos at once
 #define MAX_VEL                 1000    //100    // Max velocity of arm joints
 #define MAX_ACC                 200     //2      // Max acceleration of arm joints
 #define TORQUE_ENABLE           1       // Enable torque on servos
@@ -94,7 +94,8 @@ PacketHandler* packetHandler = PacketHandler::getPacketHandler(PROTOCOL_VERSION)
 
 // Create objects for bult reading and writing of servos
 GroupBulkRead groupBulkRead(portHandler, packetHandler);
-//GroupBulkWrite groupBulkWrite(portHandler, packetHandler);
+
+GroupBulkWrite groupBulkWrite_Init(portHandler, packetHandler);
 GroupBulkWrite groupBulkWriteArm(portHandler, packetHandler);
 GroupBulkWrite groupBulkWriteMisc(portHandler, packetHandler);
 GroupBulkWrite groupBulkWriteWheel(portHandler, packetHandler);
@@ -124,7 +125,6 @@ public:
         // Resize Publisher Arrays
         Arm_Angles.data.resize(9);
         Feedback.data.resize(8);
-        //Wheel_Speeds.data.resize(3);
         Task_Space.data.resize(6);
 
         // Publishers
@@ -132,7 +132,6 @@ public:
         Arm_Angles_pub = nh.advertise<std_msgs::Float32MultiArray>("/Arm_Angles", 1);
         Arm_Done_pub = nh.advertise<std_msgs::Int8>("/Arm_Done", 1);
         Move_Done_pub = nh.advertise<std_msgs::Int8>("/Move_Done", 1);
-        //Wheel_Speeds_pub = nh.advertise<std_msgs::Float32MultiArray>("/Wheel_Speeds", 1);
         Misc_Done_pub = nh.advertise<std_msgs::Int8>("/Misc_Done", 1);
         Task_Space_pub = nh.advertise<std_msgs::Float32MultiArray>("/Task_Space", 1);
         Local_En_pub = nh.advertise<std_msgs::Bool>("/Local_En", 1);
@@ -141,7 +140,6 @@ public:
         Get_Feedback_sub = nh.subscribe("/Get_Feedback", 1, &ServoClass::Get_FeedbackCallback, this);
         Task_Space_sub = nh.subscribe("/Task_Space", 1, &ServoClass::Task_SpaceCallback, this);
         Misc_Angles_sub = nh.subscribe("/Misc_Angles", 1, &ServoClass::Misc_AnglesCallback, this);
-        //Wheel_Speeds_sub = nh.subscribe("/Wheel_Speeds", 1, &ServoClass::Wheel_SpeedsCallback, this);
         Arm_Angles_sub = nh.subscribe("/Arm_Angles", 1, &ServoClass::Arm_AnglesCallback, this);
         Move_sub = nh.subscribe("/Move", 1, &ServoClass::MoveCallback, this);
         PIDs_sub = nh.subscribe("/PIDs", 1, &ServoClass::PIDsCallback, this);
@@ -175,63 +173,66 @@ public:
 
 
     // Open servo ports, and set initial values
-    void initializeServos(int arm) {
+    void initializeServos() {
         // Starts communications with servos
         portHandler->openPort();            // Opens port to U2D2
         portHandler->setBaudRate(BAUDRATE); // Sets default baud rate
 
         // Sets up initial values and states for servos
-        if (arm) {
-            packetHandler->write1ByteTxOnly(portHandler, ARM_SECONDARY_ID, TORQUE_ENABLE_ADDR, TORQUE_ENABLE);      // Enable torque
-            packetHandler->write1ByteTxOnly(portHandler, ARM_SECONDARY_ID, 65, 1);      // Turn on LED
-            packetHandler->write4ByteTxOnly(portHandler, ARM_SECONDARY_ID, MAX_ACC_ADDR, MAX_ACC / 100);                  // Set acc limit of posistion mode
-            packetHandler->write4ByteTxOnly(portHandler, ARM_SECONDARY_ID, MAX_VEL_ADDR, MAX_VEL / 10);                  // Set vel limit of posistion mode
-            packetHandler->write4ByteTxOnly(portHandler, ARM_SECONDARY_ID, GOAL_VELOCITY_ADDR, STOP);               // Sets starting velocity to stop
-            packetHandler->write4ByteTxOnly(portHandler, ARM_SECONDARY_ID, GOAL_POSITION_ADDR, CENTER_POSISTION);   // Set starting posistion to center
-            packetHandler->write2ByteTxOnly(portHandler, ARM_SECONDARY_ID, POS_P_GAIN_ADDR, POS_P_GAIN);            // Sets posistion P gain
-            packetHandler->write2ByteTxOnly(portHandler, ARM_SECONDARY_ID, POS_I_GAIN_ADDR, POS_I_GAIN);            // Sets posistion I gain
-            packetHandler->write2ByteTxOnly(portHandler, ARM_SECONDARY_ID, POS_D_GAIN_ADDR, POS_D_GAIN);            // Sets posistion D gain
-            packetHandler->write2ByteTxOnly(portHandler, ARM_SECONDARY_ID, GOAL_CURRENT_ADDR, MAX_CURRENT);         // Sets small servo current limit
+        groupBulkWrite_Init.clearParam();
+        //uint8_t data_array[4] = {DXL_LOBYTE(DXL_LOWORD(max_acc)), DXL_HIBYTE(DXL_LOWORD(max_acc)), DXL_LOBYTE(DXL_HIWORD(max_acc)), DXL_HIBYTE(DXL_HIWORD(max_acc))};
+        groupBulkWrite_Init.addParam(SECONDARY_ID, TORQUE_ENABLE_ADDR, NUM_BYTES_1, DXL_LOBYTE(DXL_LOWORD(TORQUE_ENABLE)));  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
+        groupBulkWrite_Init.txPacket();
 
-            packetHandler->write2ByteTxOnly(portHandler, 12, POS_I_GAIN_ADDR, 0);       // Resets misc servo posistion I gain to zero
-            packetHandler->write2ByteTxOnly(portHandler, 13, POS_I_GAIN_ADDR, 0);       // Resets misc servo posistion I gain to zero
-            packetHandler->write2ByteTxOnly(portHandler, 14, POS_I_GAIN_ADDR, 0);       // Resets misc servo posistion I gain to zero
-            packetHandler->write2ByteTxOnly(portHandler, 15, POS_I_GAIN_ADDR, 0);       // Resets misc servo posistion I gain to zero
+        //packetHandler->write1ByteTxOnly(portHandler, SECONDARY_ID, TORQUE_ENABLE_ADDR, TORQUE_ENABLE);      // Enable torque
+        packetHandler->write1ByteTxOnly(portHandler, SECONDARY_ID, 65, 1);      // Turn on LED
+        packetHandler->write4ByteTxOnly(portHandler, SECONDARY_ID, MAX_ACC_ADDR, MAX_ACC / 100);                  // Set acc limit of posistion mode
+        packetHandler->write4ByteTxOnly(portHandler, SECONDARY_ID, MAX_VEL_ADDR, MAX_VEL / 10);                  // Set vel limit of posistion mode
+        packetHandler->write4ByteTxOnly(portHandler, SECONDARY_ID, GOAL_VELOCITY_ADDR, STOP);               // Sets starting velocity to stop
+        packetHandler->write4ByteTxOnly(portHandler, SECONDARY_ID, GOAL_POSITION_ADDR, CENTER_POSISTION);   // Set starting posistion to center
+        packetHandler->write2ByteTxOnly(portHandler, SECONDARY_ID, POS_P_GAIN_ADDR, POS_P_GAIN);            // Sets posistion P gain
+        packetHandler->write2ByteTxOnly(portHandler, SECONDARY_ID, POS_I_GAIN_ADDR, POS_I_GAIN);            // Sets posistion I gain
+        packetHandler->write2ByteTxOnly(portHandler, SECONDARY_ID, POS_D_GAIN_ADDR, POS_D_GAIN);            // Sets posistion D gain
+        packetHandler->write2ByteTxOnly(portHandler, SECONDARY_ID, GOAL_CURRENT_ADDR, MAX_CURRENT);         // Sets small servo current limit
 
-            packetHandler->write4ByteTxOnly(portHandler, 13, MAX_ACC_ADDR, 10);          // Set acc limit of posistion mode
-            packetHandler->write4ByteTxOnly(portHandler, 13, MAX_VEL_ADDR, 500);        // Set vel limit of posistion mode
-            packetHandler->write4ByteTxOnly(portHandler, 14, MAX_ACC_ADDR, 10);          // Set acc limit of posistion mode
-            packetHandler->write4ByteTxOnly(portHandler, 14, MAX_VEL_ADDR, 500);        // Set vel limit of posistion mode
-            
-            
-            // Publish 8 starting servo angles and speed to Arm_Angles
-            int Arm_Start_Angles[9] = { 1586, 2902, 2898, 1471, 2063, 1802, 1041, 1980, 1 };
-            for (int i = 0; i < 9; i++) {
-                Arm_Angles.data[i] = Arm_Start_Angles[i];
-            }
-            Arm_Angles_pub.publish(Arm_Angles);
+        packetHandler->write2ByteTxOnly(portHandler, 12, POS_I_GAIN_ADDR, 0);       // Resets misc servo posistion I gain to zero
+        packetHandler->write2ByteTxOnly(portHandler, 13, POS_I_GAIN_ADDR, 0);       // Resets misc servo posistion I gain to zero
+        packetHandler->write2ByteTxOnly(portHandler, 14, POS_I_GAIN_ADDR, 0);       // Resets misc servo posistion I gain to zero
+        packetHandler->write2ByteTxOnly(portHandler, 15, POS_I_GAIN_ADDR, 0);       // Resets misc servo posistion I gain to zero
 
-
-            // Create and write misc servos to custom starting pos
-            int Misc_Start_Angles[9] = { 2048, 2500, 2600, 2048, -1, -1, -1, -1 };
-
-            // Clears bulk write stack
-            groupBulkWriteMisc.clearParam();
-
-            // Creates and assigns array with each byte of message
-            uint8_t data_array[4];
-            for (int i = 1; i < 9; i++){     // Do for all 8ish misc servos
-                if(Misc_Start_Angles[i-1] != -1){
-                    uint32_t data = (unsigned int)(Misc_Start_Angles[i - 1]); // Convert int32 to uint32
-                    data_array[0] = DXL_LOBYTE(DXL_LOWORD(data));
-                    data_array[1] = DXL_HIBYTE(DXL_LOWORD(data));
-                    data_array[2] = DXL_LOBYTE(DXL_HIWORD(data));
-                    data_array[3] = DXL_HIBYTE(DXL_HIWORD(data));
-                    groupBulkWriteMisc.addParam((i + 11), GOAL_POSITION_ADDR, 4, data_array);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
-                }
-            }
-            groupBulkWriteMisc.txPacket();  // Write servos with prepared list all at once
+        packetHandler->write4ByteTxOnly(portHandler, 13, MAX_ACC_ADDR, 10);          // Set acc limit of posistion mode
+        packetHandler->write4ByteTxOnly(portHandler, 13, MAX_VEL_ADDR, 500);        // Set vel limit of posistion mode
+        packetHandler->write4ByteTxOnly(portHandler, 14, MAX_ACC_ADDR, 10);          // Set acc limit of posistion mode
+        packetHandler->write4ByteTxOnly(portHandler, 14, MAX_VEL_ADDR, 500);        // Set vel limit of posistion mode
+        
+        
+        // Publish 8 starting servo angles and speed to Arm_Angles
+        int Arm_Start_Angles[9] = { 1586, 2902, 2898, 1471, 2063, 1802, 1041, 1980, 1 };
+        for (int i = 0; i < 9; i++) {
+            Arm_Angles.data[i] = Arm_Start_Angles[i];
         }
+        Arm_Angles_pub.publish(Arm_Angles);
+
+
+        // Create and write misc servos to custom starting pos
+        int Misc_Start_Angles[9] = { 2048, 2500, 2600, 2048, -1, -1, -1, -1 };
+
+        // Clears bulk write stack
+        groupBulkWriteMisc.clearParam();
+
+        // Creates and assigns array with each byte of message
+        uint8_t data_array[4];
+        for (int i = 1; i < 9; i++){     // Do for all 8ish misc servos
+            if(Misc_Start_Angles[i-1] != -1){
+                uint32_t data = (unsigned int)(Misc_Start_Angles[i - 1]); // Convert int32 to uint32
+                data_array[0] = DXL_LOBYTE(DXL_LOWORD(data));
+                data_array[1] = DXL_HIBYTE(DXL_LOWORD(data));
+                data_array[2] = DXL_LOBYTE(DXL_HIWORD(data));
+                data_array[3] = DXL_HIBYTE(DXL_HIWORD(data));
+                groupBulkWriteMisc.addParam((i + 11), GOAL_POSITION_ADDR, 4, data_array);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
+            }
+        }
+        groupBulkWriteMisc.txPacket();  // Write servos with prepared list all at once
     }
 
 
@@ -810,7 +811,6 @@ private:
     ros::Publisher Arm_Angles_pub;
     ros::Publisher Arm_Done_pub;
     ros::Publisher Move_Done_pub;
-    //ros::Publisher Wheel_Speeds_pub;
     ros::Publisher Misc_Done_pub;
     ros::Publisher Task_Space_pub;
     ros::Publisher Local_En_pub;
@@ -819,7 +819,6 @@ private:
     ros::Subscriber Get_Feedback_sub;
     ros::Subscriber Task_Space_sub;
     ros::Subscriber Misc_Angles_sub;
-    //ros::Subscriber Wheel_Speeds_sub;
     ros::Subscriber Arm_Angles_sub;
     ros::Subscriber Move_sub;
     ros::Subscriber PIDs_sub;
@@ -831,7 +830,6 @@ private:
     std_msgs::Float32MultiArray Task_Space;
 
     // Local publisher variables
-    //std_msgs::Float32MultiArray Wheel_Speeds;
     std_msgs::Int8 Arm_Done;
     std_msgs::Int8 Move_Done;
     std_msgs::Int8 Misc_Done;
@@ -860,7 +858,7 @@ int main(int argc, char** argv){
     // Create main servo class
     ServoClass ServoObject(&nh);
     // Starts communication and sets start vaules for servos
-    ServoObject.initializeServos(1);
+    ServoObject.initializeServos();
 
     // Main loop
     while (ros::ok())
@@ -879,7 +877,7 @@ int main(int argc, char** argv){
     }
 
     // Close ports and stop node
-    packetHandler->write4ByteTxOnly(portHandler, ARM_SECONDARY_ID, GOAL_VELOCITY_ADDR, STOP);               // Sets velocity to stop
+    packetHandler->write4ByteTxOnly(portHandler, SECONDARY_ID, GOAL_VELOCITY_ADDR, STOP);               // Sets velocity to stop
     portHandler->closePort();
     return 0;
 }
