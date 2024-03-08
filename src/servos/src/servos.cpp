@@ -779,7 +779,7 @@ public:
 
 
     // Takes 3 Wheel_Speeds and writes to servos ID 9-11
-    void wheelSpeeds(double& wheel_speeds){
+    void wheelSpeeds(double *wheel_speeds){
         // Clears bulk write stack
         groupBulkWriteWheel.clearParam();
 
