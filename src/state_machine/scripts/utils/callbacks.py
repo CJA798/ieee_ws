@@ -17,7 +17,7 @@ def check_heartbeat_cb(event):
         rospy.logerr("Arduino heartbeat lost, restarting rosserial node...")
         run(["rosnode", "kill", "/serial_node_1"])
         rospy.sleep(2)
-        run(["rosrun", "serial_node", "serial_node_1.py", "/dev/serial/by-id/usb-1a86_USB2.0-Serial-if00-port0"])  # Adjust port as needed
+        run(["rosrun", "serial_node", "serial_node_1.py", "/dev/serial/by-id/usb-Arduino__www.arduino.cc__0042_44238313938351806212-if00"])  # Adjust port as needed
         rospy.sleep(1)
     #else:
         #rospy.loginfo("Arduino heartbeat OK")

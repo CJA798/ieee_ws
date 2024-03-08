@@ -93,7 +93,7 @@ class Initialize(smach.State):
             Exception: Any exception that occurs during the state execution'''
         try:
             rospy.loginfo('Executing state Initialize')
-            rospy.sleep(10)
+            rospy.sleep(5)
 
             # Check if the heartbeat is received, i.e. the Arduino is connected
             if not globals['heartbeat_on']:
@@ -539,13 +539,17 @@ class SetPose(smach.State):
         bottom_bulk = globals['raise_bulk_bottom']
         flag = -1
 
+        # Move back to beginning
+        publish_command(self.move_pub, Float32MultiArray, [-1, 0, 0, 20])
+
         # Publish the misc angles to raise the bulk grabber arms
-        if publish_command(self.move_pub, Float32MultiArray, [-1, 0, 0, 20]) and publish_command(self.misc_angles_pub, Float32MultiArray, [bridge, top_bulk, bottom_bulk, flag], delay=1.75):
+        if publish_command(self.misc_angles_pub, Float32MultiArray, [bridge, top_bulk, bottom_bulk, flag]):
             # Waitfor the bulk grabber arms to reach the pose
-            #rospy.wait_for_message("Move_Done", Int8, timeout=10)
-            # Set big package pick up flag to True
-            globals['big_packages_picked_up'] = True
-            if stop_move(self.move_pub):
+            try:
+                rospy.wait_for_message("Move_Done", Int8, timeout=1.75)
+            except:
+                stop_move(self.move_pub)
+                globals['big_packages_picked_up'] = True
                 return 'pose_reached'
         else:
             return 'pose_not_reached'
