@@ -187,7 +187,7 @@ public:
         groupBulkWrite_Init.addParam(SECONDARY_ID, TORQUE_ENABLE_ADDR, NUM_BYTES_1, &bytes_1);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
         groupBulkWrite_Init.txPacket();
 
-        //packetHandler->write1ByteTxOnly(portHandler, SECONDARY_ID, TORQUE_ENABLE_ADDR, TORQUE_ENABLE);      // Enable torque
+        packetHandler->write1ByteTxOnly(portHandler, SECONDARY_ID, TORQUE_ENABLE_ADDR, TORQUE_ENABLE);      // Enable torque
         packetHandler->write1ByteTxOnly(portHandler, SECONDARY_ID, 65, 1);      // Turn on LED
         packetHandler->write4ByteTxOnly(portHandler, SECONDARY_ID, MAX_ACC_ADDR, MAX_ACC / 100);                  // Set acc limit of posistion mode
         packetHandler->write4ByteTxOnly(portHandler, SECONDARY_ID, MAX_VEL_ADDR, MAX_VEL / 10);                  // Set vel limit of posistion mode
