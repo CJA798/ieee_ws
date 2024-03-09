@@ -16,6 +16,9 @@ from cv_bridge import CvBridge
 # Import the globals dictionary
 from utils.globals import globals
 
+# Import Bool message type
+from std_msgs.msg import Bool
+
 # Create a name for the publisher node
 publisher_node_name = 'raw_image_publisher'
 
@@ -29,6 +32,15 @@ rospy.init_node(publisher_node_name, anonymous=True)
 # Create a publisher object
 # http://wiki.ros.org/rospy/Overview/Publishers%20and%20Subscribers#Choosing_a_good_queue_size
 publisher = rospy.Publisher(topic_name, Image, queue_size=60)
+
+# Create a callback function to handle the camera enable topic
+def camera_enable_callback(data):
+    globals['publish_raw_image'] = data.data
+    rospy.logwarn(f"Camera enable state updated: {globals['publish_raw_image']}")
+
+# Create a subscriber to the camera enable topic
+camera_enable_topic = 'Camera_En'
+rospy.Subscriber(camera_enable_topic, Bool, camera_enable_callback)
 
 # Set message transmission rate (Hz)
 rate = rospy.Rate(30)
@@ -57,22 +69,25 @@ cap.set(cv2.CAP_PROP_SATURATION, 150)   # Makes purple magenta
 bridge = CvBridge()
 
 while not rospy.is_shutdown():
-    ret, raw_image = cap.read()
+    if globals['publish_raw_image']:
+        # Get frame from video capture object
+        ret, raw_image = cap.read()
 
-    if ret:
-        #cv2.imshow("Raw Image", raw_image)
-        #cv2.waitKey(5)
-        #rospy.loginfo("Frame2 received successfully")
+        # Check if frame was received successfully
+        if ret:
+            #cv2.imshow("Raw Image", raw_image)
+            #cv2.waitKey(5)
+            #rospy.loginfo("Frame2 received successfully")
 
-        # Convert frame to msg format
-        img_to_publish = bridge.cv2_to_imgmsg(raw_image)
+            # Convert frame to msg format
+            img_to_publish = bridge.cv2_to_imgmsg(raw_image)
+            
+            # Publish frame to topic
+            publisher.publish(img_to_publish)
+
+            # Assert publication
+            #rospy.loginfo("Video frame published successfully")
         
-        # Publish frame to topic
-        publisher.publish(img_to_publish)
-
-        # Assert publication
-        #rospy.loginfo("Video frame published successfully")
-    
     rate.sleep()
 
 cv2.destroyAllWindows()

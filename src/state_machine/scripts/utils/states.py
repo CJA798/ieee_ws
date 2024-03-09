@@ -1029,13 +1029,14 @@ class RestPose(smach.State):
 
 # define state GetCoords
 class GetCoords(smach.State):
-    def __init__(self, object_type, pose, timeout=5.0, expected_pairs=3):
+    def __init__(self, object_type, pose, timeout=5.0, expected_pairs=3, camera_enable_publisher=None):
         smach.State.__init__(self, outcomes=['coords_received','coords_not_received'],
                              output_keys=['coordinates_list'])
         self.object_type = object_type
         self.pose = pose
         self.timeout = timeout
         self.expected_pairs = expected_pairs
+        self.camera_enable_pub = camera_enable_publisher
         #TODO for some reason, removing this sleep brings back the fucking
         # raise ValueError(f"Object type {object_type} not recognized.")
         # ValueError: Object type SMALL_PACKAGE not recognized.
@@ -1047,6 +1048,12 @@ class GetCoords(smach.State):
         #    rospy.logwarn('Big package pick up not done yet')
         #    rospy.sleep(1)
         #    return 'coords_not_received'
+        # Enable camera
+        if self.camera_enable_pub:
+            enable_msg = Bool()
+            enable_msg.data = True
+            self.camera_enable_pub.publish(enable_msg)
+            
         try:
             rospy.loginfo('Executing state GetCoords(small_packages, scan)')
             
@@ -1070,7 +1077,11 @@ class GetCoords(smach.State):
             # Return the coordinates as userdata if they are received
             if result.coordinates:
                 userdata.coordinates_list = result.coordinates
-
+                # Disable camera
+                if self.camera_enable_pub:
+                    enable_msg = Bool()
+                    enable_msg.data = False
+                    self.camera_enable_pub.publish(enable_msg)
             return 'coords_received'
         
         # Handle any exceptions that occur during the state execution

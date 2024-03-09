@@ -11,10 +11,12 @@ globals: Dict[str, Union[bool, int, None]] = {
     'move_done': False,
     'misc_done': False,
     'arm_done': False,
+
+    # Vision Macros
+    'publish_raw_image': False,
     'img_resize_factor': 2,
     'max_cam_res': (1920, 1080),
     'current_cam_res': None,
-    
     'camera_matrix_path': '/home/pi/ieee_ws/src/vision_system/scripts/image_utils/cameraMatrix.pkl',
     'distortion_coefficients_path': '/home/pi/ieee_ws/src/vision_system/scripts/image_utils/dist.pkl',
 

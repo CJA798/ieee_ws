@@ -65,6 +65,11 @@ class GetCoordsServer:
 
             coordinates.coordinates, coords_image = ip.get_coords(object_type = object_type, pose = arm_pose)
             
+            # Check if the coordinates were found
+            if not coordinates.coordinates or not coords_image.any():
+                rospy.logerr('get_coords returned empty array. Retrying...')
+                continue
+
             # Convert frame to msg format
             img_to_publish = bridge.cv2_to_imgmsg(coords_image)
             
@@ -98,6 +103,9 @@ class GetCoordsServer:
 
     
     def _enough_coordinate_pairs_found(self, expected_pairs: int, coordinates: List[List]) -> bool:
+        # Check if coordinates list is empty
+        if not coordinates:
+            return False
         return expected_pairs == len(coordinates)
 
         

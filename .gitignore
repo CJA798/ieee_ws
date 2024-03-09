@@ -5,7 +5,8 @@
 src/DynamixelSDK/
 src/rosserial
 src/state_machine/scripts/taskspace
-
+src/vision_system/scripts/image_utils/images/
+src/vision_system/scripts/image_utils/results/
 
 install/
 devel/

@@ -19,6 +19,7 @@ move_pub = rospy.Publisher('Move', Float32MultiArray, queue_size=1)
 misc_angles_pub = rospy.Publisher('Misc_Angles', Float32MultiArray, queue_size=1)
 init_state_pub = rospy.Publisher('Init_State', Bool, queue_size=10)
 grav_enable_pub = rospy.Publisher('Grav_En', Bool, queue_size=10)
+camera_enable_pub = rospy.Publisher('Camera_En', Bool, queue_size=10)
 
 
 # Create subscribers
@@ -85,7 +86,7 @@ def main():
         with small_packages_sm:
             smach.StateMachine.add('SCAN_POSE', ScanPose(arm_angles_pub=arm_angles_pub),
                                     transitions={'pose_reached':'GET_SP_COORDS', 'pose_not_reached':'SCAN_POSE'})
-            smach.StateMachine.add('GET_SP_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value, timeout=5.0, expected_pairs=3),
+            smach.StateMachine.add('GET_SP_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value, timeout=5.0, expected_pairs=3, camera_enable_publisher=camera_enable_pub),
                                     transitions={'coords_received':'VERIFY_POSE', 'coords_not_received':'GET_SP_COORDS'})
             smach.StateMachine.add('VERIFY_POSE', VerifyPose(task_space_pub=task_space_pub),
                                     transitions={'pose_reached':'REST_POSE', 'pose_not_reached':'VERIFY_POSE'})
@@ -160,7 +161,7 @@ def main():
             # State machine for fuel tank sorting
             fuel_tank_sort_sm = smach.StateMachine(outcomes=['fuel_tanks_sorted', 'fuel_tanks_not_sorted'])
             with fuel_tank_sort_sm:
-                smach.StateMachine.add('GET_SP_COORDS', GetCoords(object_type=BoardObjects.FUEL_TANK.value, pose=Poses.FUEL_TANK_SCAN.value, timeout=5.0, expected_pairs=3),
+                smach.StateMachine.add('GET_SP_COORDS', GetCoords(object_type=BoardObjects.FUEL_TANK.value, pose=Poses.FUEL_TANK_SCAN.value, timeout=5.0, expected_pairs=3, camera_enable_publisher=camera_enable_pub),
                                         transitions={'coords_received':'fuel_tanks_sorted', 'coords_not_received':'GET_SP_COORDS'})
                 
             # State machine for movement to final area

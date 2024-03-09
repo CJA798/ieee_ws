@@ -164,6 +164,9 @@ class ImageProcessor_():
         
         # Remove distortion from the image
         undistorted_image, undistorted_roi = self.remove_distortion(image)
+        if undistorted_roi is None:
+            logwarn("find_small_package_coords - undistorted_roi is None")
+            return (None, None)
 
         # TODO: resize image if latency is too bad
 
@@ -235,11 +238,11 @@ class ImageProcessor_():
     
     def remove_distortion(self, image=None) -> Tuple[np.ndarray, np.ndarray]:
         # Check if the current image is not None
-        if image is None:
-            logwarn("undistort - Image is None")
-            return None
-    
-        h,  w = image.shape[:2]
+        if image is None or len(image.shape[:2]) != 2:
+            logwarn("undistort - Image is None OR bad image shape.")
+            return (None, None)
+
+        h, w = image.shape[:2]
         newCameraMatrix, roi = cv2.getOptimalNewCameraMatrix(self.camera_matrix, self.dist, (w,h), 1, (w,h))
         # Undistort
         reprojection = cv2.undistort(image, self.camera_matrix, self.dist, None, newCameraMatrix)
@@ -423,7 +426,7 @@ def main_():
             print("Can't receive frame")
             break
 
-        coords_list, coords_image = ip.get_coords(object_type=BoardObjects.FUEL_TANK.value, pose=Poses.FUEL_TANK_SCAN.value)        
+        coords_list, coords_image = ip.get_coords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value)        
         
         if coords_image is None:
             logwarn("Coords Image is None")
