@@ -155,12 +155,13 @@ class GoTo_(smach.State):
         Areas.BUTTON: "GoToButtonArea"
     }
 
-    def __init__(self, area, move_publisher, misc_angles_publisher=None):
+    def __init__(self, area, move_publisher, misc_angles_publisher=None, grav_enable_publisher=None):
         # Initialize the state with outcomes 'arrived' and 'not_arrived'
         smach.State.__init__(self, outcomes=['arrived', 'not_arrived'])
         self.area = area
         self.move_pub = move_publisher
         self.misc_angles_pub = misc_angles_publisher
+        self.grav_enable_pub = grav_enable_publisher
 
         rospy.loginfo(f"Executing state GoTo{self.area}")
 
@@ -179,12 +180,24 @@ class GoTo_(smach.State):
         if self.area in self.AREA_METHODS:
             # Get the action name corresponding to the area
             method_name = self.AREA_METHODS[self.area]
+
+            # Enable the gravity vector
+            grav_enable_msg = Bool()
+            grav_enable_msg.data = True
+            self.grav_enable_pub.publish(grav_enable_msg)
+            rospy.logwarn('Gravity vector enabled')
+
             # Log the execution of the state
             rospy.loginfo(f"Executing state {method_name}")
             # Call the corresponding method dynamically using getattr
             try:
                 outcome = getattr(self, method_name)()
 
+                # Disable the gravity vector
+                grav_enable_msg.data = False
+                self.grav_enable_pub.publish(grav_enable_msg)
+                rospy.logwarn('Gravity vector disabled')
+                
             # Handle any exceptions that occur during the state execution
             except Exception as e:
                 rospy.logerr(f"Error in GoTo{self.area}: {e}")
@@ -775,9 +788,8 @@ class PickUp(smach.State):
 
         if publish_command(self.misc_angles_pub, Float32MultiArray, [raised_bridge, (top_bulk+raise_bulk_offset), (bottom_bulk-raise_bulk_offset), flag]):
             rospy.wait_for_message("Misc_Done", Int8, timeout=10)
-        
-            rospy.sleep(1000)
             return 'packages_picked_up'
+        
         else:
             return 'packages_not_picked_up'
       # pass
@@ -1012,7 +1024,6 @@ class RestPose(smach.State):
 
     def execute(self, userdata):
         try:
-            rate = rospy.Rate(100)
             # Reset the arm_done global variable
             globals['arm_done'] = False
             speed = 1
@@ -1211,9 +1222,48 @@ class PickUp_(smach.State):
             rospy.sleep(5)
             return 'packages_picked_up'
         return 'packages_not_picked_up'
-  
+    
+class PickUpFuelTank(smach.State):
+    def __init__(self, task_space_publisher):
+        smach.State.__init__(self,
+                             input_keys=['sorted_coords_list'],
+                             outcomes=['fuel_tank_picked_up','fuel_tank_not_picked_up'])
+        self.task_space_pub = task_space_publisher
 
+    def execute(self, userdata):
+        # Get the sorted coordinates list from the userdata
+        sorted_coords = userdata.sorted_coords_list
+        rospy.loginfo(f'Sorted Coordinates: {sorted_coords}')
+        # Make sure the sorted coordinates list is not empty
+        if not sorted_coords:
+            rospy.logwarn('Sorted coordinates list is empty')
+            return 'fuel_tank_not_picked_up'
         
+        # Get the first target from the sorted coordinates list
+        target = sorted_coords[0]
+        rospy.loginfo(f'Target: {target}')
+
+        x = target.x
+        y = target.y
+        z = target.z
+        wrist = 2048
+        gripper = 2100
+        speed = 1
+        publish_command(self.task_space_pub, Float32MultiArray, [x, y, z, wrist, gripper, speed])
+        rospy.wait_for_message("Arm_Done", Int8, timeout=10)
+
+        return 'fuel_tank_picked_up'
+        return 'fuel_tank_not_picked_up'
+
+class StoreFuelTank(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['fuel_tank_stored','fuel_tank_not_stored'])
+
+    def execute(self, userdata):
+        rospy.sleep(5)
+        return 'fuel_tank_stored'
+        return 'fuel_tank_not_stored'
+      
 ####################################################################################################
 #    
 ####################################################################################################

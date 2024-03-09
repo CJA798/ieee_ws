@@ -211,8 +211,11 @@ class ImageProcessor_():
 
         # TODO: resize image if latency is too bad
 
+        # Get fuel tank roi
+        fuel_tank_roi = self.get_fuel_tank_roi(undistorted_roi)
+
         # Apply blurs to remove noise
-        blur = cv2.GaussianBlur(undistorted_roi, (3, 3), 0)
+        blur = cv2.GaussianBlur(fuel_tank_roi, (3, 3), 0)
         median = cv2.medianBlur(blur, 3)
 
         # Convert to HSV
@@ -257,6 +260,23 @@ class ImageProcessor_():
         #cv2.imshow('Undistorted Image', reprojection_roi)
         #cv2.waitKey(200)
         return reprojection, reprojection_roi
+
+    def get_fuel_tank_roi(self, image: np.ndarray) -> np.ndarray:
+        # Get image dimensions
+        height, _, _ = image.shape
+
+        # Define the region to keep
+        y_start = int(height * 1 / 5)
+        y_end = int(height * 2 / 5)
+
+        # Create a mask with the same dimensions as the image
+        mask = np.zeros_like(image)
+
+        # Set the region to keep to white (255)
+        mask[y_start:y_end, :] = 255
+
+        # Apply the mask to the image
+        return cv2.bitwise_and(image, mask)
 
     def find_contours(self, image: np.ndarray, pose: Poses, area_range_factor: Iterable[Sized] = (0.01,1)) -> Tuple[List[Point], np.ndarray]:
         '''
@@ -344,8 +364,8 @@ class ImageProcessor_():
         
         elif pose == Poses.FUEL_TANK_SCAN:
             KX = 1
-            PX2MM_Y = 470/self.image_height
-            PX2MM_X = 610/self.image_width * KX
+            PX2MM_Y = 130/self.image_height
+            PX2MM_X = 180/self.image_width * KX
 
             # Offset from bottom of image to arm base
             A = 0
@@ -359,7 +379,7 @@ class ImageProcessor_():
 
             # Correction offsets
             Xarm_offset = 0
-            Zarm_offset = 0
+            Zarm_offset = 13.5
 
             return Xarm_xi_obj + Xarm_offset, Yarm_xi_obj, Zarm_xi_obj + Zarm_offset
 
@@ -426,7 +446,7 @@ def main_():
             print("Can't receive frame")
             break
 
-        coords_list, coords_image = ip.get_coords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value)        
+        coords_list, coords_image = ip.get_coords(object_type=BoardObjects.FUEL_TANK.value, pose=Poses.FUEL_TANK_SCAN.value)        
         
         if coords_image is None:
             logwarn("Coords Image is None")
