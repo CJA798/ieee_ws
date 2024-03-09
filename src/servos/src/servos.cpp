@@ -183,11 +183,11 @@ public:
         // Sets up initial values and states for servos
         groupBulkWrite_Init.clearParam();
         //uint8_t data_array[4] = {DXL_LOBYTE(DXL_LOWORD(max_acc)), DXL_HIBYTE(DXL_LOWORD(max_acc)), DXL_LOBYTE(DXL_HIWORD(max_acc)), DXL_HIBYTE(DXL_HIWORD(max_acc))};
-        bytes_1 = DXL_LOBYTE(DXL_LOWORD(TORQUE_ENABLE));
-        groupBulkWrite_Init.addParam(SECONDARY_ID, TORQUE_ENABLE_ADDR, NUM_BYTES_1, &bytes_1);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
+        bytes_4 = {DXL_LOBYTE(DXL_LOWORD(TORQUE_ENABLE)), DXL_HIBYTE(DXL_LOWORD(TORQUE_ENABLE)), DXL_LOBYTE(DXL_HIWORD(TORQUE_ENABLE)), DXL_HIBYTE(DXL_HIWORD(TORQUE_ENABLE))};
+        groupBulkWrite_Init.addParam(SECONDARY_ID, TORQUE_ENABLE_ADDR, NUM_BYTES_1, &bytes_4);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
         groupBulkWrite_Init.txPacket();
 
-        packetHandler->write1ByteTxOnly(portHandler, SECONDARY_ID, TORQUE_ENABLE_ADDR, TORQUE_ENABLE);      // Enable torque
+        //packetHandler->write1ByteTxOnly(portHandler, SECONDARY_ID, TORQUE_ENABLE_ADDR, TORQUE_ENABLE);      // Enable torque
         packetHandler->write1ByteTxOnly(portHandler, SECONDARY_ID, 65, 1);      // Turn on LED
         packetHandler->write4ByteTxOnly(portHandler, SECONDARY_ID, MAX_ACC_ADDR, MAX_ACC / 100);                  // Set acc limit of posistion mode
         packetHandler->write4ByteTxOnly(portHandler, SECONDARY_ID, MAX_VEL_ADDR, MAX_VEL / 10);                  // Set vel limit of posistion mode
