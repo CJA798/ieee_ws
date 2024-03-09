@@ -178,11 +178,14 @@ public:
         portHandler->openPort();            // Opens port to U2D2
         portHandler->setBaudRate(BAUDRATE); // Sets default baud rate
 
+        uint8_t bytes_1, bytes_2[2], bytes_4[4];
+
         // Sets up initial values and states for servos
         groupBulkWrite_Init.clearParam();
         //uint8_t data_array[4] = {DXL_LOBYTE(DXL_LOWORD(max_acc)), DXL_HIBYTE(DXL_LOWORD(max_acc)), DXL_LOBYTE(DXL_HIWORD(max_acc)), DXL_HIBYTE(DXL_HIWORD(max_acc))};
-        uint8_t temp = DXL_LOBYTE(DXL_LOWORD(TORQUE_ENABLE));
-        groupBulkWrite_Init.addParam(SECONDARY_ID, TORQUE_ENABLE_ADDR, NUM_BYTES_1, &temp);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
+        bytes_1 = DXL_LOBYTE(DXL_LOWORD(TORQUE_ENABLE));
+        //groupBulkWrite_Init.addParam(SECONDARY_ID, TORQUE_ENABLE_ADDR, NUM_BYTES_1, &temp);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
+        groupBulkWrite_Init.addParam(SECONDARY_ID, TORQUE_ENABLE_ADDR, NUM_BYTES_1, &[DXL_LOBYTE(DXL_LOWORD(TORQUE_ENABLE))]);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
         groupBulkWrite_Init.txPacket();
 
         //packetHandler->write1ByteTxOnly(portHandler, SECONDARY_ID, TORQUE_ENABLE_ADDR, TORQUE_ENABLE);      // Enable torque
