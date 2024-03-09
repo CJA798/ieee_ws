@@ -1066,7 +1066,7 @@ class GetCoords(smach.State):
             self.camera_enable_pub.publish(enable_msg)
             
         try:
-            rospy.loginfo('Executing state GetCoords(small_packages, scan)')
+            rospy.loginfo(f'Executing state GetCoords({self.object_type}, {self.pose})')
             
             client = actionlib.SimpleActionClient('get_coords', GetCoordsAction)
             client.wait_for_server()

@@ -127,7 +127,9 @@ def tof_back_cb(data):
     
     # Update the global TOF back value
     try:
-        globals['tof_back'] = data.data
+        local_data = data.data
+        tof_back = local_data[3]
+        globals['tof_back'] = tof_back
         #rospy.loginfo("TOF Back: %s", globals['tof_back'])
     
     # Handle any exceptions that occur during the state execution

@@ -255,7 +255,7 @@ class ImageProcessor_():
         reprojection_roi = reprojection[y:y+h, x:x+w]
         self.undistorted_image_roi = reprojection_roi
         self.image_height, self.image_width = reprojection_roi.shape[:2]
-        print(f"Image Height: {self.image_height}    |   Image Width: {self.image_width}")
+        #print(f"Image Height: {self.image_height}    |   Image Width: {self.image_width}")
         #print(reprojection_roi.shape)
         #cv2.imshow('Undistorted Image', reprojection_roi)
         #cv2.waitKey(200)

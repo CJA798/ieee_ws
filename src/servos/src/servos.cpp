@@ -206,10 +206,10 @@ public:
         packetHandler->write2ByteTxOnly(portHandler, 14, POS_I_GAIN_ADDR, 0);       // Resets misc servo posistion I gain to zero
         packetHandler->write2ByteTxOnly(portHandler, 15, POS_I_GAIN_ADDR, 0);       // Resets misc servo posistion I gain to zero
 
-        packetHandler->write4ByteTxOnly(portHandler, 13, MAX_ACC_ADDR, 10);          // Set acc limit of posistion mode
-        packetHandler->write4ByteTxOnly(portHandler, 13, MAX_VEL_ADDR, 500);        // Set vel limit of posistion mode
-        packetHandler->write4ByteTxOnly(portHandler, 14, MAX_ACC_ADDR, 10);          // Set acc limit of posistion mode
-        packetHandler->write4ByteTxOnly(portHandler, 14, MAX_VEL_ADDR, 500);        // Set vel limit of posistion mode
+        //packetHandler->write4ByteTxOnly(portHandler, 13, MAX_ACC_ADDR, 10);          // Set acc limit of posistion mode
+        //packetHandler->write4ByteTxOnly(portHandler, 13, MAX_VEL_ADDR, 500);        // Set vel limit of posistion mode
+        //packetHandler->write4ByteTxOnly(portHandler, 14, MAX_ACC_ADDR, 10);          // Set acc limit of posistion mode
+        //packetHandler->write4ByteTxOnly(portHandler, 14, MAX_VEL_ADDR, 500);        // Set vel limit of posistion mode
         
         
         // Publish 8 starting servo angles and speed to Arm_Angles

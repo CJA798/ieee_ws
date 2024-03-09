@@ -5,7 +5,7 @@ import rospy
 import smach
 import smach_ros
 import sys
-from std_msgs.msg import Empty, Int8, Int16, Bool, Float32MultiArray
+from std_msgs.msg import Empty, Int8, Int16, Bool, Int16MultiArray, Float32MultiArray
 from image_utils.board_objects import BoardObjects
 from image_utils.poses import Poses
 from utils.states import *
@@ -29,7 +29,7 @@ misc_done = rospy.Subscriber("Misc_Done", Int8, callback=misc_done_cb)
 move_done_sub = rospy.Subscriber("Move_Done", Int8, callback=move_done_cb)
 gravity_vector_sub = rospy.Subscriber("IMU_Grav", Int16, callback=gravity_vector_cb)
 #bearing_sub = rospy.Subscriber("IMU_Bearing", Int16, callback=bearing_cb)
-tof_back_sub = rospy.Subscriber("TOF_Back", Int16, callback=tof_back_cb)
+tof_back_sub = rospy.Subscriber("Local_Data", Int16MultiArray, callback=tof_back_cb)
 heartbeat_sub = rospy.Subscriber("Heartbeat", Empty, callback=heartbeat_cb)
 
 def main():
@@ -158,14 +158,14 @@ def main():
         
         with fuel_tank_sort_and_final_area_sm:
             # State machine for fuel tank sorting
-            @smach.cb_interface(input_keys=['coords_list'],
+            @smach.cb_interface(input_keys=['coordinates_list'],
                                     output_keys=['sorted_coords_list'],
                                     outcomes=['coords_list_sorted', 'coords_list_not_sorted'])
             
             def sort_coords_cb(userdata):
                 try:
                     # Get the list of coordinates from the userdata
-                    coords_list = userdata.coords_list.coordinates
+                    coords_list = userdata.coordinates_list.coordinates
                     # Sort the list of coordinates
                     coords_list.sort(key=lambda x: x[0])
                     # Save the sorted list of coordinates
@@ -173,6 +173,9 @@ def main():
 
                     return 'coords_list_sorted'
                 except:
+                    rospy.logerr('Error in sort_coords_cb')
+                    rospy.logerr(f'Coordinates list: {userdata.coordinates_list}')
+                    rospy.logwarn(f'Parent: {userdata.coordinates_list}')
                     return 'coords_list_not_sorted'
                     
             fuel_tank_sort_sm = smach.StateMachine(outcomes=['fuel_tanks_stored', 'fuel_tanks_not_stored'])
@@ -180,7 +183,7 @@ def main():
                 smach.StateMachine.add('GET_FT_COORDS', GetCoords(object_type=BoardObjects.FUEL_TANK.value, pose=Poses.FUEL_TANK_SCAN.value, timeout=5.0, expected_pairs=3, camera_enable_publisher=camera_enable_pub),
                                         transitions={'coords_received':'SORT_COORDS', 'coords_not_received':'GET_FT_COORDS'})
 
-                smach.StateMachine.add('SORT_COORDS', smach.CBState(sort_coords_cb, input_keys=['coords_list'], output_keys=['sorted_coords_list'], outcomes=['coords_list_sorted', 'coords_list_not_sorted']),
+                smach.StateMachine.add('SORT_COORDS', smach.CBState(sort_coords_cb, input_keys=['coordinates_list'], output_keys=['sorted_coords_list'], outcomes=['coords_list_sorted', 'coords_list_not_sorted']),
                                         transitions={'coords_list_sorted':'PICK_UP_FUEL_TANK', 'coords_list_not_sorted':'GET_FT_COORDS'})
                 smach.StateMachine.add('PICK_UP_FUEL_TANK', PickUpFuelTank(task_space_publisher=task_space_pub),
                                         transitions={'fuel_tank_picked_up':'STORE_FUEL_TANK', 'fuel_tank_not_picked_up':'PICK_UP_FUEL_TANK'})
