@@ -182,7 +182,7 @@ public:
         groupBulkWrite_Init.clearParam();
         //uint8_t data_array[4] = {DXL_LOBYTE(DXL_LOWORD(max_acc)), DXL_HIBYTE(DXL_LOWORD(max_acc)), DXL_LOBYTE(DXL_HIWORD(max_acc)), DXL_HIBYTE(DXL_HIWORD(max_acc))};
         uint8_t temp = DXL_LOBYTE(DXL_LOWORD(TORQUE_ENABLE));
-        groupBulkWrite_Init.addParam(SECONDARY_ID, TORQUE_ENABLE_ADDR, NUM_BYTES_1, *temp);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
+        groupBulkWrite_Init.addParam(SECONDARY_ID, TORQUE_ENABLE_ADDR, NUM_BYTES_1, &temp);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
         groupBulkWrite_Init.txPacket();
 
         //packetHandler->write1ByteTxOnly(portHandler, SECONDARY_ID, TORQUE_ENABLE_ADDR, TORQUE_ENABLE);      // Enable torque
