@@ -8,6 +8,10 @@
 * it also accepts a Move function and does the kinematics and PIDs
 */
 
+//uint8_t dxl_error = 0;
+//packetHandler->reboot(portHandler, DXL_ID, &dxl_error);
+
+
 #include <ros/ros.h>
 #include <math.h>
 #include <unistd.h>
@@ -47,7 +51,6 @@ using namespace dynamixel;
 #define POS_I_GAIN              500     // Angle mode I gain
 #define POS_D_GAIN              4000    // Angle mode D gain
 #define STOP                    0       // Velocity mode stop
-#define MISC_COUNT              4       // Number of misc servos hooked up
 #define MISC_ANGLE_TOLERANCE    10      // Counts we need to be off to count as arrived
 #define ARM_TOLERANCE           10      // Allowable error in arm before declareing arrived
 #define STEPS_DOWN              10      // Number of millimeters to move down per step
@@ -92,14 +95,6 @@ double KP_X = 4.0, KI_X = 0.01, KD_X = 0.5, KP_Y = 4.0, KI_Y = 0.01, KD_Y = 0.5,
 // Set up dynamixel ports and packets
 PortHandler* portHandler = PortHandler::getPortHandler(DEVICE_NAME);
 PacketHandler* packetHandler = PacketHandler::getPacketHandler(PROTOCOL_VERSION);
-
-// Create objects for bult reading and writing of servos
-GroupBulkRead groupBulkRead(portHandler, packetHandler);
-
-GroupBulkWrite groupBulkWrite_Init(portHandler, packetHandler);
-GroupBulkWrite groupBulkWriteArm(portHandler, packetHandler);
-GroupBulkWrite groupBulkWriteMisc(portHandler, packetHandler);
-GroupBulkWrite groupBulkWriteWheel(portHandler, packetHandler);
 
 // Creates objects for sync reading and writing of servos
 GroupSyncRead groupSyncRead_armPresPos(portHandler, packetHandler, PRESENT_POSITION_ADDR, NUM_BYTES_4);
@@ -179,39 +174,41 @@ public:
         portHandler->openPort();            // Opens port to U2D2
         portHandler->setBaudRate(BAUDRATE); // Sets default baud rate
 
-        uint8_t bytes_1, bytes_2[2];
-
         // Sets up initial values and states for servos
-        groupBulkWrite_Init.clearParam();
-        //uint8_t data_array[4] = {DXL_LOBYTE(DXL_LOWORD(max_acc)), DXL_HIBYTE(DXL_LOWORD(max_acc)), DXL_LOBYTE(DXL_HIWORD(max_acc)), DXL_HIBYTE(DXL_HIWORD(max_acc))};
-        uint8_t bytes_4[4] = {DXL_LOBYTE(DXL_LOWORD(TORQUE_ENABLE)), DXL_HIBYTE(DXL_LOWORD(TORQUE_ENABLE)), DXL_LOBYTE(DXL_HIWORD(TORQUE_ENABLE)), DXL_HIBYTE(DXL_HIWORD(TORQUE_ENABLE))};
-        groupBulkWrite_Init.addParam(SECONDARY_ID, TORQUE_ENABLE_ADDR, NUM_BYTES_1, bytes_4);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
-        groupBulkWrite_Init.addParam(1, TORQUE_ENABLE_ADDR, NUM_BYTES_1, bytes_4);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
-        groupBulkWrite_Init.addParam(5, TORQUE_ENABLE_ADDR, NUM_BYTES_1, bytes_4);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
-        groupBulkWrite_Init.txPacket();
-
-        //packetHandler->write1ByteTxOnly(portHandler, SECONDARY_ID, TORQUE_ENABLE_ADDR, TORQUE_ENABLE);      // Enable torque
+        packetHandler->write1ByteTxOnly(portHandler, SECONDARY_ID, TORQUE_ENABLE_ADDR, TORQUE_ENABLE);      // Enable torque
+        usleep(10000);
         packetHandler->write1ByteTxOnly(portHandler, SECONDARY_ID, LED_ADDR, 1);      // Turn on LED
-        packetHandler->write4ByteTxOnly(portHandler, SECONDARY_ID, MAX_ACC_ADDR, MAX_ACC / 100);                  // Set acc limit of posistion mode
-        packetHandler->write4ByteTxOnly(portHandler, SECONDARY_ID, MAX_VEL_ADDR, MAX_VEL / 10);                  // Set vel limit of posistion mode
-        packetHandler->write4ByteTxOnly(portHandler, SECONDARY_ID, GOAL_VELOCITY_ADDR, STOP);               // Sets starting velocity to stop
-        packetHandler->write4ByteTxOnly(portHandler, SECONDARY_ID, GOAL_POSITION_ADDR, CENTER_POSISTION);   // Set starting posistion to center
-        packetHandler->write2ByteTxOnly(portHandler, SECONDARY_ID, POS_P_GAIN_ADDR, POS_P_GAIN);            // Sets posistion P gain
-        packetHandler->write2ByteTxOnly(portHandler, SECONDARY_ID, POS_I_GAIN_ADDR, POS_I_GAIN);            // Sets posistion I gain
-        packetHandler->write2ByteTxOnly(portHandler, SECONDARY_ID, POS_D_GAIN_ADDR, POS_D_GAIN);            // Sets posistion D gain
-        packetHandler->write2ByteTxOnly(portHandler, SECONDARY_ID, GOAL_CURRENT_ADDR, MAX_CURRENT);         // Sets small servo current limit
+        usleep(10000);
+        //packetHandler->write4ByteTxOnly(portHandler, SECONDARY_ID, MAX_ACC_ADDR, MAX_ACC / 100);                  // Set acc limit of posistion mode
+        //packetHandler->write4ByteTxOnly(portHandler, SECONDARY_ID, MAX_VEL_ADDR, MAX_VEL / 10);                  // Set vel limit of posistion mode
+        //packetHandler->write4ByteTxOnly(portHandler, SECONDARY_ID, GOAL_VELOCITY_ADDR, STOP);               // Sets starting velocity to stop
+        //packetHandler->write4ByteTxOnly(portHandler, SECONDARY_ID, GOAL_POSITION_ADDR, CENTER_POSISTION);   // Set starting posistion to center
+        //packetHandler->write2ByteTxOnly(portHandler, SECONDARY_ID, POS_P_GAIN_ADDR, POS_P_GAIN);            // Sets posistion P gain
+        //packetHandler->write2ByteTxOnly(portHandler, SECONDARY_ID, POS_I_GAIN_ADDR, POS_I_GAIN);            // Sets posistion I gain
+        //packetHandler->write2ByteTxOnly(portHandler, SECONDARY_ID, POS_D_GAIN_ADDR, POS_D_GAIN);            // Sets posistion D gain
+        packetHandler->write2ByteTxOnly(portHandler, 8, GOAL_CURRENT_ADDR, MAX_CURRENT);         // Sets gripper servo current limit
 
-        packetHandler->write2ByteTxOnly(portHandler, 12, POS_I_GAIN_ADDR, 0);       // Resets misc servo posistion I gain to zero
-        packetHandler->write2ByteTxOnly(portHandler, 13, POS_I_GAIN_ADDR, 0);       // Resets misc servo posistion I gain to zero
-        packetHandler->write2ByteTxOnly(portHandler, 14, POS_I_GAIN_ADDR, 0);       // Resets misc servo posistion I gain to zero
-        packetHandler->write2ByteTxOnly(portHandler, 15, POS_I_GAIN_ADDR, 0);       // Resets misc servo posistion I gain to zero
-
+        //packetHandler->write2ByteTxOnly(portHandler, 12, POS_I_GAIN_ADDR, 0);       // Resets misc servo posistion I gain to zero
+        //packetHandler->write2ByteTxOnly(portHandler, 13, POS_I_GAIN_ADDR, 0);       // Resets misc servo posistion I gain to zero
+        //packetHandler->write2ByteTxOnly(portHandler, 14, POS_I_GAIN_ADDR, 0);       // Resets misc servo posistion I gain to zero
+        //packetHandler->write2ByteTxOnly(portHandler, 15, POS_I_GAIN_ADDR, 0);       // Resets misc servo posistion I gain to zero
         //packetHandler->write4ByteTxOnly(portHandler, 13, MAX_ACC_ADDR, 10);          // Set acc limit of posistion mode
         //packetHandler->write4ByteTxOnly(portHandler, 13, MAX_VEL_ADDR, 500);        // Set vel limit of posistion mode
         //packetHandler->write4ByteTxOnly(portHandler, 14, MAX_ACC_ADDR, 10);          // Set acc limit of posistion mode
         //packetHandler->write4ByteTxOnly(portHandler, 14, MAX_VEL_ADDR, 500);        // Set vel limit of posistion mode
         
-        
+        // Stets up sync read params for arm present pos
+        for(int i = 1; i < 9; i++)
+            groupSyncRead_armPresPos.addParam(i);
+
+        // Stets up sync read params for misc goal pos
+        for(int i = 12; i < 16; i++)
+            groupSyncRead_miscGoalPos.addParam(i);
+
+        // Stets up sync read params for misc present pos
+        for(int i = 12; i < 16; i++)
+            groupSyncRead_miscPresPos.addParam(i);
+
         // Publish 8 starting servo angles and speed to Arm_Angles
         int Arm_Start_Angles[9] = { 1586, 2902, 2898, 1471, 2063, 1802, 1041, 1980, 1 };
         for (int i = 0; i < 9; i++) {
@@ -221,24 +218,23 @@ public:
 
 
         // Create and write misc servos to custom starting pos
-        int Misc_Start_Angles[9] = { 2048, 2500, 2600, 2048, -1, -1, -1, -1 };
-
-        // Clears bulk write stack
-        groupBulkWriteMisc.clearParam();
+        int Misc_Start_Angles[4] = { 2048, 2500, 2600, 2048 };
 
         // Creates and assigns array with each byte of message
         uint8_t data_array[4];
-        for (int i = 1; i < 9; i++){     // Do for all 8ish misc servos
+        for (int i = 1; i < 5; i++){     // Do for all 4ish misc servos
             if(Misc_Start_Angles[i-1] != -1){
                 uint32_t data = (unsigned int)(Misc_Start_Angles[i - 1]); // Convert int32 to uint32
                 data_array[0] = DXL_LOBYTE(DXL_LOWORD(data));
                 data_array[1] = DXL_HIBYTE(DXL_LOWORD(data));
                 data_array[2] = DXL_LOBYTE(DXL_HIWORD(data));
                 data_array[3] = DXL_HIBYTE(DXL_HIWORD(data));
-                groupBulkWriteMisc.addParam((i + 11), GOAL_POSITION_ADDR, 4, data_array);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
+                groupSyncWrite_miscGoalPos.addParam((i + 11), data_array);  // Adds message to stack arguments(servo ID, data array of bytes)
             }
         }
-        groupBulkWriteMisc.txPacket();  // Write servos with prepared list all at once
+
+        // Sets flag to sync write
+        sync_misc_goal_pos = 1;
     }
 
 
@@ -330,9 +326,6 @@ public:
         // Write accel and speed for servos of arm
         armSpeed(Arm_Angles.data[8]);
 
-        // Clears bulk write stack
-        groupBulkWriteArm.clearParam();
-
         // Creates and assigns array with each byte of message
         uint8_t data_array[4];
         for (int i = 1; i < 9; i++){    // Do for all 8 arm servos
@@ -341,40 +334,24 @@ public:
             data_array[1] = DXL_HIBYTE(DXL_LOWORD(data));
             data_array[2] = DXL_LOBYTE(DXL_HIWORD(data));
             data_array[3] = DXL_HIBYTE(DXL_HIWORD(data));
-            groupBulkWriteArm.addParam(i, GOAL_POSITION_ADDR, 4, data_array);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
+            groupSyncWrite_armGoalPos.addParam(i, data_array);  // Adds message to stack arguments(servo ID, data array of bytes)
         }
-        groupBulkWriteArm.txPacket();  // Write servos with prepared list all at once
+
+        sync_arm_goal_pos = 1; 
 
         // Sets the arm moving flag to start checking for arm to complete move
         arm_moving = 1;
-
-        // Print final servo values to ros
-        //ROS_INFO("Angles: %f, %f, %f, %f, %f, %f, %f, %f", Arm_Angles.data[0], Arm_Angles.data[1], Arm_Angles.data[2], Arm_Angles.data[3], Arm_Angles.data[4], Arm_Angles.data[5], Arm_Angles.data[6], Arm_Angles.data[7]);
-
-        /* Alternate way of writing servos without bulkwrite
-        for (int i = 1; i < 9; i++) {
-          int temp = (int)(arm_angles.data[i - 1] * 180 / M_PI * 11.3778 + 2048);
-          packetHandler->write4ByteTxOnly(portHandler, i, GOAL_POSITION_ADDR, temp);
-          usleep(10000);
-        }
-        */
     }
 
 
     // Checks if robot arm is within exceptable error to declare it has arrived
     void armMoving(){
-        // Clears bulk read stack
-        groupBulkRead.clearParam();
-
-        // Reads servo posistions of arm and stores in array
-        for (int i = 1; i < 9; i++){
-            groupBulkRead.addParam(i, 132, 4);
-        }
-        groupBulkRead.txRxPacket(); // Executes bulk read
+        // Executes sync read
+        groupSyncRead_armPresPos.txRxPacket(); 
 
         // Checks if current posistion and goal posistion are withen acceptable toleracne
         for (int i = 0; i < 8; i++){
-            if(abs(Arm_Angles.data[i] - groupBulkRead.getData((i + 1), 132, 4)) > ARM_TOLERANCE){ // Used to use uint32_t pos[8]; for storing
+            if(abs(Arm_Angles.data[i] - groupSyncRead_armPresPos.getData((i + 1), 132, 4)) > ARM_TOLERANCE){ // Used to use uint32_t pos[8]; for storing
                 arm_moving = 1;                 // Joint error is to large que up another check
                 Arm_Done.data = 0;              //  mark arm as not done moving
                 //Arm_Done_pub.publish(Arm_Done); //  publish not done moving result
@@ -403,9 +380,6 @@ public:
         if(speed <= 0)
             speed = 1;
 
-        // Clears bulk write stack
-        groupBulkWriteArm.clearParam();
-
         // Scales speed of vel and acc
         uint32_t max_acc = (uint32_t)(MAX_ACC * speed / 100);
         uint32_t max_vel = (uint32_t)(MAX_VEL * speed / 100);
@@ -416,92 +390,62 @@ public:
         
         // Adds messages to stack to write
         for (int i = 1; i < 9; i++){     // Do for all 8 servos
-            groupBulkWriteArm.addParam((i), MAX_ACC_ADDR, 4, data_array_acc);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
-            groupBulkWriteArm.addParam((i), MAX_VEL_ADDR, 4, data_array_vel);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
+            groupSyncWrite_armAcc.addParam((i), data_array_acc);  // Adds message to stack arguments(servo ID, data array of bytes)
+            groupSyncWrite_armVel.addParam((i), data_array_vel);  // Adds message to stack arguments(servo ID, data array of bytes)
         }
-        groupBulkWriteArm.txPacket();  // Write servos with prepared list all at once
+
+        // Set flag to sync write once outside of callback
+        sync_arm_acc_vel = 1;
     }
 
 
-    // Read present loads and publishes to feedback //// Curently sending arm angles instead
+    // Read present posistion and publishes to feedback
     void Get_FeedbackCallback(const std_msgs::Int8& Get_Feedback){
-        // Clears bulk read stack
-        groupBulkRead.clearParam();
+        // Executes sync read
+        groupSyncRead_armPresPos.txRxPacket();
 
-        // Reads servo torques of arm and stores in array
-        for (int i = 1; i < 9; i++){
-            //********// groupBulkRead.addParam(i, 126, 2);
-            groupBulkRead.addParam(i, 132, 4);
-        }
-        groupBulkRead.txRxPacket(); // Executes bulk read
-
-        // Assigns temp bulk read array to topic and publishes
+        // Assigns temp sync read array to topic and publishes
         for (int i = 0; i < 8; i++){
-            //**********//Feedback.data[i] = groupBulkRead.getData((i + 1), 126, 2);
             Feedback.data[i] = groupBulkRead.getData((i + 1), 132, 4);
         }
-        Feedback_pub.publish(Feedback); // Publishes 8x array of arm servo torques
-
-        // Prints arm servo torques
-        //ROS_INFO("Present Load: %d, %d, %d, %d, %d, %d, %d, %d", Feedback.data[0], Feedback.data[1], Feedback.data[2], Feedback.data[3], Feedback.data[4], Feedback.data[5], Feedback.data[6], Feedback.data[7]);
+        Feedback_pub.publish(Feedback); // Publishes 8x array of arm servo posistions
     }
 
 
-    // Takes 8 Misc_Angles and writes to servos ID 12-21
+    // Takes 4 Misc_Angles and writes to servos ID 12-15
     void Misc_AnglesCallback(const std_msgs::Float32MultiArray& Misc_Angles){
-        // Clears bulk write stack
-        groupBulkWriteMisc.clearParam();
-
         // Creates and assigns array with each byte of message
         uint8_t data_array[4];
-        for (int i = 1; i < 9; i++){     // Do for all 8ish misc servos
+        for (int i = 1; i < 5; i++){     // Do for all 4 misc servos
             if(Misc_Angles.data[i-1] != -1){
                 uint32_t data = (unsigned int)(Misc_Angles.data[i - 1]); // Convert int32 to uint32
                 data_array[0] = DXL_LOBYTE(DXL_LOWORD(data));
                 data_array[1] = DXL_HIBYTE(DXL_LOWORD(data));
                 data_array[2] = DXL_LOBYTE(DXL_HIWORD(data));
                 data_array[3] = DXL_HIBYTE(DXL_HIWORD(data));
-                groupBulkWriteMisc.addParam((i + 11), GOAL_POSITION_ADDR, 4, data_array);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
+                groupSyncWrite_miscGoalPos.addParam((i + 11), data_array);  // Adds message to stack arguments(servo ID, data array of bytes)
             }
         }
-        groupBulkWriteMisc.txPacket();  // Write servos with prepared list all at once
+        
+        // Sets flag to sync write outside of callback
+        sync_misc_goal_pos = 1;
 
         // Sets the misc moving flag to start checking for servos to complete move
         misc_moving = 1;
-
-        // Print final servo values to ros
-        //ROS_INFO("Angles: %f, %f, %f, %f, %f, %f, %f, %f", Misc_Angles.data[0], Misc_Angles.data[1], Misc_Angles.data[2], Misc_Angles.data[3], Misc_Angles.data[4], Misc_Angles.data[5], Misc_Angles.data[6], Misc_Angles.data[7]);
     }
 
 
     // Checks if servos are within exceptable error to declare done
     void miscMoving(){
-        // Clears bulk read stack
-        groupBulkRead.clearParam();
+        // Executes sync read of goal posistion
+        groupSyncRead_miscGoalPos.txRxPacket();
 
-        // Reads goal angles of misc servos and stores in array
-        for (int i = 12; i < 12 + MISC_COUNT; i++){
-            groupBulkRead.addParam(i, 116, 4);
-        }
-        groupBulkRead.txRxPacket(); // Executes bulk read
-
-        // Assigns temp bulk read array to topic and publishes
-        float desired_angle[8];
-        for (int i = 0; i <  MISC_COUNT; i++){
-            desired_angle[i] = groupBulkRead.getData((i + 12), 116, 4);
-        }
-        // Clears bulk read stack
-        groupBulkRead.clearParam();
-
-        // Reads servo posistions of servos and stores in array
-        for (int i = 12; i < 12 + MISC_COUNT; i++){
-            groupBulkRead.addParam(i, 132, 4);
-        }
-        groupBulkRead.txRxPacket(); // Executes bulk read
+        // Executes sync read of present posistion
+        groupSyncRead_miscPresPos.txRxPacket();
 
         // Checks if current posistion and goal posistion are withen acceptable toleracne
-        for (int i = 0; i < MISC_COUNT; i++){
-            if(abs(desired_angle[i] - groupBulkRead.getData((i + 12), 132, 4)) > MISC_ANGLE_TOLERANCE){ // Used to use uint32_t pos[8]; for storing
+        for (int i = 12; i < 16; i++){
+            if(abs(groupBulkRead.getData((i), GOAL_POSITION_ADDR, NUM_BYTES_4) - groupBulkRead.getData((i), PRESENT_POSITION_ADDR, NUM_BYTES_4)) > MISC_ANGLE_TOLERANCE){ // Used to use uint32_t pos[8]; for storing
                 misc_moving = 1;                 // Joint error is to large que up another check
                 return;                         //  break out of function
             }
@@ -787,24 +731,53 @@ public:
 
     // Takes 3 Wheel_Speeds and writes to servos ID 9-11
     void wheelSpeeds(double *wheel_speeds){
-        // Clears bulk write stack
-        groupBulkWriteWheel.clearParam();
-
         // Creates and assigns array with each byte of message
         uint8_t data_array[4];
         for (int i = 1; i < 4; i++){    // Do for all 3 wheel servos
-            //int32_t data = (int32_t)(Wheel_Speeds.data[i - 1]); // Convert int32 to uint32
             int32_t data = (int32_t)(wheel_speeds[i - 1]); // Convert int32 to uint32
             data_array[0] = DXL_LOBYTE(DXL_LOWORD(data));
             data_array[1] = DXL_HIBYTE(DXL_LOWORD(data));
             data_array[2] = DXL_LOBYTE(DXL_HIWORD(data));
             data_array[3] = DXL_HIBYTE(DXL_HIWORD(data));
-            groupBulkWriteWheel.addParam((i + 8), GOAL_VELOCITY_ADDR, 4, data_array);  // Adds message to stack arguments(servo ID, Address, size, data array of bytes)
+            groupSyncWrite_wheelGoalVel.addParam((i + 8), data_array);  // Adds message to stack arguments(servo ID, data array of bytes)
         }
-        groupBulkWriteWheel.txPacket();  // Write servos with prepared list all at once
+        
+        // Sets flag to write to servos outside of callback
+        sync_wheel_goal_vel = 1;
+    }
 
-        // Print final servo values to ros
-        //ROS_INFO("Angles: %f, %f, %f", Wheel_Speeds.data[0], Wheel_Speeds.data[1], Wheel_Speeds.data[2]);
+
+    // Writes thenn clears prepared sync write stacks if new availible
+    void syncWrite(){
+        // Sync write/clear if new arm acc/vel ready
+        if(sync_arm_acc_vel){
+            groupSyncWrite_armAcc.txPacket();
+            groupSyncWrite_armAcc.clearParam();
+            groupSyncWrite_armVel.txPacket();
+            groupSyncWrite_armVel.clearParam();
+            sync_arm_acc_vel = 0;
+        }
+
+        // Sync write/clear if new arm posistions ready
+        if(sync_arm_goal_pos){
+            groupSyncWrite_armGoalPos.txPacket();
+            groupSyncWrite_armGoalPos.clearParam();
+            sync_arm_goal_pos = 0;
+        }
+
+        // Sync write/clear if new misc posistions ready
+        if(sync_misc_goal_pos){
+            groupSyncWrite_miscGoalPos.txPacket();
+            groupSyncWrite_miscGoalPos.clearParam();
+            sync_misc_goal_pos = 0;
+        }
+
+        // Sync write/clear if new wheel speeds ready
+        if(sync_wheel_goal_vel){
+            groupSyncWrite_wheelGoalVel.txPacket();
+            groupSyncWrite_wheelGoalVel.clearParam();
+            sync_wheel_goal_vel = 0;
+        }
     }
  
 
@@ -841,6 +814,9 @@ private:
     std_msgs::Int8 Misc_Done;
     std_msgs::Bool Local_En;
 
+    // Variable to signify new sync write data is ready
+    int sync_arm_goal_pos = 0, sync_arm_acc_vel = 0, sync_misc_goal_pos = 0, sync_wheel_goal_vel = 0;
+
     // Variables for bot movement functions
     double  desired_x = 0, error_x_prev = 0, error_x_cumulative = 0, linear_x = 0, arrived_x = 0,
             desired_y = 0, error_y_prev = 0, error_y_cumulative = 0, linear_y = 0, arrived_y = 0,
@@ -868,7 +844,11 @@ int main(int argc, char** argv){
 
     // Main loop
     while (ros::ok())
-    {
+    {   
+        // Sync write if new data is availible
+        if(ServoObject.sync_arm_acc_vel || ServoObject.sync_arm_goal_pos || ServoObject.sync_misc_goal_pos || ServoObject.sync_wheel_goal_vel)
+            ServoObject.syncWrite();
+
         // Once triggered by new arm posistion will keep running until close enough to desired posistion
         if(ServoObject.arm_moving)
             ServoObject.armMoving();
