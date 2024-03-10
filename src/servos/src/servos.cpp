@@ -112,7 +112,8 @@ GroupSyncWrite groupSyncWrite_wheelGoalVel(portHandler, packetHandler, GOAL_VELO
 class ServoClass{
 public:
     // Int flags for main
-        int arm_moving = 0, misc_moving = 0;
+        int arm_moving = 0, misc_moving = 0, sync_arm_goal_pos = 0, sync_arm_acc_vel = 0, 
+            sync_misc_goal_pos = 0, sync_wheel_goal_vel = 0;
 
     // Initiating pubs, subs, and arrays
     ServoClass(ros::NodeHandle* nodehandle){ 
@@ -445,7 +446,7 @@ public:
 
         // Checks if current posistion and goal posistion are withen acceptable toleracne
         for (int i = 12; i < 16; i++){
-            if(abs(groupBulkRead.getData((i), GOAL_POSITION_ADDR, NUM_BYTES_4) - groupBulkRead.getData((i), PRESENT_POSITION_ADDR, NUM_BYTES_4)) > MISC_ANGLE_TOLERANCE){ // Used to use uint32_t pos[8]; for storing
+            if(abs(groupSyncRead_miscGoalPos.getData((i), GOAL_POSITION_ADDR, NUM_BYTES_4) - groupSyncRead_miscPresPos.getData((i), PRESENT_POSITION_ADDR, NUM_BYTES_4)) > MISC_ANGLE_TOLERANCE){ // Used to use uint32_t pos[8]; for storing
                 misc_moving = 1;                 // Joint error is to large que up another check
                 return;                         //  break out of function
             }
@@ -813,9 +814,6 @@ private:
     std_msgs::Int8 Move_Done;
     std_msgs::Int8 Misc_Done;
     std_msgs::Bool Local_En;
-
-    // Variable to signify new sync write data is ready
-    int sync_arm_goal_pos = 0, sync_arm_acc_vel = 0, sync_misc_goal_pos = 0, sync_wheel_goal_vel = 0;
 
     // Variables for bot movement functions
     double  desired_x = 0, error_x_prev = 0, error_x_cumulative = 0, linear_x = 0, arrived_x = 0,
