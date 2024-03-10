@@ -45,11 +45,11 @@ def main():
         # Initialize all devices, variables, windows, etc.
         smach.StateMachine.add('INITIALIZE', Initialize(init_state_pub=init_state_pub), 
                                transitions={'succeeded':'READING_START_LED', 'aborted':'INITIALIZE'})
-                               #transitions={'succeeded':'PACKAGE_PICKUP', 'aborted':'INITIALIZE'})
+                               #transitions={'succeeded':'PACKAGE_DROP_OFF', 'aborted':'INITIALIZE'})
         
         # Read the start green LED and wait for it to be detected
         smach.StateMachine.add('READING_START_LED', ReadingStartLED(), 
-                               transitions={'green_led_detected': 'PICKUP_BIG_PACKAGES',
+                               transitions={'green_led_detected': 'PICKUP_BIG_PACKAGES',    
                                             'green_led_not_detected':'READING_START_LED'})
         
         big_packages_sm = smach.StateMachine(outcomes=['packages_picked_up', 'packages_not_picked_up'])
@@ -210,7 +210,7 @@ def main():
         
         
         
-        smach.StateMachine.add('SPIRIT_CELEBRATION', SpiritCelebration(misc_angles_publisher = misc_angles_pub),
+        smach.StateMachine.add('SPIRIT_CELEBRATION', SpiritCelebration(misc_angles_publisher = misc_angles_pub, arm_angles_publisher=arm_angles_pub),
                                transitions = {'succeeded':'BUTTON_PRESS', 'aborted':'SPIRIT_CELEBRATION'})
 
         

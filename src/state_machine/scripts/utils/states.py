@@ -213,7 +213,8 @@ class GoTo_(smach.State):
         '''State to move the robot to the big package wall'''
         # Publish move to the big package wall
         y_offset = globals['big_package_Y_offset']
-        publish_command(self.move_pub, Float32MultiArray, [1, 0, 0, 20], delay=1.75)
+        #publish_command(self.move_pub, Float32MultiArray, [1, 0, 0, 20], delay=1.75)
+        publish_command(self.move_pub, Float32MultiArray, [1, 0, 0, 20], delay=1.85)
 
         # Wait for the move_done message
         #rospy.wait_for_message("Move_Done", Int8, timeout=10)
@@ -280,7 +281,8 @@ class GoTo_(smach.State):
         '''State to move the robot to the fuel tank area'''
 
         # Publish command to reach to the drop off area
-        if publish_command(self.move_pub, Float32MultiArray, [147, 255, -90, 100]):
+        #if publish_command(self.move_pub, Float32MultiArray, [147, 255, -90, 100]):
+        if publish_command(self.move_pub, Float32MultiArray, [155, 330, -90, 100]):
 
         # Wait for the move to complete
             rospy.wait_for_message("Move_Done", Int8, timeout=10)
@@ -418,6 +420,10 @@ class GoTo_(smach.State):
 
         publish_command(self.move_pub, Float32MultiArray, [0, 0, 90, 100])
         rospy.wait_for_message("Move_Done", Int8, timeout=10)
+
+        #Here we would like the bot to stop until the fuel tanks have been sorted and placed
+        #publish_command(self.move_pub, Float32MultiArray, [0, 0, 0, 0])
+        #rospy.wait_for_message("Move_Done", Int8, timeout=10)
 
         publish_command(self.move_pub, Float32MultiArray, [100, 250, 90, 100])
         rospy.wait_for_message("Move_Done", Int8, timeout=10)
@@ -780,7 +786,8 @@ class PickUp(smach.State):
         # Wait for the bulk grabber arms to reach the pose
         rospy.wait_for_message("Misc_Done", Int8, timeout=10)
         
-        publish_command(self.move_pub, Float32MultiArray, [0, 110, -90, 100])
+        #Position to grab fuel tanks with bulk grabber
+        publish_command(self.move_pub, Float32MultiArray, [0, 120, -90, 100])
         rospy.wait_for_message("Move_Done", Int8, timeout=10)
         
         publish_command(self.misc_angles_pub, Float32MultiArray, [raised_bridge, top_bulk, bottom_bulk, flag])
@@ -882,12 +889,13 @@ class DropOff(smach.State):
             # Raise bot arm to avoid interferring with TOF_Right readings
             top_bulk = globals['raise_bulk_top']
             bottom_bulk = globals['raise_bulk_bottom']
-            publish_command(self.misc_angles_pub, Float32MultiArray, [raised_bridge, top_bulk, bottom_bulk, flag])
+            #publish_command(self.misc_angles_pub, Float32MultiArray, [raised_bridge, top_bulk, bottom_bulk, flag])
+            if publish_command(self.misc_angles_pub, Float32MultiArray, [raised_bridge, top_bulk, bottom_bulk, flag]):
             
             # Wait for the bulk grabber arms to reach the pose
-            rospy.wait_for_message("Misc_Done", Int8, timeout=10)
+                rospy.wait_for_message("Misc_Done", Int8, timeout=10)
 
-            return 'packages_dropped_off'
+                return 'packages_dropped_off'
         else:
             return 'packages_not_dropped_off'
 
@@ -927,6 +935,13 @@ class SpiritCelebration(smach.State):
             top_bulk = globals['close_bulk_top']
             bottom_bulk = globals['set_bulk_bottom']
             flag = globals['raised_flag']
+            jaw = globals['gripper_bulk_hold']
+            speed = 1
+
+            angles = [495.0, 1669.0, 1664.0, 2507.0, 2087.0, 946.0, 3915.0, jaw, speed]  #scan pose
+            publish_command(self.arm_angles_pub, Float32MultiArray, angles, delay=2) #gets the arm out of the way for the flag
+            #rospy.wait_for_message("Arm_Done", Int8, timeout=10)
+            
 
             # Publish the misc angles to close the top bulk grabber arm
             if publish_command(self.misc_angles_pub, Float32MultiArray, [bridge, top_bulk, bottom_bulk, flag]):

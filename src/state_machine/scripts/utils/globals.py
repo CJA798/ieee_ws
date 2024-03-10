@@ -30,10 +30,12 @@ globals: Dict[str, Union[bool, int, None]] = {
     # Big Package Macros
     'big_package_Y_offset': -248,
 
-    'set_bulk_top': 1300,
-    'set_bulk_bottom': 3055,
+    'set_bulk_top': 1370,
+    #'set_bulk_top': 1200,
+    'set_bulk_bottom': 3055, # lower closes
+    #'set_bulk_bottom': 2000, # lower closes
 
-    'close_bulk_top': 1075,
+    'close_bulk_top': 1150, #higher looser
 
     'raise_bulk_offset': 1000,
     'fuel_tank_raise_bulk_offset': 1920,
@@ -45,7 +47,7 @@ globals: Dict[str, Union[bool, int, None]] = {
     'big_packages_picked_up': False,
     
     # Fuel Tank Macros
-    'bulk_top_close': 1025,
+    'bulk_top_close': 1040,
     'bulk_fuel_bottom': 2910, 
 
     # Bridge Macros
@@ -55,7 +57,7 @@ globals: Dict[str, Union[bool, int, None]] = {
 
     # Flag Macros
     'lowered_flag': 2048,
-    'raised_flag': 1800
+    'raised_flag': 1024 #was 1800
 }
 
 # Macros that depend on other macros
