@@ -406,7 +406,7 @@ public:
 
         // Assigns temp sync read array to topic and publishes
         for (int i = 0; i < 8; i++){
-            Feedback.data[i] = groupBulkRead.getData((i + 1), 132, 4);
+            Feedback.data[i] = groupSyncRead_armPresPosd.getData((i + 1), 132, 4);
         }
         Feedback_pub.publish(Feedback); // Publishes 8x array of arm servo posistions
     }
