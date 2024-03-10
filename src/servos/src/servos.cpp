@@ -446,7 +446,7 @@ public:
 
         // Checks if current posistion and goal posistion are withen acceptable toleracne
         for (int i = 12; i < 16; i++){
-            if(abs(groupSyncRead_miscGoalPos.getData((i), GOAL_POSITION_ADDR, NUM_BYTES_4) - groupSyncRead_miscPresPos.getData((i), PRESENT_POSITION_ADDR, NUM_BYTES_4)) > MISC_ANGLE_TOLERANCE){ // Used to use uint32_t pos[8]; for storing
+            if(abs((int32_t)(groupSyncRead_miscGoalPos.getData((i), GOAL_POSITION_ADDR, NUM_BYTES_4)) - (int32_t)(groupSyncRead_miscPresPos.getData((i), PRESENT_POSITION_ADDR, NUM_BYTES_4))) > MISC_ANGLE_TOLERANCE){ // Used to use uint32_t pos[8]; for storing
                 misc_moving = 1;                 // Joint error is to large que up another check
                 return;                         //  break out of function
             }
