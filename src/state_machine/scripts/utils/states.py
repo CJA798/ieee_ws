@@ -616,7 +616,7 @@ class SetPose(smach.State):
     def FuelTankScan(self):
         # Publish command to set the arm to fuel tank scan pose
         jaw = globals['gripper_bulk_release']
-        speed = 1
+        speed = 5
         angles = [1185.0, 2236.0, 2231.0, 2151.0, 2017.0, 692.0, 2109.0, jaw, speed]
         
         if publish_command(self.arm_angles_pub, Float32MultiArray, angles):
@@ -840,7 +840,7 @@ class DropOff(smach.State):
     def DropOffSmallPackages(self):
         # Go over red area
         jaw = globals['gripper_bulk_hold']
-        speed = 1
+        speed = 2
         angles = [495.0, 1669.0, 1664.0, 2507.0, 2087.0, 946.0, 3915.0, jaw, speed]
         publish_command(self.arm_angles_pub, Float32MultiArray, angles, delay=4)
         rospy.loginfo('Moving arm over red area')
@@ -848,7 +848,7 @@ class DropOff(smach.State):
 
         # Lower the arm
         jaw = globals['gripper_bulk_hold']
-        speed = 2
+        speed = 5
         angles = [493.0, 1459.0, 1460.0, 2196.0, 2087.0, 1432.0, 3824.0, jaw, speed]
         publish_command(self.arm_angles_pub, Float32MultiArray, angles, delay=2)
         rospy.loginfo('Lowering arm')
@@ -856,7 +856,7 @@ class DropOff(smach.State):
 
         # Open the gripper
         jaw = globals['gripper_bulk_release']
-        speed = 5
+        speed = 10
         angles = [493.0, 1459.0, 1460.0, 2196.0, 2087.0, 1432.0, 3824.0, jaw, speed]
         publish_command(self.arm_angles_pub, Float32MultiArray, angles, delay=1)
         #rospy.wait_for_message("Arm_Done", Int8, timeout=10) 
@@ -941,7 +941,7 @@ class SpiritCelebration(smach.State):
             bottom_bulk = globals['set_bulk_bottom']
             flag = globals['raised_flag']
             jaw = globals['gripper_bulk_hold']
-            speed = 1
+            speed = 10
 
             angles = [495.0, 1669.0, 1664.0, 2507.0, 2087.0, 946.0, 3915.0, jaw, speed]  #scan pose
             publish_command(self.arm_angles_pub, Float32MultiArray, angles, delay=2) #gets the arm out of the way for the flag
@@ -1046,7 +1046,7 @@ class RestPose(smach.State):
         try:
             # Reset the arm_done global variable
             globals['arm_done'] = False
-            speed = 1
+            speed = 5
             jaw = globals['gripper_bulk_hold']
             angles_ = Float32MultiArray()
             angles_.data = [1058.0, 2852.0, 2847.0, 1405.0, 2109.0, 1736.0, 1038.0, jaw, speed]

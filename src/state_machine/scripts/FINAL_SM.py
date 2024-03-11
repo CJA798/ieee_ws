@@ -157,34 +157,11 @@ def main():
                                     }})
         
         with fuel_tank_sort_and_final_area_sm:
-            # State machine for fuel tank sorting
-            @smach.cb_interface(input_keys=['coordinates_list'],
-                                    output_keys=['sorted_coords_list'],
-                                    outcomes=['coords_list_sorted', 'coords_list_not_sorted'])
-            
-            def sort_coords_cb(userdata):
-                try:
-                    # Get the list of coordinates from the userdata
-                    coords_list = userdata.coordinates_list.coordinates
-                    # Sort the list of coordinates
-                    coords_list.sort(key=lambda x: x[0])
-                    # Save the sorted list of coordinates
-                    userdata.sorted_coords_list = coords_list
-
-                    return 'coords_list_sorted'
-                except:
-                    rospy.logerr('Error in sort_coords_cb')
-                    rospy.logerr(f'Coordinates list: {userdata.coordinates_list}')
-                    rospy.logwarn(f'Parent: {userdata.coordinates_list}')
-                    return 'coords_list_not_sorted'
-                    
+            # State machine for fuel tank sorting       
             fuel_tank_sort_sm = smach.StateMachine(outcomes=['fuel_tanks_stored', 'fuel_tanks_not_stored'])
             with fuel_tank_sort_sm:
                 smach.StateMachine.add('GET_FT_COORDS', GetCoords(object_type=BoardObjects.FUEL_TANK.value, pose=Poses.FUEL_TANK_SCAN.value, timeout=5.0, expected_pairs=3, camera_enable_publisher=camera_enable_pub),
-                                        transitions={'coords_received':'SORT_COORDS', 'coords_not_received':'GET_FT_COORDS'})
-
-                smach.StateMachine.add('SORT_COORDS', smach.CBState(sort_coords_cb, input_keys=['coordinates_list'], output_keys=['sorted_coords_list'], outcomes=['coords_list_sorted', 'coords_list_not_sorted']),
-                                        transitions={'coords_list_sorted':'PICK_UP_FUEL_TANK', 'coords_list_not_sorted':'GET_FT_COORDS'})
+                                        transitions={'coords_received':'STORE_FUEL_TANK', 'coords_not_received':'GET_FT_COORDS'})
                 smach.StateMachine.add('PICK_UP_FUEL_TANK', PickUpFuelTank(task_space_publisher=task_space_pub),
                                         transitions={'fuel_tank_picked_up':'STORE_FUEL_TANK', 'fuel_tank_not_picked_up':'PICK_UP_FUEL_TANK'})
                 smach.StateMachine.add('STORE_FUEL_TANK', StoreFuelTank(),
@@ -223,7 +200,7 @@ def main():
     sis.start()
 
     # Create a timer to check the Arduino's heartbeat every second
-    rospy.Timer(rospy.Duration(1), check_heartbeat_cb)
+    rospy.Timer(rospy.Duration(1), lambda event: check_heartbeat_cb(arm_angles_pub, move_pub, misc_angles_pub))
 
     # Execute SMACH plan
     outcome = sm.execute()

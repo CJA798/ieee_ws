@@ -1,6 +1,8 @@
 import rospy
 from utils.globals import globals
 from subprocess import run
+from std_msgs.msg import Float32MultiArray
+
 
 def heartbeat_cb(msg):
     if globals['heartbeat_on'] == False:
@@ -9,11 +11,30 @@ def heartbeat_cb(msg):
     globals['last_heartbeat_time']= rospy.get_time()
     #print(globals['last_heartbeat_time'])
 
-def check_heartbeat_cb(event):
+
+def stop_all(arm_angles_pub, move_pub, misc_angles_pub) -> bool:
+    try:
+        stop_msg = Float32MultiArray()
+        # Stop Move
+        stop_msg.data = [0, 0, 0, 0]
+        move_pub.publish(stop_msg)
+        # Stop Arm
+        stop_msg.data = [2041.0, 2023.0, 2015.0, 2660.0, 2083.0, 489.0, 2039.0, 2048, 5]
+        arm_angles_pub.publish(stop_msg)
+        # Stop Misc
+        stop_msg.data = [-1, -1, -1, -1]
+        misc_angles_pub.publish(stop_msg)
+        rospy.logwarn("Stopping all servos")
+    except Exception as e:
+        rospy.logerr(f"Error in stop_all: {e}")
+        return False
+
+def check_heartbeat_cb(arm_angles_pub, move_pub, misc_angles_pub):
     last_heartbeat_time = globals['last_heartbeat_time']
     current_time = rospy.get_time()
     #print(f'Last heartbeat time: {last_heartbeat_time} | Current time: {current_time} | Difference: {int(current_time - last_heartbeat_time)}')
     if last_heartbeat_time is not None and int(current_time - last_heartbeat_time) > 2:
+        stop_all(arm_angles_pub, move_pub, misc_angles_pub)
         rospy.logerr("Arduino heartbeat lost, restarting rosserial node...")
         run(["rosnode", "kill", "/serial_node_1"])
         rospy.sleep(2)
