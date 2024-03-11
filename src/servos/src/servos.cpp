@@ -8,6 +8,7 @@
 * it also accepts a Move function and does the kinematics and PIDs
 */
 
+// For rebooting
 //uint8_t dxl_error = 0;
 //packetHandler->reboot(portHandler, DXL_ID, &dxl_error);
 
@@ -404,7 +405,7 @@ public:
         // Creates and assigns array with each byte of message
         uint8_t data_array[4];
         for (int i = 1; i < 5; i++){     // Do for all 4 misc servos
-            if(Misc_Angles.data[i-1] != -1){
+            if(Misc_Angles.data[i-1] >= 0){
                 uint32_t data = (unsigned int)(Misc_Angles.data[i - 1]); // Convert int32 to uint32
                 data_array[0] = DXL_LOBYTE(DXL_LOWORD(data));
                 data_array[1] = DXL_HIBYTE(DXL_LOWORD(data));
@@ -413,6 +414,11 @@ public:
                 groupSyncWrite_miscGoalPos.addParam((i + 11), data_array);  // Adds message to stack arguments(servo ID, data array of bytes)
             }
         }
+
+        if(Misc_Angles.data[2] == -2)
+            packetHandler->write1ByteTxOnly(portHandler, 14, TORQUE_ENABLE_ADDR, TORQUE_ENABLE);      // Enable torque for servo 14
+        else if(Misc_Angles.data[2] == -3)
+            packetHandler->write1ByteTxOnly(portHandler, 14, TORQUE_ENABLE_ADDR, 0);      // Disable torque for servo 14
         
         // Sets flag to sync write outside of callback
         sync_misc_goal_pos = 1;
