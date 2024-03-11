@@ -193,7 +193,8 @@ class ImageProcessor_():
         coordinates, coords_image = self.find_contours(gray, pose_, area_range_factor=area_range_factor)
         #coords_image = np.hstack([image, blur, median, darkened_frame, self.image])
         
-        return (coordinates, coords_image)
+        sorted_coordinates_list = sorted(coordinates, key=lambda x: x.x)
+        return (sorted_coordinates_list, coords_image)
     
     def find_fuel_tank_coords(self, pose: str) -> Tuple[List[Point], np.ndarray]:
         image = self.image

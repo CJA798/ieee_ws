@@ -30,12 +30,10 @@ globals: Dict[str, Union[bool, int, None]] = {
     # Big Package Macros
     'big_package_Y_offset': -248,
 
-    'set_bulk_top': 1370,
-    #'set_bulk_top': 1200,
-    'set_bulk_bottom': 3055, # lower closes
-    #'set_bulk_bottom': 2000, # lower closes
+    'set_bulk_top': 1400,
+    'set_bulk_bottom': 1050,
 
-    'close_bulk_top': 1150, #higher looser
+    'close_bulk_top': 1150,
 
     'raise_bulk_offset': 1000,
     'fuel_tank_raise_bulk_offset': 1920,
@@ -65,4 +63,4 @@ globals: Dict[str, Union[bool, int, None]] = {
 # Calculate current_cam_res based on max_cam_res and img_resize_factor
 globals['current_cam_res'] = (globals['max_cam_res'][0] // globals['img_resize_factor'], globals['max_cam_res'][1] // globals['img_resize_factor'])
 globals['raise_bulk_top'] = globals['close_bulk_top'] + globals['raise_bulk_offset']
-globals['raise_bulk_bottom'] = globals['set_bulk_bottom'] - globals['raise_bulk_offset']
+globals['raise_bulk_bottom'] = globals['set_bulk_bottom'] + globals['raise_bulk_offset']

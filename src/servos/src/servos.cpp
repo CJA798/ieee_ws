@@ -221,7 +221,9 @@ public:
 
         // Sets flag to sync write
         sync_misc_goal_pos = 1;
-        //usleep(1000000);
+
+        // Delay to wait for servos connected
+        usleep(100000);
         //ROS_INFO("Sync write servos: %d", sync_misc_goal_pos);
     }
 
