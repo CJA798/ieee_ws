@@ -180,23 +180,7 @@ public:
         usleep(10000);
         packetHandler->write1ByteTxOnly(portHandler, SECONDARY_ID, LED_ADDR, 1);      // Turn on LED
         usleep(10000);
-        //packetHandler->write4ByteTxOnly(portHandler, SECONDARY_ID, MAX_ACC_ADDR, MAX_ACC / 100);                  // Set acc limit of posistion mode
-        //packetHandler->write4ByteTxOnly(portHandler, SECONDARY_ID, MAX_VEL_ADDR, MAX_VEL / 10);                  // Set vel limit of posistion mode
-        //packetHandler->write4ByteTxOnly(portHandler, SECONDARY_ID, GOAL_VELOCITY_ADDR, STOP);               // Sets starting velocity to stop
-        //packetHandler->write4ByteTxOnly(portHandler, SECONDARY_ID, GOAL_POSITION_ADDR, CENTER_POSISTION);   // Set starting posistion to center
-        //packetHandler->write2ByteTxOnly(portHandler, SECONDARY_ID, POS_P_GAIN_ADDR, POS_P_GAIN);            // Sets posistion P gain
-        //packetHandler->write2ByteTxOnly(portHandler, SECONDARY_ID, POS_I_GAIN_ADDR, POS_I_GAIN);            // Sets posistion I gain
-        //packetHandler->write2ByteTxOnly(portHandler, SECONDARY_ID, POS_D_GAIN_ADDR, POS_D_GAIN);            // Sets posistion D gain
         packetHandler->write2ByteTxOnly(portHandler, 8, GOAL_CURRENT_ADDR, MAX_CURRENT);         // Sets gripper servo current limit
-
-        //packetHandler->write2ByteTxOnly(portHandler, 12, POS_I_GAIN_ADDR, 0);       // Resets misc servo posistion I gain to zero
-        //packetHandler->write2ByteTxOnly(portHandler, 13, POS_I_GAIN_ADDR, 0);       // Resets misc servo posistion I gain to zero
-        //packetHandler->write2ByteTxOnly(portHandler, 14, POS_I_GAIN_ADDR, 0);       // Resets misc servo posistion I gain to zero
-        //packetHandler->write2ByteTxOnly(portHandler, 15, POS_I_GAIN_ADDR, 0);       // Resets misc servo posistion I gain to zero
-        //packetHandler->write4ByteTxOnly(portHandler, 13, MAX_ACC_ADDR, 10);          // Set acc limit of posistion mode
-        //packetHandler->write4ByteTxOnly(portHandler, 13, MAX_VEL_ADDR, 500);        // Set vel limit of posistion mode
-        //packetHandler->write4ByteTxOnly(portHandler, 14, MAX_ACC_ADDR, 10);          // Set acc limit of posistion mode
-        //packetHandler->write4ByteTxOnly(portHandler, 14, MAX_VEL_ADDR, 500);        // Set vel limit of posistion mode
         
         // Stets up sync read params for arm present pos
         for(int i = 1; i < 9; i++)
@@ -211,7 +195,7 @@ public:
             groupSyncRead_miscPresPos.addParam(i);
 
         // Publish 8 starting servo angles and speed to Arm_Angles
-        int Arm_Start_Angles[9] = { 1586, 2902, 2898, 1471, 2063, 1802, 1041, 1980, 1 };
+        int Arm_Start_Angles[9] = { 1586, 2902, 2898, 1471, 2063, 1802, 1041, 1980, 2 };
         for (int i = 0; i < 9; i++) {
             Arm_Angles.data[i] = Arm_Start_Angles[i];
         }
@@ -236,6 +220,8 @@ public:
 
         // Sets flag to sync write
         sync_misc_goal_pos = 1;
+        //usleep(1000000);
+        //ROS_INFO("Sync write servos: %d", sync_misc_goal_pos);
     }
 
 
@@ -631,8 +617,11 @@ public:
     // Triggers on /IMU_Bearing post sets rotation z spead based on pids and offset
     void imuBearing(int imu_bearing){
         // If bearing_offset is negative it is uninitialized, so set it as offset
-        if(bearing_offset == -1 && desired_z != -1)
+        //if(bearing_offset == -1 && desired_z != -1)
+        if(imu_wakeup < 0){
             bearing_offset = imu_bearing;
+            imu_wakeup++;
+        }
         
         // Find difference or errot between desired and actual
         double error_z = desired_z - (imu_bearing - bearing_offset);
@@ -752,30 +741,33 @@ public:
     void syncWrite(){
         // Sync write/clear if new arm acc/vel ready
         if(sync_arm_acc_vel){
-            groupSyncWrite_armAcc.txPacket();
+            int temp1 = groupSyncWrite_armAcc.txPacket();
             groupSyncWrite_armAcc.clearParam();
-            groupSyncWrite_armVel.txPacket();
+            int temp2 = groupSyncWrite_armVel.txPacket();
             groupSyncWrite_armVel.clearParam();
             sync_arm_acc_vel = 0;
         }
 
         // Sync write/clear if new arm posistions ready
         if(sync_arm_goal_pos){
-            groupSyncWrite_armGoalPos.txPacket();
+            int temp3 = groupSyncWrite_armGoalPos.txPacket();
             groupSyncWrite_armGoalPos.clearParam();
             sync_arm_goal_pos = 0;
         }
 
         // Sync write/clear if new misc posistions ready
         if(sync_misc_goal_pos){
-            groupSyncWrite_miscGoalPos.txPacket();
-            groupSyncWrite_miscGoalPos.clearParam();
-            sync_misc_goal_pos = 0;
+            int write_result = groupSyncWrite_miscGoalPos.txPacket();
+            if(!write_result){
+                groupSyncWrite_miscGoalPos.clearParam();
+                sync_misc_goal_pos = 0;
+            }
+            //ROS_INFO("Sync write result: %d", write_result);
         }
 
         // Sync write/clear if new wheel speeds ready
         if(sync_wheel_goal_vel){
-            groupSyncWrite_wheelGoalVel.txPacket();
+            int temp4 = groupSyncWrite_wheelGoalVel.txPacket();
             groupSyncWrite_wheelGoalVel.clearParam();
             sync_wheel_goal_vel = 0;
         }
@@ -819,7 +811,7 @@ private:
     double  desired_x = 0, error_x_prev = 0, error_x_cumulative = 0, linear_x = 0, arrived_x = 0,
             desired_y = 0, error_y_prev = 0, error_y_cumulative = 0, linear_y = 0, arrived_y = 0,
             desired_z = -1, error_z_prev = 0, error_z_cumulative = 0, linear_z = 0, arrived_z = 0,
-            max_speed = 0, bearing_offset = -1, e_stop = 0;
+            max_speed = 0, bearing_offset = -1, e_stop = 0, imu_wakeup = -5;
 
     // Local task space 
     float local_task_space[6];
