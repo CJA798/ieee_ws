@@ -86,7 +86,7 @@ def main():
         with small_packages_sm:
             smach.StateMachine.add('SCAN_POSE', ScanPose(arm_angles_pub=arm_angles_pub),
                                     transitions={'pose_reached':'GET_SP_COORDS', 'pose_not_reached':'SCAN_POSE'})
-            smach.StateMachine.add('GET_SP_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value, timeout=5.0, expected_pairs=3, camera_enable_publisher=camera_enable_pub),
+            smach.StateMachine.add('GET_SP_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value, timeout=2.0, expected_pairs=3, camera_enable_publisher=camera_enable_pub),
                                     transitions={'coords_received':'VERIFY_POSE', 'coords_not_received':'GET_SP_COORDS'})
             smach.StateMachine.add('VERIFY_POSE', VerifyPose(task_space_pub=task_space_pub),
                                     transitions={'pose_reached':'REST_POSE', 'pose_not_reached':'VERIFY_POSE'})
@@ -165,8 +165,11 @@ def main():
                 smach.StateMachine.add('PICK_UP_FUEL_TANK', PickUpFuelTank(task_space_publisher=task_space_pub),
                                         transitions={'fuel_tank_picked_up':'STORE_FUEL_TANK', 'fuel_tank_not_picked_up':'PICK_UP_FUEL_TANK'})
                 smach.StateMachine.add('STORE_FUEL_TANK', StoreFuelTank(),
-                                        transitions={'fuel_tank_stored':'fuel_tanks_stored', 'fuel_tank_not_stored':'STORE_FUEL_TANK'})
-
+                                        transitions={'fuel_tank_stored':'REST_POSE', 'fuel_tank_not_stored':'STORE_FUEL_TANK'})
+                smach.StateMachine.add('REST_POSE', RestPose(arm_angles_pub=arm_angles_pub),
+                                    transitions={'pose_reached':'fuel_tanks_stored', 'pose_not_reached':'REST_POSE'})
+            
+    
 
             # State machine for movement to final area
             go_to_final_sm = smach.StateMachine(outcomes=['arrived', 'not_arrived'])

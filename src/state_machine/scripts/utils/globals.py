@@ -36,22 +36,22 @@ globals: Dict[str, Union[bool, int, None]] = {
     'close_bulk_top': 1150,
 
     'raise_bulk_offset': 1000,
-    'fuel_tank_raise_bulk_offset': 1920,
     
     # 'raise_bulk_top & raise_bulk_bottom declared outside globals dict
 
     'drop_bulk_top': 1500,
-    'drop_bulk_bottom': 3000,
+    'drop_bulk_bottom': 1040,
     'big_packages_picked_up': False,
     
     # Fuel Tank Macros
-    'bulk_top_close': 1040,
-    'bulk_fuel_bottom': 2910, 
+    'fuel_tank_close_top': 1050,
+    'fuel_tank_raise_bulk_offset': 2000,
+
 
     # Bridge Macros
     'raised_bridge': 2048,
     'mid_bridge': 2400,
-    'lowered_bridge': 3220,
+    'lowered_bridge': 3250,
 
     # Flag Macros
     'lowered_flag': 2048,
