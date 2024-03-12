@@ -52,12 +52,12 @@ using namespace dynamixel;
 #define POS_I_GAIN              500     // Angle mode I gain
 #define POS_D_GAIN              4000    // Angle mode D gain
 #define STOP                    0       // Velocity mode stop
-#define MISC_ANGLE_TOLERANCE    10      // Counts we need to be off to count as arrived
+#define MISC_ANGLE_TOLERANCE    50//10      // Counts we need to be off to count as arrived
 #define ARM_TOLERANCE           10      // Allowable error in arm before declareing arrived
 #define STEPS_DOWN              10      // Number of millimeters to move down per step
 #define MAX_CURRENT             500     // Max current small servos can pull
 
-
+#define DEBUG                   1       // Prints out ros info's
 #define CUSTOM_PIDS             1       // Set to 1 for custom variable pids, or 0 for preset
 
 // PID's and Move constants x = left/right, y = forward/backwards, z = rotation
@@ -85,7 +85,7 @@ double KP_X = 4.0, KI_X = 0.01, KD_X = 0.5, KP_Y = 4.0, KI_Y = 0.01, KD_Y = 0.5,
 #define TS                  10      // Estimation of TOF samples per sec
 #define MAX_SPEED           5       // Scaler for max_speed of wheels
 #define CUMULATIVE_CAP      1000    // Cap on cumlative error for pid
-#define LIFTUP_SAFETY       150     // Distance bot must be picked up to stop
+#define LIFTUP_SAFETY       200     // Distance bot must be picked up to stop
 #define BACKUP_SAFETY       120     // Distance that will halt a backup move if read from back tof
 
 // Default dynamixel setting
@@ -224,12 +224,19 @@ public:
 
         // Delay to wait for servos connected
         usleep(100000);
-        //ROS_INFO("Sync write servos: %d", sync_misc_goal_pos);
+        #if DEBUG
+            ROS_WARN("**********Node initialized");
+        #endif
     }
 
 
     // Takes global x, y, z, theta(wrist), phi(claw), and speed and pubs servo values to Arm_Angles
     void Task_SpaceCallback(const std_msgs::Float32MultiArray& Task_Space){
+        // Optional debug info
+        #if DEBUG
+            ROS_WARN("**********Taskspace recieved: %f, %f, %f, %f, %f, %f", Task_Space.data[0], Task_Space.data[1], Task_Space.data[2], Task_Space.data[3], Task_Space.data[4], Task_Space.data[5]);
+        #endif
+
         // Declares variables and copies taskspace from topic
         float x, y, z, theta, phi;
         x = Task_Space.data[0];
@@ -300,9 +307,6 @@ public:
         Q[7] = (int)phi;
         Q[8] = Task_Space.data[5];
 
-        // Print final servo values to ros
-        //ROS_INFO("%d, %d, %d, %d, %d, %d", (int)(q[0] * 180 / M_PI), (int)(q[1] * 180 / M_PI), (int)(q[2] * 180 / M_PI), (int)(q[3] * 180 / M_PI), (int)(q[4] * 180 / M_PI), (int)(q[5] * 180 / M_PI));
-        
         // Publish 8 servo angles and speed to Arm_Angles
         for (int i = 0; i < 9; i++){
             Arm_Angles.data[i] = Q[i];
@@ -313,6 +317,11 @@ public:
 
     // Takes 8 Arm_Angles and speed and writes to servos ID 1-8
     void Arm_AnglesCallback(const std_msgs::Float32MultiArray& Arm_Angles){
+        // Optional debug info
+        #if DEBUG
+            ROS_WARN("**********Arm Angles recieved: %f, %f, %f, %f, %f, %f, %f, %f", Arm_Angles.data[0], Arm_Angles.data[1], Arm_Angles.data[2], Arm_Angles.data[3], Arm_Angles.data[4], Arm_Angles.data[5], Arm_Angles.data[6], Arm_Angles.data[7]);
+        #endif
+
         // Write accel and speed for servos of arm
         armSpeed(Arm_Angles.data[8]);
 
@@ -357,6 +366,11 @@ public:
             Task_Space_pub.publish(Task_Space); 
         }
         else{
+            // ROS INFO
+            #if DEBUG
+                ROS_WARN("**********Arm arrived");
+            #endif
+
             arm_moving = 0;                 // All joints in acceptable range so remove funtion for loop
             Arm_Done.data = 1;              //  mark arm as done moving
             Arm_Done_pub.publish(Arm_Done); //  publish done moving result
@@ -404,6 +418,11 @@ public:
 
     // Takes 4 Misc_Angles and writes to servos ID 12-15
     void Misc_AnglesCallback(const std_msgs::Float32MultiArray& Misc_Angles){
+        // Optional debug info
+        #if DEBUG
+            ROS_WARN("**********Misc Angles recieved: %f, %f, %f, %f", Misc_Angles.data[0], Misc_Angles.data[1], Misc_Angles.data[2], Misc_Angles.data[3]);
+        #endif
+        
         // Creates and assigns array with each byte of message
         uint8_t data_array[4];
         for (int i = 1; i < 5; i++){     // Do for all 4 misc servos
@@ -445,6 +464,10 @@ public:
                 return;                         //  break out of function
             }
         }
+        // Ros Info
+        #if DEBUG
+            ROS_WARN("**********Misc arrived");
+        #endif
         misc_moving = 0;                 // All joints in acceptable range so remove funtion for loop
         Misc_Done.data = 1;              //  mark servos as done moving
         Misc_Done_pub.publish(Misc_Done); //  publish done moving result
@@ -453,6 +476,11 @@ public:
 
     // Accepts move instructions for bot x, y, z, speed and sets local values to trigger on sensor callbacks
     void MoveCallback(const std_msgs::Float32MultiArray& Move){
+        // Optional debug info
+        #if DEBUG
+            ROS_WARN("**********Move command received: %f, %f, %f, %f", Move.data[0], Move.data[1], Move.data[2], Move.data[3]);
+        #endif
+
         // Copy x&y offset, desired z bearing, and max speed allowed to locals for callback pids
         desired_x = Move.data[0];
         desired_y = Move.data[1];
@@ -613,12 +641,22 @@ public:
     // Backup and liftoff safety stops all wheel movement
     void tofBack(int tof_back){
         // More sensitive back up safety
-        if(tof_back > BACKUP_SAFETY && desired_y < 0)
+        if(tof_back > BACKUP_SAFETY && desired_y < 0){
             e_stop = 1;
+            // ROS INFO
+            #if DEBUG
+                ROS_WARN("**********EStop backup");
+            #endif
+        }
 
         // Standard lift up to stop safety
-        if(tof_back > LIFTUP_SAFETY)
+        if(tof_back > LIFTUP_SAFETY && e_stop != 1){
             e_stop = 1;
+            // ROS INFO
+            #if DEBUG
+                ROS_WARN("**********EStop pickup");
+            #endif
+        }
     }
 
 
@@ -703,6 +741,11 @@ public:
 
         // Checks to see if xyz are all stable and happy and we arn't about to die
         if(e_stop == 1 || (max_speed != 0 && arrived_x >= SEQUENTIAL_READS && arrived_y >= SEQUENTIAL_READS && arrived_z >= SEQUENTIAL_READS)){
+            // Debug info
+            #if DEBUG
+                ROS_WARN("**********Bot arrived");
+            #endif
+
             // Ignore sensors and set speed to 0
             max_speed = 0;
         }
@@ -749,33 +792,45 @@ public:
     void syncWrite(){
         // Sync write/clear if new arm acc/vel ready
         if(sync_arm_acc_vel){
-            int temp1 = groupSyncWrite_armAcc.txPacket();
+            int write_result1 = groupSyncWrite_armAcc.txPacket();
             groupSyncWrite_armAcc.clearParam();
-            int temp2 = groupSyncWrite_armVel.txPacket();
+            int write_result2 = groupSyncWrite_armVel.txPacket();
             groupSyncWrite_armVel.clearParam();
             sync_arm_acc_vel = 0;
+
+            // Debug info
+            #if DEBUG
+                ROS_WARN("**********Sync write arm acc/vel result: %d, %d", write_result1, write_result2);
+            #endif
         }
 
         // Sync write/clear if new arm posistions ready
         if(sync_arm_goal_pos){
-            int temp3 = groupSyncWrite_armGoalPos.txPacket();
+            int write_result3 = groupSyncWrite_armGoalPos.txPacket();
             groupSyncWrite_armGoalPos.clearParam();
             sync_arm_goal_pos = 0;
+            // Debug info
+            #if DEBUG
+                ROS_WARN("**********Sync write arm goal result: %d", write_result3);
+            #endif
         }
 
         // Sync write/clear if new misc posistions ready
         if(sync_misc_goal_pos){
-            int write_result = groupSyncWrite_miscGoalPos.txPacket();
-            if(!write_result){
+            int write_result4 = groupSyncWrite_miscGoalPos.txPacket();
+            //if(!write_result4){
                 groupSyncWrite_miscGoalPos.clearParam();
                 sync_misc_goal_pos = 0;
-            }
-            //ROS_INFO("Sync write result: %d", write_result);
+            //}
+            // Debug info
+            #if DEBUG
+                ROS_WARN("**********Sync write misc goal result: %d", write_result4);
+            #endif
         }
 
         // Sync write/clear if new wheel speeds ready
         if(sync_wheel_goal_vel){
-            int temp4 = groupSyncWrite_wheelGoalVel.txPacket();
+            int write_result5 = groupSyncWrite_wheelGoalVel.txPacket();
             groupSyncWrite_wheelGoalVel.clearParam();
             sync_wheel_goal_vel = 0;
         }

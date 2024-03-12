@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+#hello
+
 #import roslib; roslib.load_manifest('smach_tutorials')
 import rospy
 import smach
