@@ -810,11 +810,11 @@ class PickUp(smach.State):
         bottom_bulk = globals['set_bulk_bottom']
         flag = globals['lowered_flag']
         raise_bulk_offset = globals['fuel_tank_raise_bulk_offset']
-
+        
+        # Move forward until before fuel tank area is reached 
         publish_command(self.move_pub, Float32MultiArray, [150, 0, -90, 100])
         rospy.wait_for_message("Move_Done", Int8, timeout=5)
 
-        # TODO: format this method better
         # Publish the misc angles to set the bulk grabber arms to the init pose
         publish_command(self.misc_angles_pub, Float32MultiArray, [-1, 1200, 1400, -1]) # 2) 1050 -> 1150 -> 1125->1200 3) 1225->1400
         # Wait for the bulk grabber arms to reach the pose
@@ -825,7 +825,7 @@ class PickUp(smach.State):
         rospy.wait_for_message("Move_Done", Int8, timeout=10)
         
         # Close the top arm of the bulk grabber
-        publish_command(self.misc_angles_pub, Float32MultiArray, [-1, 1200, 1060, -1]) # 2) 1215->1150->1125->1200 3) 1060 -> 1100
+        publish_command(self.misc_angles_pub, Float32MultiArray, [-1, 1300, 1060, -1]) # 2) 1215->1150->1125->1200 3) 1060 -> 1100
         try:
             rospy.wait_for_message("Misc_Done", Int8, timeout=5)
         except:
@@ -1293,6 +1293,7 @@ class PickUpFuelTank(smach.State):
 
     def execute(self, userdata):
         # Get the sorted coordinates list from the userdata
+        rospy.sleep(200)
         sorted_coords = userdata.sorted_coords_list
         rospy.loginfo(f'Sorted Coordinates: {sorted_coords}')
         # Make sure the sorted coordinates list is not empty
