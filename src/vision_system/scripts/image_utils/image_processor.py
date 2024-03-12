@@ -34,7 +34,7 @@ class ImageProcessor_():
 
     POSE_AREA_RANGES = {
         Poses.SMALL_PACKAGE_SCAN: (0.0005, 0.0075),
-        Poses.FUEL_TANK_SCAN: (0.01, 0.075)
+        Poses.FUEL_TANK_SCAN: (0.005, 0.075)
     }
 
     def __init__(self) -> None:
@@ -193,7 +193,7 @@ class ImageProcessor_():
         coordinates, coords_image = self.find_contours(gray, pose_, area_range_factor=area_range_factor)
         #coords_image = np.hstack([image, blur, median, darkened_frame, self.image])
         
-        sorted_coordinates_list = sorted(coordinates, key=lambda x: x.x)
+        sorted_coordinates_list = sorted(coordinates, key=lambda coord: coord.x, reverse=True)
         return (sorted_coordinates_list, coords_image)
     
     def find_fuel_tank_coords(self, pose: str) -> Tuple[List[Point], np.ndarray]:
@@ -236,9 +236,11 @@ class ImageProcessor_():
         #print(f"Area Range Factor: {area_range_factor}")
 
         coordinates, coords_image = self.find_contours(gray, pose_, area_range_factor=area_range_factor)
+        sorted_coordinates_list = sorted(coordinates, key=lambda coord: coord.x)
+
         coords_image = np.hstack([coords_image, orange_mask])
         
-        return (coordinates, coords_image)
+        return (sorted_coordinates_list, coords_image)
     
     def remove_distortion(self, image=None) -> Tuple[np.ndarray, np.ndarray]:
         # Check if the current image is not None
@@ -267,8 +269,8 @@ class ImageProcessor_():
         height, _, _ = image.shape
 
         # Define the region to keep
-        y_start = int(height * 1 / 6)
-        y_end = int(height * 3 / 6)
+        y_start = int(height * 2 / 5)
+        y_end = int(height * 3 / 5)
 
         # Create a mask with the same dimensions as the image
         mask = np.zeros_like(image)
@@ -364,25 +366,32 @@ class ImageProcessor_():
             return Xarm_xi_obj + Xarm_offset, Yarm_xi_obj, Zarm_xi_obj + Zarm_offset
         
         elif pose == Poses.FUEL_TANK_SCAN:
-            KX = 1
-            PX2MM_Y = 130/self.image_height
-            PX2MM_X = 180/self.image_width * KX
+            KX = -1
+            PX2MM_Y = 180/self.image_height
+            PX2MM_X = 240/self.image_width * KX
 
             # Offset from bottom of image to arm base
             A = 0
             KY = 1
 
             # Convert px to mm
-            Xarm_xi_obj = ((self.image_height - y) * PX2MM_Y + A) * KY
+            Zarm_xi_obj = globals['fuel_tank_Z_arm_offset']
             Yarm_xi_obj = globals['fuel_tank_Y_arm_offset']
-            Zarm_xi_obj = (x - self.image_width/2) * PX2MM_X * KX
+            Xarm_xi_obj = (x - self.image_width/2) * PX2MM_X
             #print(f"Y: {y}  |   Max_Cam_Height: {self.image_height}     |   Conversion Factior: {PX2MM_Y}")
 
             # Correction offsets
-            Xarm_offset = 0
-            Zarm_offset = 13.5
+            Xarm_offset = -20
+            Zarm_offset = -10
 
-            return Xarm_xi_obj + Xarm_offset, Yarm_xi_obj, Zarm_xi_obj + Zarm_offset
+            # Mapped offsets using linear regression
+            #Xarm_mapped_offset = -0.2674 * Xarm_xi_obj + 0.3101
+            # Mapped offsets using polynomial regression
+            Xarm_mapped_offset = 0.0004**2 * Xarm_xi_obj - 0.25 * Xarm_xi_obj * 0.6154
+
+            # Total mm
+            Xarm_xi_obj = Xarm_xi_obj + Xarm_offset + Xarm_mapped_offset
+            return Xarm_xi_obj, Yarm_xi_obj, Zarm_xi_obj
 
         else:
             raise ValueError(f"Arm pose {pose} not recognized.")

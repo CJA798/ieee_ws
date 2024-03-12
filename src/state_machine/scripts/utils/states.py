@@ -66,22 +66,23 @@ def publish_command(pub: Publisher, message_type: AnyMsg, message_data: Iterable
         rospy.logerr(f"Error in publish_command: {e}")
         return False
     
-def publish_and_wait(pub: Publisher, topic: str, message_type: AnyMsg, message_data: Iterable, delay: int=1, timeout_function: Callable=None) -> bool:
+def publish_and_wait(pub: Publisher, wait_for_topic: str, message_type: AnyMsg, message_data: Iterable, delay: int=1, timeout_function: Callable=None) -> bool:
     message = message_type()
     message.data = message_data
     pub.publish(message)
 
     try:
-        rospy.wait_for_message(topic, message_type, timeout=delay)
-    except rospy.ROSException as e:
-        rospy.logerr(f"Error waiting for message on topic {topic}: {e}")
-        return False
+        rospy.wait_for_message(wait_for_topic, message_type, timeout=delay)
+
     except:
         if timeout_function:
-            rospy.loginfo(f"Executing timeout function {timeout_function.__name__} for {topic}")
-            timeout_function()
+            rospy.loginfo(f"Executing timeout function {timeout_function.__name__} for {wait_for_topic}")
+            try:
+                timeout_function()
+            except Exception as e:
+                rospy.logerr(f"Error in timeout function {timeout_function.__name__}: {e}")
         else:
-            rospy.logwarn(f"Timeout waiting for message on topic {topic}")
+            rospy.logwarn(f"Timeout waiting for message on topic {wait_for_topic}")
     
     return True
     
@@ -331,7 +332,7 @@ class GoTo_(smach.State):
        #     rate.sleep()
         
         # Publish command to reach to the drop off area
-        publish_command(self.move_pub, Float32MultiArray, [0, 0, -180, 100])
+        publish_command(self.move_pub, Float32MultiArray, [0, 0, -180, 20])
 
         # Wait for the move to complete
         rospy.wait_for_message("Move_Done", Int8, timeout=10)
@@ -342,7 +343,7 @@ class GoTo_(smach.State):
 
 
         # Publish command to reach to the drop off area
-        publish_command(self.move_pub, Float32MultiArray, [200, 1, -180, 100])
+        publish_command(self.move_pub, Float32MultiArray, [200, 1, -180, 20])
 
         # Wait for the move to complete
         #rospy.wait_for_message("Move_Done", Int8, timeout=10)
@@ -876,7 +877,7 @@ class DropOff(smach.State):
     def DropOffSmallPackages(self):
         # Go over red area
         jaw = globals['gripper_bulk_hold']
-        speed = 5
+        speed = 7
         angles = [495.0, 1669.0, 1664.0, 2507.0, 2087.0, 946.0, 3915.0, jaw, speed]
         publish_command(self.arm_angles_pub, Float32MultiArray, angles, delay=4)
         rospy.loginfo('Moving arm over red area')
@@ -884,7 +885,7 @@ class DropOff(smach.State):
 
         # Lower the arm
         jaw = globals['gripper_bulk_hold']
-        speed = 5
+        speed = 8
         angles = [493.0, 1459.0, 1460.0, 2196.0, 2087.0, 1432.0, 3824.0, jaw, speed]
         publish_command(self.arm_angles_pub, Float32MultiArray, angles, delay=2)
         rospy.loginfo('Lowering arm')
@@ -892,19 +893,26 @@ class DropOff(smach.State):
 
         # Open the gripper
         jaw = globals['gripper_bulk_release']
-        speed = 10
+        speed = 20
         angles = [493.0, 1459.0, 1460.0, 2196.0, 2087.0, 1432.0, 3824.0, jaw, speed]
-        publish_command(self.arm_angles_pub, Float32MultiArray, angles, delay=1)
+        publish_command(self.arm_angles_pub, Float32MultiArray, angles, delay=0.7)
         #rospy.wait_for_message("Arm_Done", Int8, timeout=10) 
         rospy.loginfo('Small packages released')
         
         # Raise arm back over red area
         angles = [495.0, 1669.0, 1664.0, 2507.0, 2087.0, 946.0, 3915.0, jaw, speed]
-        publish_command(self.arm_angles_pub, Float32MultiArray, angles, delay=2)
-        #rospy.wait_for_message("Arm_Done", Int8, timeout=10)
+        #publish_command(self.arm_angles_pub, Float32MultiArray, angles, delay=1.75)
+        #rospy.wait_for_message("Arm_Done", Int8, timeout=1.75)
+        publish_and_wait(pub=self.arm_angles_pub,
+                         wait_for_topic='Arm_Done',
+                         message_type=Float32MultiArray,
+                         message_data=angles,
+                         delay=1.75,
+                         timeout_function=None)
 
         # Go to scan fuel tank position
-        angles = [1026.0, 2462.0, 2453.0, 1928.0, 2010.0, 676.0, 2004.0, jaw, speed]
+        gripper = 2440
+        angles = [769.0, 2388.0, 2379.0, 2092.0, 2075.0, 644.0, 1800.0, gripper, speed]
         if publish_command(self.arm_angles_pub, Float32MultiArray, angles):
             rospy.loginfo('Moving arm to fuel tank scan position')
             return 'packages_dropped_off'
@@ -1075,6 +1083,24 @@ class ScanPose(smach.State):
         else:
             return 'pose_not_reached'
 
+class ScanFuelTankPose(smach.State):
+    def __init__(self, arm_angles_pub):
+        smach.State.__init__(self, outcomes=['pose_reached','pose_not_reached'])
+        rospy.loginfo(f'Executing state ScanFuelTankPose')
+        self.arm_angles_pub = arm_angles_pub
+
+    def execute(self, userdata):
+        speed = 10
+        gripper = 2440
+        rospy.loginfo('Moving to scan pose')
+        # Publish command to set the arm to the scan pose
+        publish_and_wait(pub=self.arm_angles_pub,
+                        wait_for_topic='Arm_Done',
+                        message_type=Float32MultiArray,
+                        message_data=[769.0, 2388.0, 2379.0, 2092.0, 2075.0, 644.0, 1800.0, gripper, speed],
+                        delay=1,
+                        timeout_function=rospy.sleep(1))
+        return 'pose_reached'
     
 # define state SetPose
 class RestPose(smach.State):
@@ -1287,19 +1313,20 @@ class PickUp_(smach.State):
 class PickUpFuelTank(smach.State):
     def __init__(self, task_space_publisher):
         smach.State.__init__(self,
-                             input_keys=['sorted_coords_list'],
+                             input_keys=['coordinates_list'],
                              outcomes=['fuel_tank_picked_up','fuel_tank_not_picked_up'])
         self.task_space_pub = task_space_publisher
 
     def execute(self, userdata):
         # Get the sorted coordinates list from the userdata
-        rospy.sleep(200)
-        sorted_coords = userdata.sorted_coords_list
+        #coordinates = userdata.coordinates_list.coordinates
+
+        sorted_coords = userdata.coordinates_list.coordinates
         rospy.loginfo(f'Sorted Coordinates: {sorted_coords}')
         # Make sure the sorted coordinates list is not empty
         if not sorted_coords:
             rospy.logwarn('Sorted coordinates list is empty')
-            return 'fuel_tank_not_picked_up'
+            return 'fuel_tank_picked_up'
         
         # Get the first target from the sorted coordinates list
         target = sorted_coords[0]
@@ -1308,24 +1335,105 @@ class PickUpFuelTank(smach.State):
         x = target.x
         y = target.y
         z = target.z
-        wrist = 2048
-        gripper = 2100
-        speed = 1
-        publish_command(self.task_space_pub, Float32MultiArray, [x, y, z, wrist, gripper, speed])
-        rospy.wait_for_message("Arm_Done", Int8, timeout=10)
+        # Map wrist based on x-coordinate using polynomial regression
+        wrist = 0.0269**2 * x + 7.5 * x + 1956.9231
+        gripper = 2440
+        speed = 5
+        #publish_command(self.task_space_pub, Float32MultiArray, [x, y, z, wrist, gripper, speed])
+        #rospy.wait_for_message("Arm_Done", Int8, timeout=10)
+        # Go on top of fuel tank
+        publish_and_wait(pub=self.task_space_pub,
+                         wait_for_topic='Arm_Done',
+                         message_type=Float32MultiArray,
+                         message_data=[x, y, z, wrist, gripper, speed],
+                         delay=1,
+                         timeout_function=None)
+        
+        # Lower the arm
+        y = 35
+        publish_and_wait(pub=self.task_space_pub,
+                         wait_for_topic='Arm_Done',
+                         message_type=Float32MultiArray,
+                         message_data=[x, y, z, wrist, gripper, speed],
+                         delay=1,
+                         timeout_function=None)
+        
+        # Close the gripper
+        gripper = 2640
+        publish_and_wait(pub=self.task_space_pub,
+                         wait_for_topic='Arm_Done',
+                         message_type=Float32MultiArray,
+                         message_data=[x, y, z, wrist, gripper, speed],
+                         delay=1,
+                         timeout_function=None)
+        # Go up
+        y = 140
+        publish_and_wait(pub=self.task_space_pub,
+                         wait_for_topic='Arm_Done',
+                         message_type=Float32MultiArray,
+                         message_data=[x, y, z, wrist, gripper, speed],
+                         delay=1,
+                         timeout_function=None)
+        
 
         return 'fuel_tank_picked_up'
-        return 'fuel_tank_not_picked_up'
+    
 
 class StoreFuelTank(smach.State):
-    def __init__(self):
+    # Dictionary to map the slot number to the corresponding coordinates
+    OVER_SLOT_COORDS = {
+        1: [-110, 50, -95, 3500, 2640, 10],
+        2: [0, 0, 0],
+        3: [0, 0, 0]
+    }
+
+    IN_SLOT_COORDS = {
+        1: [-110, -10, -95, 3500, 2640, 5],
+        2: [0, 0, 0],
+        3: [0, 0, 0]
+    }
+
+    def __init__(self, task_space_publisher, arm_angles_publisher, slot_number=1):
         smach.State.__init__(self, outcomes=['fuel_tank_stored','fuel_tank_not_stored'])
+        self.task_space_pub = task_space_publisher
+        self.arm_angles_pub = arm_angles_publisher
+        self.slot_number = slot_number
 
     def execute(self, userdata):
-        rospy.sleep(5)
+        # Go over the respective slot
+        publish_and_wait(pub=self.task_space_pub,
+                         wait_for_topic='Arm_Done',
+                         message_type=Float32MultiArray,
+                         message_data=self.OVER_SLOT_COORDS[self.slot_number],
+                         delay=2,
+                         timeout_function=None)
+        
+        # Lower the arm
+        publish_and_wait(pub=self.task_space_pub,
+                         wait_for_topic='Arm_Done',
+                         message_type=Float32MultiArray,
+                         message_data=self.IN_SLOT_COORDS[self.slot_number],
+                         delay=2,
+                         timeout_function=None)
+        
+        # Open the gripper
+        gripper = 2440
+        open_gripper_msg = self.IN_SLOT_COORDS[self.slot_number]
+        open_gripper_msg[4] = gripper
+        publish_command(self.task_space_pub, Float32MultiArray, open_gripper_msg, delay=1)
+
+        # Go back to scan fuel tank pose
+        speed = 10
+        angles = [769.0, 2388.0, 2379.0, 2092.0, 2075.0, 644.0, 1800.0, gripper, speed]
+        publish_and_wait(pub=self.arm_angles_pub,
+                         wait_for_topic='Arm_Done',
+                         message_type=Float32MultiArray,
+                         message_data=angles,
+                         delay=2,
+                         timeout_function=None)
+
         return 'fuel_tank_stored'
-        return 'fuel_tank_not_stored'
-      
+          
 ####################################################################################################
 #    
 ####################################################################################################
