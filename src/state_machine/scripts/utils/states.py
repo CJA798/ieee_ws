@@ -4,7 +4,7 @@ import rospy
 import smach
 import smach_ros
 
-from typing import Optional, Iterable
+from typing import Optional, Iterable, Callable
 from rospy import Publisher
 from rospy.msg import AnyMsg
 
@@ -65,6 +65,26 @@ def publish_command(pub: Publisher, message_type: AnyMsg, message_data: Iterable
     except Exception as e:
         rospy.logerr(f"Error in publish_command: {e}")
         return False
+    
+def publish_and_wait(pub: Publisher, topic: str, message_type: AnyMsg, message_data: Iterable, delay: int=1, timeout_function: Callable=None) -> bool:
+    message = message_type()
+    message.data = message_data
+    pub.publish(message)
+
+    try:
+        rospy.wait_for_message(topic, message_type, timeout=delay)
+    except rospy.ROSException as e:
+        rospy.logerr(f"Error waiting for message on topic {topic}: {e}")
+        return False
+    except:
+        if timeout_function:
+            rospy.loginfo(f"Executing timeout function {timeout_function.__name__} for {topic}")
+            timeout_function()
+        else:
+            rospy.logwarn(f"Timeout waiting for message on topic {topic}")
+    
+    return True
+    
 
 def stop_move(move_pub: Publisher) -> bool:
     try:
@@ -281,10 +301,10 @@ class GoTo_(smach.State):
 
     def GoToFuelTankArea(self):
         '''State to move the robot to the fuel tank area'''
-        if publish_command(self.move_pub, Float32MultiArray, [145, 1, -90, 100]):
+        if publish_command(self.move_pub, Float32MultiArray, [150, 1, -90, 100]): # 1) 145 -> 150
         # Wait for the move to complete
             try:
-                rospy.wait_for_message("Move_Done", Int8, timeout=2.5)
+                rospy.wait_for_message("Move_Done", Int8, timeout=3) #2.5->3
             except:
                 pass
             return 'arrived'
@@ -370,8 +390,9 @@ class GoTo_(smach.State):
         rospy.wait_for_message("Move_Done", Int8, timeout=10)
         rospy.loginfo('Backed up')
 
-
+        #Maxwells edit here
         # Publish command to drop the bridge
+        '''
         bridge = globals['lowered_bridge']
         publish_command(self.misc_angles_pub, Float32MultiArray, [bridge, -1, -1, -1])
         try:
@@ -379,10 +400,20 @@ class GoTo_(smach.State):
         except:
             pass
         rospy.loginfo('Bridge dropped')
+        '''
+
+        bridge = globals['lowered_bridge']
+        publish_command(self.misc_angles_pub, Float32MultiArray, [bridge, -1, -1, -1])
+    
+        rospy.wait_for_message("Misc_Done", Int8, timeout=10)
+     
+        rospy.loginfo('Bridge dropped')
 
         # Publish command to go fwd 
-        publish_command(self.move_pub, Float32MultiArray, [0, 1, 0, 20], delay=2)
+        publish_command(self.move_pub, Float32MultiArray, [0, 1, 0, 20])
+        rospy.sleep(2)
         stop_move(self.move_pub)
+        rospy.loginfo('DONE FORWARD FOR 2 SECONDS AHHH!')
 
         # Publiish command to raise the bridge
         bridge = globals['raised_bridge']
@@ -780,12 +811,12 @@ class PickUp(smach.State):
         flag = globals['lowered_flag']
         raise_bulk_offset = globals['fuel_tank_raise_bulk_offset']
 
-        publish_command(self.move_pub, Float32MultiArray, [145, 0, -90, 100])
+        publish_command(self.move_pub, Float32MultiArray, [150, 0, -90, 100])
         rospy.wait_for_message("Move_Done", Int8, timeout=5)
 
         # TODO: format this method better
         # Publish the misc angles to set the bulk grabber arms to the init pose
-        publish_command(self.misc_angles_pub, Float32MultiArray, [-1, 1050, 1225, -1])
+        publish_command(self.misc_angles_pub, Float32MultiArray, [-1, 1200, 1400, -1]) # 2) 1050 -> 1150 -> 1125->1200 3) 1225->1400
         # Wait for the bulk grabber arms to reach the pose
         rospy.wait_for_message("Misc_Done", Int8, timeout=5)
         
@@ -794,7 +825,7 @@ class PickUp(smach.State):
         rospy.wait_for_message("Move_Done", Int8, timeout=10)
         
         # Close the top arm of the bulk grabber
-        publish_command(self.misc_angles_pub, Float32MultiArray, [-1, 1215, 1060, -1])
+        publish_command(self.misc_angles_pub, Float32MultiArray, [-1, 1200, 1060, -1]) # 2) 1215->1150->1125->1200 3) 1060 -> 1100
         try:
             rospy.wait_for_message("Misc_Done", Int8, timeout=5)
         except:

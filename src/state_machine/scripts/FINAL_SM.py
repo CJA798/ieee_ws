@@ -45,11 +45,12 @@ def main():
         # Initialize all devices, variables, windows, etc.
         smach.StateMachine.add('INITIALIZE', Initialize(init_state_pub=init_state_pub), 
                                transitions={'succeeded':'READING_START_LED', 'aborted':'INITIALIZE'})
-                               #transitions={'succeeded':'PACKAGE_DROP_OFF', 'aborted':'INITIALIZE'})
+                               #transitions={'succeeded':'GO_TO_DROP_OFF_AREA', 'aborted':'INITIALIZE'})
         
         # Read the start green LED and wait for it to be detected
         smach.StateMachine.add('READING_START_LED', ReadingStartLED(), 
-                               transitions={'green_led_detected': 'PICKUP_BIG_PACKAGES',    
+                               transitions={'green_led_detected': 'PICKUP_BIG_PACKAGES', 
+                               #transitions={'green_led_detected': 'GO_TO_FUEL_TANK_AREA',   
                                             'green_led_not_detected':'READING_START_LED'})
         
         big_packages_sm = smach.StateMachine(outcomes=['packages_picked_up', 'packages_not_picked_up'])

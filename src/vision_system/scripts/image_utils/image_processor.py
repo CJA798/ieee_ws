@@ -267,8 +267,8 @@ class ImageProcessor_():
         height, _, _ = image.shape
 
         # Define the region to keep
-        y_start = int(height * 1 / 5)
-        y_end = int(height * 2 / 5)
+        y_start = int(height * 1 / 6)
+        y_end = int(height * 3 / 6)
 
         # Create a mask with the same dimensions as the image
         mask = np.zeros_like(image)

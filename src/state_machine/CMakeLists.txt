@@ -169,14 +169,7 @@ include_directories(
 ## Mark executable scripts (Python etc.) for installation
 ## in contrast to setup.py, you can choose the destination
 catkin_install_python(PROGRAMS
-  scripts/bot_state_publisher.py
-  scripts/bot_state_subscriber.py
-  scripts/state.py
-  scripts/robot_states.py
-  scripts/main_node.py
   scripts/board_objects.py
-  scripts/state_machine.py
-  scripts/SM_WCU.py
   scripts/FINAL_SM.py 
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
