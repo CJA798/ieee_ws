@@ -384,18 +384,31 @@ class ImageProcessor_():
             Xarm_offset = -20
             Zarm_offset = -10
 
+            Xarm_xi_obj = Xarm_xi_obj + Xarm_offset
+
             # Mapped offsets using linear regression
             #Xarm_mapped_offset = -0.2674 * Xarm_xi_obj + 0.3101
             # Mapped offsets using polynomial regression
-            Xarm_mapped_offset = 0.0004**2 * Xarm_xi_obj - 0.25 * Xarm_xi_obj * 0.6154
+            Xarm_poly_offset = self.get_fuel_tank_poly_offset(Xarm_xi_obj)
 
             # Total mm
-            Xarm_xi_obj = Xarm_xi_obj + Xarm_offset + Xarm_mapped_offset
+            Xarm_xi_obj = Xarm_xi_obj + Xarm_poly_offset
+
             return Xarm_xi_obj, Yarm_xi_obj, Zarm_xi_obj
 
         else:
             raise ValueError(f"Arm pose {pose} not recognized.")
-        
+    
+    def get_fuel_tank_poly_offset(self, x: float) -> float:
+        '''
+        Get the offset for the fuel tank polynomial regression.
+        Arguments:
+            x: float - The x-coordinate in the arm frame.
+        Returns:
+            offset: float - The offset for the fuel tank polynomial regression.
+        '''
+        return round(1e-7 * x**4 + 4e-6 * x**3 - 12e-4 * x**2 - 0.1354 * x + 5.6302, 1)
+    
     def map_offset(self, value: float, map_from: Tuple[float, float], map_to: Tuple[float, float]) -> float:
         '''
         Map the value from one range to another.
