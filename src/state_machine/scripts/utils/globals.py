@@ -22,7 +22,11 @@ globals: Dict[str, Union[bool, int, None]] = {
 
     'small_package_Y_arm_offset': -20,
     'fuel_tank_Y_arm_offset': 50,
-    'fuel_tank_Z_arm_offset': 75,
+    'fuel_tank_Y_lower_arm_offset': 32,
+    'fuel_tank_Y_higher_arm_offset': 140,
+    'fuel_tank_Z_arm_offset': 80,
+    'fuel_tank_gripper_open': 2440,
+    'fuel_tank_gripper_close': 2640,
 
     # Arm Macros
     'gripper_bulk_hold': 2000,
@@ -34,7 +38,8 @@ globals: Dict[str, Union[bool, int, None]] = {
     'set_bulk_top': 1400,
     'set_bulk_bottom': 1050,
 
-    'close_bulk_top': 1150,
+    #'close_bulk_top': 1150,
+    'close_bulk_top': 1100,
 
     'raise_bulk_offset': 1000,
     
@@ -57,6 +62,7 @@ globals: Dict[str, Union[bool, int, None]] = {
     # Flag Macros
     'lowered_flag': 2048,
     'raised_flag': 1024 #was 1800
+
 }
 
 # Macros that depend on other macros

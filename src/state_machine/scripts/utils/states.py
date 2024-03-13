@@ -233,11 +233,18 @@ class GoTo_(smach.State):
     def GoToBigPackageWall(self):
         '''State to move the robot to the big package wall'''
         # Disable bulk grabber's top arm torque
-        publish_command(self.misc_angles_pub, Float32MultiArray, [-1, -1, -3, -1], delay=0.1)
+        # No delays
+        #Use the left TOF instead of timers
+        
         # Publish move to the big package wall
         y_offset = globals['big_package_Y_offset']
-        publish_command(self.move_pub, Float32MultiArray, [1, 0, 0, 20], delay=2.25)
-        #publish_command(self.move_pub, Float32MultiArray, [-250.5, 0, 0, 20])
+        #try TOF left values
+        #publish_command(self.move_pub, Float32MultiArray, [1, 0, 0, 20], delay=2.25)
+        publish_command(self.move_pub, Float32MultiArray, [-250, 0, 0, 20], delay = 1)
+        publish_command(self.misc_angles_pub, Float32MultiArray, [-1, -1, -3, -1], delay=0.1)
+        rospy.wait_for_message('Move_Done',Int8, timeout = 10)
+
+        
 
         # Wait for the move_done message
         #rospy.wait_for_message("Move_Done", Int8, timeout=5)
@@ -588,8 +595,11 @@ class SetPose(smach.State):
         bottom_bulk = globals['raise_bulk_bottom']
         flag = -1
 
+        #use record tof left?
+
         # Move back to beginning
         publish_command(self.move_pub, Float32MultiArray, [-170, 0, 0, 20], delay=1)
+       
 
         # Publish the misc angles to raise the bulk grabber arms
         if publish_command(self.misc_angles_pub, Float32MultiArray, [bridge, bottom_bulk, top_bulk, flag]):
@@ -813,7 +823,7 @@ class PickUp(smach.State):
         raise_bulk_offset = globals['fuel_tank_raise_bulk_offset']
         
         # Move forward until before fuel tank area is reached 
-        publish_command(self.move_pub, Float32MultiArray, [150, 0, -90, 100])
+        publish_command(self.move_pub, Float32MultiArray, [155, 0, -90, 100])
         rospy.wait_for_message("Move_Done", Int8, timeout=5)
 
         # Publish the misc angles to set the bulk grabber arms to the init pose
@@ -826,15 +836,15 @@ class PickUp(smach.State):
         rospy.wait_for_message("Move_Done", Int8, timeout=10)
         
         # Close the top arm of the bulk grabber
-        publish_command(self.misc_angles_pub, Float32MultiArray, [-1, 1300, 1060, -1]) # 2) 1215->1150->1125->1200 3) 1060 -> 1100
+        publish_command(self.misc_angles_pub, Float32MultiArray, [-1, 1350, 1060, -1]) # 2) 1215->1150->1125->1200 3) 1060 -> 1100
         try:
-            rospy.wait_for_message("Misc_Done", Int8, timeout=5)
+            rospy.wait_for_message("Misc_Done", Int8, timeout=2)
         except:
             pass
         # Raise bulk grabber arms
         if publish_command(self.misc_angles_pub, Float32MultiArray, [-1, 3215, 3060, -1]):
             try:
-                rospy.wait_for_message("Misc_Done", Int8, timeout=5)
+                rospy.wait_for_message("Misc_Done", Int8, timeout=2)
             except:
                 pass
             return 'packages_picked_up'
@@ -1320,7 +1330,6 @@ class PickUpFuelTank(smach.State):
     def execute(self, userdata):
         # Get the sorted coordinates list from the userdata
         #coordinates = userdata.coordinates_list.coordinates
-
         sorted_coords = userdata.coordinates_list.coordinates
         rospy.loginfo(f'Sorted Coordinates: {sorted_coords}')
         # Make sure the sorted coordinates list is not empty
@@ -1336,8 +1345,8 @@ class PickUpFuelTank(smach.State):
         y = target.y
         z = target.z
         # Map wrist based on x-coordinate using polynomial regression
-        wrist = 0.0269**2 * x + 7.5 * x + 1956.9231
-        gripper = 2440
+        wrist = round(-2e-6 * x**4 - 6e-4 * x**3 + 33e-4 * x**2 + 9.3418 * x + 2037.7126, 1)
+        gripper = globals['fuel_tank_gripper_open']
         speed = 5
         #publish_command(self.task_space_pub, Float32MultiArray, [x, y, z, wrist, gripper, speed])
         #rospy.wait_for_message("Arm_Done", Int8, timeout=10)
@@ -1350,7 +1359,7 @@ class PickUpFuelTank(smach.State):
                          timeout_function=None)
         
         # Lower the arm
-        y = 35
+        y = globals['fuel_tank_Y_lower_arm_offset']
         publish_and_wait(pub=self.task_space_pub,
                          wait_for_topic='Arm_Done',
                          message_type=Float32MultiArray,
@@ -1359,7 +1368,7 @@ class PickUpFuelTank(smach.State):
                          timeout_function=None)
         
         # Close the gripper
-        gripper = 2640
+        gripper = globals['fuel_tank_gripper_close']
         publish_and_wait(pub=self.task_space_pub,
                          wait_for_topic='Arm_Done',
                          message_type=Float32MultiArray,
@@ -1367,7 +1376,7 @@ class PickUpFuelTank(smach.State):
                          delay=1,
                          timeout_function=None)
         # Go up
-        y = 140
+        y = globals['fuel_tank_Y_higher_arm_offset']
         publish_and_wait(pub=self.task_space_pub,
                          wait_for_topic='Arm_Done',
                          message_type=Float32MultiArray,
@@ -1382,15 +1391,15 @@ class PickUpFuelTank(smach.State):
 class StoreFuelTank(smach.State):
     # Dictionary to map the slot number to the corresponding coordinates
     OVER_SLOT_COORDS = {
-        1: [-110, 50, -95, 3500, 2640, 10],
-        2: [0, 0, 0],
-        3: [0, 0, 0]
+        1: [-115, 100, -95, 3500, 2640, 5],
+        2: [-30, 100, -90, 3500, 2640, 5],
+        3: [40, 100, -85, 3500, 2640, 5]
     }
 
     IN_SLOT_COORDS = {
-        1: [-110, -10, -95, 3500, 2640, 5],
-        2: [0, 0, 0],
-        3: [0, 0, 0]
+        1: [-115, -17, -95, 3500, 2640, 5],
+        2: [-30, -17, -90, 3500, 2640, 5],
+        3: [40, -17, -85, 3500, 2640, 5]
     }
 
     def __init__(self, task_space_publisher, arm_angles_publisher, slot_number=1):
@@ -1401,13 +1410,14 @@ class StoreFuelTank(smach.State):
 
     def execute(self, userdata):
         # Go over the respective slot
+        rospy.loginfo(f"Moving over slot {self.slot_number} located at {self.OVER_SLOT_COORDS[self.slot_number]}")
         publish_and_wait(pub=self.task_space_pub,
                          wait_for_topic='Arm_Done',
                          message_type=Float32MultiArray,
                          message_data=self.OVER_SLOT_COORDS[self.slot_number],
                          delay=2,
                          timeout_function=None)
-        
+        rospy.sleep(2)
         # Lower the arm
         publish_and_wait(pub=self.task_space_pub,
                          wait_for_topic='Arm_Done',
@@ -1417,7 +1427,7 @@ class StoreFuelTank(smach.State):
                          timeout_function=None)
         
         # Open the gripper
-        gripper = 2440
+        gripper = globals['fuel_tank_gripper_open']
         open_gripper_msg = self.IN_SLOT_COORDS[self.slot_number]
         open_gripper_msg[4] = gripper
         publish_command(self.task_space_pub, Float32MultiArray, open_gripper_msg, delay=1)
@@ -1431,7 +1441,7 @@ class StoreFuelTank(smach.State):
                          message_data=angles,
                          delay=2,
                          timeout_function=None)
-
+        rospy.sleep(1)
         return 'fuel_tank_stored'
           
 ####################################################################################################

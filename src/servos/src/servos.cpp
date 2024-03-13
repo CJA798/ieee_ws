@@ -8,14 +8,15 @@
 * it also accepts a Move function and does the kinematics and PIDs
 */
 
-// For rebooting
-//uint8_t dxl_error = 0;
-//packetHandler->reboot(portHandler, DXL_ID, &dxl_error);
+// Time test
+//clock_t time1 = clock();
+//ROS_WARN("**********Time: %ld", time1);
 
 
 #include <ros/ros.h>
 #include <math.h>
 #include <unistd.h>
+#include <time.h>
 
 #include "dynamixel_sdk/dynamixel_sdk.h"
 #include "std_msgs/Float32MultiArray.h"
@@ -450,6 +451,14 @@ public:
             packetHandler->write1ByteTxOnly(portHandler, 14, TORQUE_ENABLE_ADDR, TORQUE_ENABLE);      // Enable torque for servo 14
         else if(Misc_Angles.data[2] == -3)
             packetHandler->write1ByteTxOnly(portHandler, 14, TORQUE_ENABLE_ADDR, 0);      // Disable torque for servo 14
+        else if(Misc_Angles.data[2] == -4){
+            uint8_t dxl_error = 0;
+            packetHandler->reboot(portHandler, 14, &dxl_error);
+            //usleep(100000);
+            //packetHandler->write1ByteTxOnly(portHandler, 14, TORQUE_ENABLE_ADDR, 1);      // Disable torque for servo 14
+            //usleep(10000);
+            //packetHandler->write1ByteTxOnly(portHandler, 14, LED_ADDR, 1);      // Disable torque for servo 14
+        }
         
         // Sets flag to sync write outside of callback
         sync_misc_goal_pos = 1;
