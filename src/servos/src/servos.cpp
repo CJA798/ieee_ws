@@ -322,6 +322,18 @@ public:
             ROS_WARN("**********Arm Angles recieved: %f, %f, %f, %f, %f, %f, %f, %f", Arm_Angles.data[0], Arm_Angles.data[1], Arm_Angles.data[2], Arm_Angles.data[3], Arm_Angles.data[4], Arm_Angles.data[5], Arm_Angles.data[6], Arm_Angles.data[7]);
         #endif
 
+        // Create array for arm speeds defaulting to received speeds
+        double speed[8] = {Arm_Angles.data[8], Arm_Angles.data[8], Arm_Angles.data[8], Arm_Angles.data[8], Arm_Angles.data[8], Arm_Angles.data[8], Arm_Angles.data[8], Arm_Angles.data[8]};
+
+        // Find change in angles then save current angles as new old angles
+        for(int i = 0; i < 8; i++){
+            double delta_arm_angles = abs(arm_Angles.data[i] - last_arm_angles[i]);
+            last_arm_angles[i] = arm_Angles.data[i];
+            speed[i] = delta_arm_angles;
+            if(delta_arm_angles == 0)
+                speed[i] = 1;
+        }
+
         // Write accel and speed for servos of arm
         armSpeed(Arm_Angles.data[8]);
 
@@ -379,21 +391,19 @@ public:
 
 
     // Writes accels and velocity to the servos
-    void armSpeed(int speed){
-        // If negative value due to moveDown, move at slowest speed of 1
-        if(speed <= 0)
-            speed = 1;
+    void armSpeed(double* speed){
 
-        // Scales speed of vel and acc
-        uint32_t max_acc = (uint32_t)(MAX_ACC * speed / 100);
-        uint32_t max_vel = (uint32_t)(MAX_VEL * speed / 100);
-
-        // Creates and assigns array with each byte of messages
-        uint8_t data_array_acc[4] = {DXL_LOBYTE(DXL_LOWORD(max_acc)), DXL_HIBYTE(DXL_LOWORD(max_acc)), DXL_LOBYTE(DXL_HIWORD(max_acc)), DXL_HIBYTE(DXL_HIWORD(max_acc))};
-        uint8_t data_array_vel[4] = {DXL_LOBYTE(DXL_LOWORD(max_vel)), DXL_HIBYTE(DXL_LOWORD(max_vel)), DXL_LOBYTE(DXL_HIWORD(max_vel)), DXL_HIBYTE(DXL_HIWORD(max_vel))};
-        
-        // Adds messages to stack to write
+        // Calculate accs/vels and add to stack to write
         for (int i = 1; i < 9; i++){     // Do for all 8 servos
+            // Scales speed of vel and acc
+            uint32_t max_acc = (uint32_t)(MAX_ACC / 100 - 2 + speed[i - 1] * 0.4); // 2-40
+            uint32_t max_vel = (uint32_t)(MAX_VEL / 100 - 10 + speed[i - 1] * 4); // 10-400
+
+            // Creates and assigns array with each byte of messages
+            uint8_t data_array_acc[4] = {DXL_LOBYTE(DXL_LOWORD(max_acc)), DXL_HIBYTE(DXL_LOWORD(max_acc)), DXL_LOBYTE(DXL_HIWORD(max_acc)), DXL_HIBYTE(DXL_HIWORD(max_acc))};
+            uint8_t data_array_vel[4] = {DXL_LOBYTE(DXL_LOWORD(max_vel)), DXL_HIBYTE(DXL_LOWORD(max_vel)), DXL_LOBYTE(DXL_HIWORD(max_vel)), DXL_HIBYTE(DXL_HIWORD(max_vel))};
+
+            // Add accs/vels to sync stack
             groupSyncWrite_armAcc.addParam((i), data_array_acc);  // Adds message to stack arguments(servo ID, data array of bytes)
             groupSyncWrite_armVel.addParam((i), data_array_vel);  // Adds message to stack arguments(servo ID, data array of bytes)
         }
@@ -869,6 +879,9 @@ private:
     std_msgs::Int8 Move_Done;
     std_msgs::Int8 Misc_Done;
     std_msgs::Bool Local_En;
+
+    // Variable for storing old arm angles
+    int last_arm_angles[8];
 
     // Variables for bot movement functions
     double  desired_x = 0, error_x_prev = 0, error_x_cumulative = 0, linear_x = 0, arrived_x = 0,
