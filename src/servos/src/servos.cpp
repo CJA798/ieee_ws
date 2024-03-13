@@ -57,7 +57,11 @@ using namespace dynamixel;
 #define ARM_TOLERANCE           10      // Allowable error in arm before declareing arrived
 #define STEPS_DOWN              10      // Number of millimeters to move down per step
 #define MAX_CURRENT             500     // Max current small servos can pull
+#define DOWN_SPEED_SCALE        1       // Scale of acc's/vel's for linear interpolation
+#define DOWN_WAIT               150     // Milli seconds to wait before moving down for linear interpolation
+#define MAX_DOWN_SPEED          50      // Max acc's/vel's for lineal interpolation
 
+// #if macros
 #define DEBUG                   1       // Prints out ros info's
 #define CUSTOM_PIDS             1       // Set to 1 for custom variable pids, or 0 for preset
 
@@ -196,8 +200,8 @@ public:
         for(int i = 12; i < 16; i++)
             groupSyncRead_miscPresPos.addParam(i);
 
-        // Publish 8 starting servo angles and speed to Arm_Angles
-        int Arm_Start_Angles[9] = { 1586, 2902, 2898, 1471, 2063, 1802, 1041, 1980, 2 };
+        // Publish 8 starting arm angles and speed to Arm_Angles
+        int Arm_Start_Angles[9] = { 1586, 2902, 2898, 1471, 2063, 1802, 1041, 1980, 10 };
         for (int i = 0; i < 9; i++) {
             Arm_Angles.data[i] = Arm_Start_Angles[i];
         }
@@ -205,7 +209,7 @@ public:
 
 
         // Create and write misc servos to custom starting pos
-        int Misc_Start_Angles[4] = { 2048, 2500, 2600, 2048 };
+        int Misc_Start_Angles[4] = { 2048, 1050, 1050, 2048 };
 
         // Creates and assigns array with each byte of message
         uint8_t data_array[4];
@@ -246,8 +250,11 @@ public:
         theta = Task_Space.data[3];
         phi = Task_Space.data[4];
 
-        // If speed was negative then slowly move down at STEPS_DOWN pace
+        // If speed was negative then move down at STEPS_DOWN pace
         if(Task_Space.data[5] < 0){
+            // Declare moving down
+            moving_down = 1;
+
             // Copy to local task space
             for(int i = 0; i < 6; i++)
                 local_task_space[i] = Task_Space.data[i];
@@ -261,12 +268,14 @@ public:
             // Move y down to final destination
             else{
                 y += Task_Space.data[5];
-                local_task_space[5] = 1;
+                local_task_space[5] = 10;
             }
 
             // Update y value
             local_task_space[1] = y;
         }
+        else // No longer moving down slowly
+            moving_down = 0;
 
         //Print x, y, z recieved to ros
         //ROS_INFO("%d, %d, %d, %d, %d]", (int)x, (int)y, (int)z, (int)theta, (int)phi);
@@ -326,17 +335,30 @@ public:
         // Create array for arm speeds defaulting to received speeds
         double speed[8] = {Arm_Angles.data[8], Arm_Angles.data[8], Arm_Angles.data[8], Arm_Angles.data[8], Arm_Angles.data[8], Arm_Angles.data[8], Arm_Angles.data[8], Arm_Angles.data[8]};
 
-        // Find change in angles then save current angles as new old angles
-        for(int i = 0; i < 8; i++){
-            double delta_arm_angles = abs(arm_Angles.data[i] - last_arm_angles[i]);
-            last_arm_angles[i] = arm_Angles.data[i];
-            speed[i] = delta_arm_angles;
-            if(delta_arm_angles == 0)
-                speed[i] = 1;
+        // If moving down using linear interp scales speeds
+        if(moving_down){
+            for(int i = 0; i < 8; i++){
+                double delta_arm_angles = abs(Arm_Angles.data[i] - last_arm_angles[i]);     // Calculate change in each joint
+                speed[i] = delta_arm_angles * DOWN_SPEED_SCALE;                             // Scale each joint change to get acc's/vel's
+                if(delta_arm_angles == 0)                                                   // If arm speed of 0 set to minimum
+                    speed[i] = 1;
+                if(speed[i] > MAX_DOWN_SPEED)                                               // Prevent crazy speeds
+                    speed[i] = MAX_DOWN_SPEED;
+            }
+
+            // Start timing from move down issued
+            next_down_time = clock() + DOWN_WAIT * 1000;
         }
 
+        // Echo jont speeds
+        //ROS_WARN("**********Speeds: %f, %f, %f, %f, %f, %f, %f, %f", speed[0], speed[1], speed[2], speed[3], speed[4], speed[5], speed[6], speed[7]);
+
+        // Store new angles in last angles for next time
+        for(int i = 0; i < 8; i++)
+            last_arm_angles[i] = Arm_Angles.data[i];
+
         // Write accel and speed for servos of arm
-        armSpeed(Arm_Angles.data[8]);
+        armSpeed(speed);
 
         // Creates and assigns array with each byte of message
         uint8_t data_array[4];
@@ -358,27 +380,30 @@ public:
 
     // Checks if robot arm is within exceptable error to declare it has arrived
     void armMoving(){
-        // Executes sync read
-        groupSyncRead_armPresPos.txRxPacket(); 
-
-        // Checks if current posistion and goal posistion are withen acceptable toleracne
-        for (int i = 0; i < 8; i++){
-            if(abs(Arm_Angles.data[i] - groupSyncRead_armPresPos.getData((i + 1), 132, 4)) > ARM_TOLERANCE){ // Used to use uint32_t pos[8]; for storing
-                arm_moving = 1;                 // Joint error is to large que up another check
-                Arm_Done.data = 0;              //  mark arm as not done moving
-                //Arm_Done_pub.publish(Arm_Done); //  publish not done moving result
-                return;                         //  break out of function
+        // If moving down for linear interp just time, dont check arrival
+        if(moving_down && local_task_space[5] < 0){
+            // If enough time has elapsed to next step
+            if(next_down_time < clock()){
+                // Copy local variable and pub
+                for(int i = 0; i < 6; i++)
+                    Task_Space.data[i] = local_task_space[i];
+                Task_Space_pub.publish(Task_Space);
             }
         }
+        else{ // Not moving down in steps
+            // Executes sync read
+            groupSyncRead_armPresPos.txRxPacket(); 
 
-        // If moving down slowly, don't post arm done
-        if(local_task_space[5] < 0){
-            // Copy local variable and pub
-            for(int i = 0; i < 6; i++)
-                Task_Space.data[i] = local_task_space[i];
-            Task_Space_pub.publish(Task_Space); 
-        }
-        else{
+            // Checks if current posistion and goal posistion are withen acceptable toleracne
+            for (int i = 0; i < 8; i++){
+                if(abs(Arm_Angles.data[i] - groupSyncRead_armPresPos.getData((i + 1), 132, 4)) > ARM_TOLERANCE){ // Used to use uint32_t pos[8]; for storing
+                    arm_moving = 1;                 // Joint error is to large que up another check
+                    Arm_Done.data = 0;              //  mark arm as not done moving
+                    //Arm_Done_pub.publish(Arm_Done); //  publish not done moving result
+                    return;                         //  break out of function
+                }
+            }
+
             // ROS INFO
             #if DEBUG
                 ROS_WARN("**********Arm arrived");
@@ -889,8 +914,8 @@ private:
     std_msgs::Int8 Misc_Done;
     std_msgs::Bool Local_En;
 
-    // Variable for storing old arm angles
-    int last_arm_angles[8];
+    // Variable arm values
+    int last_arm_angles[8], moving_down = 0;
 
     // Variables for bot movement functions
     double  desired_x = 0, error_x_prev = 0, error_x_cumulative = 0, linear_x = 0, arrived_x = 0,
@@ -900,6 +925,9 @@ private:
 
     // Local task space 
     float local_task_space[6];
+
+    // Clock timers
+    clock_t next_down_time;
 };
 
 
