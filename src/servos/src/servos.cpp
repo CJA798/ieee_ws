@@ -443,10 +443,10 @@ public:
         else if(Misc_Angles.data[2] == -4){
             uint8_t dxl_error = 0;
             packetHandler->reboot(portHandler, 14, &dxl_error);
-            usleep(100000);
-            packetHandler->write1ByteTxOnly(portHandler, 14, TORQUE_ENABLE_ADDR, 1);      // Disable torque for servo 14
-            usleep(10000);
-            packetHandler->write1ByteTxOnly(portHandler, 14, LED_ADDR, 1);      // Disable torque for servo 14
+            //usleep(100000);
+            //packetHandler->write1ByteTxOnly(portHandler, 14, TORQUE_ENABLE_ADDR, 1);      // Disable torque for servo 14
+            //usleep(10000);
+            //packetHandler->write1ByteTxOnly(portHandler, 14, LED_ADDR, 1);      // Disable torque for servo 14
         }
         
         // Sets flag to sync write outside of callback
