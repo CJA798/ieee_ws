@@ -8,14 +8,15 @@
 * it also accepts a Move function and does the kinematics and PIDs
 */
 
-// For rebooting
-//uint8_t dxl_error = 0;
-//packetHandler->reboot(portHandler, DXL_ID, &dxl_error);
+// Time test
+//clock_t time1 = clock();
+//ROS_WARN("**********Time: %ld", time1);
 
 
 #include <ros/ros.h>
 #include <math.h>
 #include <unistd.h>
+#include <time.h>
 
 #include "dynamixel_sdk/dynamixel_sdk.h"
 #include "std_msgs/Float32MultiArray.h"
