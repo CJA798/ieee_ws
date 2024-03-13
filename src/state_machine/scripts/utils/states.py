@@ -620,7 +620,7 @@ class SetPose(smach.State):
         # TODO: Format this method better
         # Publish command to move arm over drop off area
         jaw = globals['gripper_bulk_hold']
-        speed = 5
+        speed = 25 #updated speed
         angles = [608.0, 1634.0, 1638.0, 2721.0, 2023.0, 841.0, 2194.0, jaw, speed]
         publish_command(self.arm_angles_pub, Float32MultiArray, angles)
         # Wait for the arm to reach the pose
@@ -628,7 +628,7 @@ class SetPose(smach.State):
 
         # Publish command to lower arm
         jaw = globals['gripper_bulk_hold']
-        speed = 5
+        speed = 25 #updated speed
         angles = [497.0, 1242.0, 1245.0, 2730.0, 2022.0, 1250.0, 2077.0, jaw, speed]
         publish_command(self.arm_angles_pub, Float32MultiArray, angles)
         # Wait for the arm to reach the pose
@@ -640,7 +640,7 @@ class SetPose(smach.State):
     def ReleaseSmallPackages(self):
         # Publish command to release the small packages
         jaw = globals['gripper_bulk_release']
-        speed = 10
+        speed = 50 #updated speed
         angles = [497.0, 1242.0, 1245.0, 2730.0, 2022.0, 1250.0, 2077.0, jaw, speed]
         if publish_command(self.arm_angles_pub, Float32MultiArray, angles):
             # Wait for the arm to reach the pose
@@ -654,7 +654,7 @@ class SetPose(smach.State):
     def FuelTankScan(self):
         # Publish command to set the arm to fuel tank scan pose
         jaw = globals['gripper_bulk_release']
-        speed = 5
+        speed = 25 #updated speed
         angles = [1185.0, 2236.0, 2231.0, 2151.0, 2017.0, 692.0, 2109.0, jaw, speed]
         
         if publish_command(self.arm_angles_pub, Float32MultiArray, angles):
@@ -723,7 +723,7 @@ class PickUp(smach.State):
 
             # Go to scan pose
             pose = Float32MultiArray()
-            speed = 1
+            speed = 5 #updated speed
             jaw = globals['gripper_bulk_hold']
             pose.data = [1940.0, 2125.0, 2120.0, 2443.0, 2179.0, 716.0, 2003.0, jaw, speed]
             self.arm_angles_pub.publish(pose)
@@ -767,7 +767,7 @@ class PickUp(smach.State):
 
             # Go to over small package grabber
             rospy.loginfo('Moving to over small package grabber')
-            speed = 1
+            speed = 5 #updated speed
             pose.data = [2903.0, 2186.0, 2179.0, 1652.0, 2058.0, 1504.0, 1825.0, 1935.0, speed]
             self.arm_angles_pub.publish(pose)
             rospy.loginfo('WASD to over small package grabber')
@@ -779,7 +779,7 @@ class PickUp(smach.State):
             rate2.sleep()
 
             # Close gripper
-            speed = 1
+            speed = 5 #speed updated
             pose.data = [2903.0, 2186.0, 2179.0, 1652.0, 2058.0, 1504.0, 1825.0, 2041.0, speed]
             self.arm_angles_pub.publish(pose)
 
@@ -887,7 +887,7 @@ class DropOff(smach.State):
     def DropOffSmallPackages(self):
         # Go over red area
         jaw = globals['gripper_bulk_hold']
-        speed = 7
+        speed = 35 #speed updated
         angles = [495.0, 1669.0, 1664.0, 2507.0, 2087.0, 946.0, 3915.0, jaw, speed]
         publish_command(self.arm_angles_pub, Float32MultiArray, angles, delay=4)
         rospy.loginfo('Moving arm over red area')
@@ -1000,7 +1000,7 @@ class SpiritCelebration(smach.State):
             bottom_bulk = globals['set_bulk_bottom']
             flag = globals['raised_flag']
             jaw = globals['gripper_bulk_hold']
-            speed = 10
+            speed = 50 #updated speed
 
             angles = [495.0, 1669.0, 1664.0, 2507.0, 2087.0, 946.0, 3915.0, jaw, speed]  #scan pose
             publish_command(self.arm_angles_pub, Float32MultiArray, angles, delay=2) #gets the arm out of the way for the flag
@@ -1081,7 +1081,7 @@ class ScanPose(smach.State):
         self.arm_angles_pub = arm_angles_pub
 
     def execute(self, userdata):
-        speed = 10
+        speed = 50 #updated speed
         jaw = globals['gripper_bulk_hold']
         rospy.loginfo('Moving to scan pose')
         # Publish command to set the arm to the scan pose
@@ -1100,7 +1100,7 @@ class ScanFuelTankPose(smach.State):
         self.arm_angles_pub = arm_angles_pub
 
     def execute(self, userdata):
-        speed = 10
+        speed = 50 #updated speed
         gripper = 2440
         rospy.loginfo('Moving to scan pose')
         # Publish command to set the arm to the scan pose
@@ -1123,7 +1123,7 @@ class RestPose(smach.State):
         try:
             # Reset the arm_done global variable
             globals['arm_done'] = False
-            speed = 5
+            speed = 25 #updated speed
             jaw = globals['gripper_bulk_hold']
             angles_ = Float32MultiArray()
             angles_.data = [1058.0, 2852.0, 2847.0, 1405.0, 2109.0, 1736.0, 1038.0, jaw, speed]
@@ -1228,7 +1228,7 @@ class VerifyPose(smach.State):
             # Go to first coordinate
             target = coordinates[i]
             vertical_distance = -60
-            speed = 1
+            speed = 5 #updated speed
 
             x = target.x
             y = target.y
@@ -1312,7 +1312,7 @@ class PickUp_(smach.State):
 
     def execute(self, userdata):
         task_space = Float32MultiArray()
-        task_space.data = [100, 100, 0, 2048, 2100, 10]
+        task_space.data = [100, 100, 0, 2048, 2100, 50] #Changed the speed to account for Chris changes
         self.task_space_pub.publish(task_space)
 
         if True:
@@ -1347,7 +1347,8 @@ class PickUpFuelTank(smach.State):
         # Map wrist based on x-coordinate using polynomial regression
         wrist = round(-2e-6 * x**4 - 6e-4 * x**3 + 33e-4 * x**2 + 9.3418 * x + 2037.7126, 1)
         gripper = globals['fuel_tank_gripper_open']
-        speed = 5
+        speed = 25 #updated speed
+
         #publish_command(self.task_space_pub, Float32MultiArray, [x, y, z, wrist, gripper, speed])
         #rospy.wait_for_message("Arm_Done", Int8, timeout=10)
         # Go on top of fuel tank
@@ -1391,15 +1392,15 @@ class PickUpFuelTank(smach.State):
 class StoreFuelTank(smach.State):
     # Dictionary to map the slot number to the corresponding coordinates
     OVER_SLOT_COORDS = {
-        1: [-115, 100, -95, 3500, 2640, 5],
-        2: [-30, 100, -90, 3500, 2640, 5],
-        3: [40, 100, -85, 3500, 2640, 5]
+        1: [-115, 100, -95, 3500, 2640, 25],      
+        2: [-30, 100, -90, 3500, 2640, 25],   #updated speeds
+        3: [40, 100, -85, 3500, 2640, 25]
     }
 
     IN_SLOT_COORDS = {
-        1: [-115, -17, -95, 3500, 2640, 5],
-        2: [-30, -17, -90, 3500, 2640, 5],
-        3: [40, -17, -85, 3500, 2640, 5]
+        1: [-115, -17, -95, 3500, 2640, 25],
+        2: [-30, -17, -90, 3500, 2640, 25],
+        3: [40, -17, -85, 3500, 2640, 25]
     }
 
     def __init__(self, task_space_publisher, arm_angles_publisher, slot_number=1):
@@ -1433,7 +1434,7 @@ class StoreFuelTank(smach.State):
         publish_command(self.task_space_pub, Float32MultiArray, open_gripper_msg, delay=1)
 
         # Go back to scan fuel tank pose
-        speed = 10
+        speed = 50 #updated speed
         angles = [769.0, 2388.0, 2379.0, 2092.0, 2075.0, 644.0, 1800.0, gripper, speed]
         publish_and_wait(pub=self.arm_angles_pub,
                          wait_for_topic='Arm_Done',
