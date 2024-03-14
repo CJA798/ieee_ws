@@ -82,7 +82,7 @@ def publish_and_wait(pub: Publisher, wait_for_topic: str, message_type: AnyMsg, 
             except Exception as e:
                 rospy.logerr(f"Error in timeout function {timeout_function.__name__}: {e}")
         else:
-            rospy.logwarn(f"Timeout waiting for message on topic {wait_for_topic}")
+            rospy.logwarn(f"Ignoring timeout waiting for message on topic {wait_for_topic}...")
     
     return True
     
@@ -1325,7 +1325,7 @@ class PickUpSmallPackage(smach.State):
         smach.State.__init__(self,
                              input_keys=['coordinates_list'],
                              output_keys=['sweep_coordinates_list'],
-                             outcomes=['packages_picked_up', 'sweep_needed', 'soft_sweep_needed', 'second_scan_needed', 'no_coordinates_received'])
+                             outcomes=['packages_picked_up', 'sweep_needed', 'soft_sweep_needed', 'no_coordinates_received'])
         self.task_space_pub = task_space_publisher
 
     def execute(self, userdata):
@@ -1337,12 +1337,13 @@ class PickUpSmallPackage(smach.State):
         if not coordinates:
             return 'no_coordinates_received'
         
-        # Set the jaw value
+        # Set the jaw value to hold the small package grabber
         jaw = globals['small_package_jaw_closed']
         num_coordinates = range(len(coordinates))
         for i in num_coordinates:
             # Get first coordinate
             target = coordinates[i]
+            userdata.sweep_coordinates_list = coordinates[i]
             x = target.x
             area = target.y
             z = target.z
@@ -1350,21 +1351,64 @@ class PickUpSmallPackage(smach.State):
             # Check if it's within X-axis range
             if not self.x_coord_within_range(x, z):
                 globals['scan_after_big_package_pickup'] = True
+                rospy.logwarn(f'Coordinate {i} is not within X-axis range. Scan after big package pickup needed')
                 continue
             
             # Check if it's too close to the big packages
             if self.in_big_package_area(x, z):
                 # Soft hardcoded sweep
-                # Scan again
-                pass
+                rospy.logwarn(f'Coordinate {i} is too close to the big packages. Soft sweep needed')
+                return 'soft_sweep_needed'
                 
-            # Check the area of the contour
+            # Check the area of the contour to verify it's a single box
             if not self.area_within_range(area):
-                # Sweep
-                pass
-
+                rospy.logwarn(f'Coordinate {i} has an area of {area}, which is bigger than the max area for a single package')
+                # Double-check with the number of coordinates
+                if num_coordinates < 3:
+                    # Sweep
+                    rospy.logwarn(f'Potential cluster of small packages detected. Sweep needed')
+                    return 'sweep_needed'
+                rospy.logwarn('Picking up abnormally large package anyways')
+                # else, try to pick it up. It could just be a greater contour than normal 
             
-        return
+            # Check if it's within Z-axis range
+            if not self.z_coord_within_range(z):
+                rospy.logwarn(f'Coordinate {i} is too close to a side wall. Wrist angle adjustment needed')
+                # Adjust wrist
+                wrist = self.get_wrist_angle(z)
+                # Adjust x and z with respect to new wrist value
+                x, z = self.adjust_xz_to_wrist(x, z, wrist)
+                rospy.loginfo(f'Adjusted x: {x}, z: {z}, wrist: {wrist}')
+            
+            # Move over target small package to pick up
+            rospy.loginfo(f'Moving over small package {i} to pick it up')
+            publish_and_wait(pub=self.task_space_pub,
+                                wait_for_topic='Arm_Done',
+                                message_type=Float32MultiArray,
+                                message_data=[x, 100, z, 2048, jaw, 50],
+                                delay=2,
+                                timeout_function=None)
+            
+            # Lower the arm to pick up the small package
+            rospy.loginfo(f'Lowering arm to pick up small package {i}')
+            publish_and_wait(pub=self.task_space_pub,
+                                wait_for_topic='Arm_Done',
+                                message_type=Float32MultiArray,
+                                message_data=[x, 100, z, 2048, jaw, -180],
+                                delay=2,
+                                timeout_function=None)
+            
+            # Raise the arm to avoid pushing other blocks around
+            rospy.loginfo(f'Raising arm after picking up small package {i}')
+            publish_and_wait(pub=self.task_space_pub,
+                                wait_for_topic='Arm_Done',
+                                message_type=Float32MultiArray,
+                                message_data=[x, 100, z, 2048, jaw, 100],
+                                delay=2,
+                                timeout_function=None)
+            
+            rospy.loginfo(f'Successfully picked up small package {i}')
+        return 'packages_picked_up'
 
     def x_coord_within_range(self, x, z):
         return (70 < x < 260)
@@ -1374,8 +1418,24 @@ class PickUpSmallPackage(smach.State):
     
     def area_within_range(self, area):
         return area > globals['max_small_package_area']
-
     
+    def in_big_package_area(self, x, z):
+        pass
+
+    def get_wrist_angle(self, z):
+        pass
+     
+class Sweep(smach.State):
+    def __init__(self, task_space_publisher, soft=False):
+        smach.State.__init__(self,
+                             input_keys=['sweep_coordinates_list'],
+                             outcomes=['success','aborted'])
+        self.task_space_pub = task_space_publisher
+        self.soft_sweep = soft
+
+    def execute(self, userdata):
+        return 'success'
+
 class PickUpFuelTank(smach.State):
     def __init__(self, task_space_publisher):
         smach.State.__init__(self,
