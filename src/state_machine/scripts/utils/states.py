@@ -241,7 +241,7 @@ class GoTo_(smach.State):
         #try TOF left values
         #publish_command(self.move_pub, Float32MultiArray, [1, 0, 0, 20], delay=2.25)
         publish_command(self.move_pub, Float32MultiArray, [-250, 0, 0, 20], delay = 1)
-        publish_command(self.misc_angles_pub, Float32MultiArray, [-1, -1, -3, -1], delay=0.1)
+        #publish_command(self.misc_angles_pub, Float32MultiArray, [-1, -1, -3, -1], delay=0.1)
         rospy.wait_for_message('Move_Done',Int8, timeout = 10)
 
         
@@ -1081,14 +1081,14 @@ class ScanPose(smach.State):
         self.arm_angles_pub = arm_angles_pub
 
     def execute(self, userdata):
-        speed = 50 #updated speed
+        speed = 100 #updated speed
         jaw = globals['gripper_bulk_hold']
         rospy.loginfo('Moving to scan pose')
         # Publish command to set the arm to the scan pose
         if publish_command(self.arm_angles_pub, Float32MultiArray, [2041.0, 2023.0, 2015.0, 2660.0, 2083.0, 489.0, 2039.0, jaw, speed]):
             # Wait for the arm to reach the pose
             #rospy.wait_for_message("Arm_Done", Int8, timeout=15)
-            rospy.sleep(4)
+            rospy.sleep(2)
             return 'pose_reached'
         else:
             return 'pose_not_reached'
@@ -1319,7 +1319,27 @@ class PickUp_(smach.State):
             rospy.sleep(5)
             return 'packages_picked_up'
         return 'packages_not_picked_up'
-    
+
+class PickUpSmallPackage(smach.State):
+    def __init__(self, task_space_publisher):
+        smach.State.__init__(self,
+                             input_keys=['coordinates_list'],
+                             output_keys=['sweep_coordinates_list'],
+                             outcomes=['packages_picked_up', 'sweep_needed', 'second_scan_needed', 'no_coordinates_received'])
+        self.task_space_pub = task_space_publisher
+
+    def execute(self, userdata):
+        # Store the coordinates list: CoordinatesList -> coordinates[coordinates]
+        coordinates = userdata.coordinates_list.coordinates
+        rospy.loginfo(f'Coordinates: {coordinates}')
+
+        # Check if the coordinates list is empty
+        if not coordinates:
+            return 'no_coordinates_received'
+        
+        # Set the jaw value
+        jaw = globals['small_package_jaw_closed']
+        
 class PickUpFuelTank(smach.State):
     def __init__(self, task_space_publisher):
         smach.State.__init__(self,

@@ -31,6 +31,7 @@ globals: Dict[str, Union[bool, int, None]] = {
     # Arm Macros
     'gripper_bulk_hold': 2000,
     'gripper_bulk_release': 1750,
+    'small_package_jaw_closed': 1980,
 
     # Big Package Macros
     'big_package_Y_offset': -248,

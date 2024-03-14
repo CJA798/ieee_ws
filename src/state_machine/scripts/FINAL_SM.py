@@ -45,14 +45,36 @@ def main():
         # Initialize all devices, variables, windows, etc.
         smach.StateMachine.add('INITIALIZE', Initialize(init_state_pub=init_state_pub), 
                                transitions={'succeeded':'READING_START_LED', 'aborted':'INITIALIZE'})
-                               #transitions={'succeeded':'GO_TO_DROP_OFF_AREA', 'aborted':'INITIALIZE'})
         
         # Read the start green LED and wait for it to be detected
         smach.StateMachine.add('READING_START_LED', ReadingStartLED(), 
-                               transitions={'green_led_detected': 'PICKUP_BIG_PACKAGES', 
-                               #transitions={'green_led_detected': 'GO_TO_FUEL_TANK_AREA',   
+                               transitions={'green_led_detected': 'PICKUP_SMALL_PACKAGES', 
                                             'green_led_not_detected':'READING_START_LED'})
         
+        small_packages_sm = smach.StateMachine(outcomes=['packages_picked_up', 'packages_not_picked_up'])
+
+        with small_packages_sm:
+            smach.StateMachine.add('SCAN_POSE', ScanPose(arm_angles_pub=arm_angles_pub),
+                                    transitions={'pose_reached':'GET_SP_COORDS', 'pose_not_reached':'SCAN_POSE'})
+            smach.StateMachine.add('GET_SP_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value, timeout=2.0, expected_pairs=3, camera_enable_publisher=camera_enable_pub),
+                                    transitions={'coords_received':'VERIFY_POSE', 'coords_not_received':'GET_SP_COORDS'})
+            smach.StateMachine.add('PICK_UP_SP', PickUpSmallPackage(task_space_pub=task_space_pub),
+                                   transitions={'packages_picked_up':'REST_POSE',
+                                                'sweep_needed': 'SWEEP_SMALL_PACKAGES',
+                                                'second_scan_needed': 'PICKUP_BIG_PACKAGES',
+                                                'no_coordinates_received': 'REST_POSE'})
+            
+            #smach.StateMachine.add('VERIFY_POSE', VerifyPose(task_space_pub=task_space_pub),
+                                    #transitions={'pose_reached':'REST_POSE', 'pose_not_reached':'VERIFY_POSE'})
+            smach.StateMachine.add('REST_POSE', RestPose(arm_angles_pub=arm_angles_pub),
+                                    transitions={'pose_reached':'packages_picked_up', 'pose_not_reached':'REST_POSE'})
+            
+    
+
+        smach.StateMachine.add('PICKUP_SMALL_PACKAGES', small_packages_sm,
+                                transitions={'packages_picked_up':'PICKUP_BIG_PACKAGES',
+                                            'packages_not_picked_up':'PICKUP_SMALL_PACKAGES'})
+
         big_packages_sm = smach.StateMachine(outcomes=['packages_picked_up', 'packages_not_picked_up'])
 
         with big_packages_sm:
@@ -79,26 +101,10 @@ def main():
                                     transitions={'pose_reached':'packages_picked_up', 'pose_not_reached':'RAISE_BULK_GRABBER'})
         
         smach.StateMachine.add('PICKUP_BIG_PACKAGES', big_packages_sm,
-                                transitions={'packages_picked_up':'PICKUP_SMALL_PACKAGES',
+                                transitions={'packages_picked_up':'GO_TO_DROP_OFF_AREA',
                                             'packages_not_picked_up':'PICKUP_BIG_PACKAGES'})
         
-        small_packages_sm = smach.StateMachine(outcomes=['packages_picked_up', 'packages_not_picked_up'])
-
-        with small_packages_sm:
-            smach.StateMachine.add('SCAN_POSE', ScanPose(arm_angles_pub=arm_angles_pub),
-                                    transitions={'pose_reached':'GET_SP_COORDS', 'pose_not_reached':'SCAN_POSE'})
-            smach.StateMachine.add('GET_SP_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value, timeout=2.0, expected_pairs=3, camera_enable_publisher=camera_enable_pub),
-                                    transitions={'coords_received':'VERIFY_POSE', 'coords_not_received':'GET_SP_COORDS'})
-            smach.StateMachine.add('VERIFY_POSE', VerifyPose(task_space_pub=task_space_pub),
-                                    transitions={'pose_reached':'REST_POSE', 'pose_not_reached':'VERIFY_POSE'})
-            smach.StateMachine.add('REST_POSE', RestPose(arm_angles_pub=arm_angles_pub),
-                                    transitions={'pose_reached':'packages_picked_up', 'pose_not_reached':'REST_POSE'})
-            
-    
-
-        smach.StateMachine.add('PICKUP_SMALL_PACKAGES', small_packages_sm,
-                                transitions={'packages_picked_up':'GO_TO_DROP_OFF_AREA',
-                                            'packages_not_picked_up':'PICKUP_SMALL_PACKAGES'})
+        
 
         # Go to dropoff area
         smach.StateMachine.add('GO_TO_DROP_OFF_AREA', GoTo_(Areas.DROP_OFF, move_publisher=move_pub, grav_enable_publisher=grav_enable_pub), 
