@@ -1088,7 +1088,7 @@ class ScanPose(smach.State):
         if publish_command(self.arm_angles_pub, Float32MultiArray, [2041.0, 2023.0, 2015.0, 2660.0, 2083.0, 489.0, 2039.0, jaw, speed]):
             # Wait for the arm to reach the pose
             #rospy.wait_for_message("Arm_Done", Int8, timeout=15)
-            rospy.sleep(2)
+            rospy.sleep(1.5)
             return 'pose_reached'
         else:
             return 'pose_not_reached'
@@ -1321,12 +1321,12 @@ class PickUp_(smach.State):
         return 'packages_not_picked_up'
 
 class PickUpSmallPackage(smach.State):
-    def __init__(self, task_space_publisher):
+    def __init__(self, task_space_pub):
         smach.State.__init__(self,
                              input_keys=['coordinates_list'],
                              output_keys=['sweep_coordinates_list'],
                              outcomes=['packages_picked_up', 'sweep_needed', 'soft_sweep_needed', 'no_coordinates_received'])
-        self.task_space_pub = task_space_publisher
+        self.task_space_pub = task_space_pub
 
     def execute(self, userdata):
         # Store the coordinates list: CoordinatesList -> coordinates[coordinates]
@@ -1339,14 +1339,14 @@ class PickUpSmallPackage(smach.State):
         
         # Set the jaw value to hold the small package grabber
         jaw = globals['small_package_jaw_closed']
-        num_coordinates = range(len(coordinates))
-        for i in num_coordinates:
+        num_coordinates = len(coordinates)
+        for i in range(num_coordinates):
             # Get first coordinate
             target = coordinates[i]
             userdata.sweep_coordinates_list = coordinates[i]
-            x = target.x
-            area = target.y
-            z = target.z
+            x = int(target.x)
+            area = int(target.y)
+            z = int(target.z)
 
             # Check if it's within X-axis range
             if not self.x_coord_within_range(x, z):
@@ -1385,8 +1385,8 @@ class PickUpSmallPackage(smach.State):
             publish_and_wait(pub=self.task_space_pub,
                                 wait_for_topic='Arm_Done',
                                 message_type=Float32MultiArray,
-                                message_data=[x, 100, z, 2048, jaw, 50],
-                                delay=2,
+                                message_data=[x, 50, z, 2048, jaw, 50],
+                                delay=3,
                                 timeout_function=None)
             
             # Lower the arm to pick up the small package
@@ -1394,8 +1394,8 @@ class PickUpSmallPackage(smach.State):
             publish_and_wait(pub=self.task_space_pub,
                                 wait_for_topic='Arm_Done',
                                 message_type=Float32MultiArray,
-                                message_data=[x, 100, z, 2048, jaw, -180],
-                                delay=2,
+                                message_data=[x, 50, z, 2048, jaw, -140],
+                                delay=3,
                                 timeout_function=None)
             
             # Raise the arm to avoid pushing other blocks around
@@ -1403,8 +1403,8 @@ class PickUpSmallPackage(smach.State):
             publish_and_wait(pub=self.task_space_pub,
                                 wait_for_topic='Arm_Done',
                                 message_type=Float32MultiArray,
-                                message_data=[x, 100, z, 2048, jaw, 100],
-                                delay=2,
+                                message_data=[x, 80, z, 2048, jaw, 100],
+                                delay=3,
                                 timeout_function=None)
             
             rospy.loginfo(f'Successfully picked up small package {i}')
@@ -1420,21 +1420,49 @@ class PickUpSmallPackage(smach.State):
         return area > globals['max_small_package_area']
     
     def in_big_package_area(self, x, z):
-        pass
+        return (100 < x < 160) and (170 < z < 210)
 
     def get_wrist_angle(self, z):
         pass
+
+    def adjust_xz_to_wrist(self, x, z, wrist):
+        pass
      
 class Sweep(smach.State):
-    def __init__(self, task_space_publisher, soft=False):
+    def __init__(self, task_space_pub, soft=False):
         smach.State.__init__(self,
                              input_keys=['sweep_coordinates_list'],
-                             outcomes=['success','aborted'])
-        self.task_space_pub = task_space_publisher
+                             outcomes=['succeeded','aborted'])
+        self.task_space_pub = task_space_pub
         self.soft_sweep = soft
 
     def execute(self, userdata):
-        return 'success'
+        if self.soft_sweep:
+            # Go to soft sweep pose
+            publish_and_wait(pub=self.task_space_pub,
+                                wait_for_topic='Arm_Done',
+                                message_type=Float32MultiArray,
+                                message_data=[50, 20, 180, 2048, 1980, 100],
+                                delay=2,
+                                timeout_function=None)
+            # Lower the arm
+            publish_and_wait(pub=self.task_space_pub,
+                                wait_for_topic='Arm_Done',
+                                message_type=Float32MultiArray,
+                                message_data=[50, -50, 180, 2048, 1980, 10],
+                                delay=2,
+                                timeout_function=None)
+            # Sweep slowly
+            publish_and_wait(pub=self.task_space_pub,
+                                wait_for_topic='Arm_Done',
+                                message_type=Float32MultiArray,
+                                message_data=[150, -70, 180, 2048, 1980, 10],
+                                delay=2,
+                                timeout_function=None)
+            
+        else:
+            pass
+        return 'succeeded'
 
 class PickUpFuelTank(smach.State):
     def __init__(self, task_space_publisher):
