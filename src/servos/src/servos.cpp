@@ -487,9 +487,6 @@ public:
         
         // Sets flag to sync write outside of callback
         sync_misc_goal_pos = 1;
-
-        // Sets the misc moving flag to start checking for servos to complete move
-        misc_moving = 1;
     }
 
 
@@ -865,6 +862,8 @@ public:
             //if(!write_result4){
                 groupSyncWrite_miscGoalPos.clearParam();
                 sync_misc_goal_pos = 0;
+                // Sets the misc moving flag to start checking for servos to complete move
+                misc_moving = 1;
             //}
             // Debug info
             #if DEBUG
