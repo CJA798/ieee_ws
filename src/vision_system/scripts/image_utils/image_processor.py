@@ -430,11 +430,15 @@ class ImageProcessor_():
             z_offset: float - The offset for the fuel tank polynomial regression.
         '''
         #x_offset = round(1e-6 * x**4 - 1e-3 * x**3 + 0.2586 * x**2 - 30.3776 * x + 1306.2392, 2)
-        print(f'X-ORIGINAL: {x}')
+        #print(f'X-ORIGINAL: {x}')
         #x_offset = round(0.00001 * x**3 - 0.005 * x**2 + 0.842 * x - 37.1179, 1)
-        x_offset =  -0.1609 * x + 25.9747
-        print(f'X-OFFSET: {x_offset}')
+        x_offset =  round(-0.1609 * x + 25.9747, 1)
+        #print(f'X-OFFSET: {x_offset}')
+        #z_offset = round(1e-7 * z**3 + 2e-5 * z**2 - 486e-4 * z + 5.1474, 1)
+        #z_offset = round(-0.0474 * z + 4.9646, 1)
         z_offset = 0
+        #z_offset = round(-2e-7 * z**4 - 2e-5 * z**3 + 2e-3 * z**2 + 0.1143 * z + 4.3528, 1)
+        z_offset = -0.0597 * z + 6.8607
         return x_offset, z_offset
     
 

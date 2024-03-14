@@ -61,9 +61,14 @@ def main():
             smach.StateMachine.add('PICK_UP_SP', PickUpSmallPackage(task_space_pub=task_space_pub),
                                    transitions={'packages_picked_up':'REST_POSE',
                                                 'sweep_needed': 'SWEEP_SMALL_PACKAGES',
-                                                'second_scan_needed': 'PICKUP_BIG_PACKAGES',
+                                                'soft_sweep_needed': 'SOFT_SWEEP',
+                                                #'second_scan_needed': 'PICKUP_BIG_PACKAGES',
                                                 'no_coordinates_received': 'REST_POSE'})
             
+            smach.StateMachine.add('SWEEP_SMALL_PACKAGES', RestPose(arm_angles_pub=arm_angles_pub),
+                                    transitions={'succeeded':'SCAN_POSE', 'aborted':'SWEEP_SMALL_PACKAGES'})
+            smach.StateMachine.add('SOFT_SWEEP', RestPose(arm_angles_pub=arm_angles_pub),
+                                    transitions={'succeeded':'SCAN_POSE', 'aborted':'SOFT_SWEEP'})
             #smach.StateMachine.add('VERIFY_POSE', VerifyPose(task_space_pub=task_space_pub),
                                     #transitions={'pose_reached':'REST_POSE', 'pose_not_reached':'VERIFY_POSE'})
             smach.StateMachine.add('REST_POSE', RestPose(arm_angles_pub=arm_angles_pub),

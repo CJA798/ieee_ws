@@ -1325,7 +1325,7 @@ class PickUpSmallPackage(smach.State):
         smach.State.__init__(self,
                              input_keys=['coordinates_list'],
                              output_keys=['sweep_coordinates_list'],
-                             outcomes=['packages_picked_up', 'sweep_needed', 'second_scan_needed', 'no_coordinates_received'])
+                             outcomes=['packages_picked_up', 'sweep_needed', 'soft_sweep_needed', 'second_scan_needed', 'no_coordinates_received'])
         self.task_space_pub = task_space_publisher
 
     def execute(self, userdata):
@@ -1339,7 +1339,43 @@ class PickUpSmallPackage(smach.State):
         
         # Set the jaw value
         jaw = globals['small_package_jaw_closed']
-        
+        num_coordinates = range(len(coordinates))
+        for i in num_coordinates:
+            # Get first coordinate
+            target = coordinates[i]
+            x = target.x
+            area = target.y
+            z = target.z
+
+            # Check if it's within X-axis range
+            if not self.x_coord_within_range(x, z):
+                globals['scan_after_big_package_pickup'] = True
+                continue
+            
+            # Check if it's too close to the big packages
+            if self.in_big_package_area(x, z):
+                # Soft hardcoded sweep
+                # Scan again
+                pass
+                
+            # Check the area of the contour
+            if not self.area_within_range(area):
+                # Sweep
+                pass
+
+            
+        return
+
+    def x_coord_within_range(self, x, z):
+        return (70 < x < 260)
+    
+    def z_coord_within_range(self, z):
+        return (-200 < z < 200)
+    
+    def area_within_range(self, area):
+        return area > globals['max_small_package_area']
+
+    
 class PickUpFuelTank(smach.State):
     def __init__(self, task_space_publisher):
         smach.State.__init__(self,
