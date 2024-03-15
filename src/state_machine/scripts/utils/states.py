@@ -274,16 +274,14 @@ class GoTo_(smach.State):
     def GoToReScan(self):
         '''State to move the robot to the re-scan area'''
         # Publish command to move the robot to the re-scan area
-        try:
-            publish_and_wait(self.move_pub,
-                            "Move_Done",
-                            Float32MultiArray,
-                            [0, 1, 0, 50],
-                            delay=1,
-                            timeout_function=stop_move)
-            return 'arrived'
-        except:
-            return 'not_arrived'
+        publish_and_wait(self.move_pub,
+                        "Move_Done",
+                        Float32MultiArray,
+                        [0, 0.75, 0, 100],
+                        delay=1,
+                        timeout_function=lambda: stop_move(self.move_pub))
+        return 'arrived'
+ 
         
     def GoToDropOffArea(self):
         '''State to move the robot to the drop off area'''
@@ -613,7 +611,6 @@ class SetPose(smach.State):
         # Move back to beginning
         publish_command(self.move_pub, Float32MultiArray, [-170, 0, 0, 20], delay=1)
        
-
         # Publish the misc angles to raise the bulk grabber arms
         if publish_command(self.misc_angles_pub, Float32MultiArray, [bridge, bottom_bulk, top_bulk, flag]):
             # Waitfor the bulk grabber arms to reach the pose
@@ -1334,13 +1331,14 @@ class PickUp_(smach.State):
         return 'packages_not_picked_up'
 
 class PickUpSmallPackage(smach.State):
-    def __init__(self, task_space_pub, in_re_scan=False):
+    def __init__(self, task_space_pub, in_re_scan=False, after_big_packages=False):
         smach.State.__init__(self,
                              input_keys=['coordinates_list'],
-                             output_keys=['sweep_coordinates_list'],
+                             output_keys=['sweep_coordinates_list', 'pick_after_big_packages', 'move_after_big_packages'],
                              outcomes=['packages_picked_up', 'sweep_needed', 'soft_sweep_needed', 'no_coordinates_received'])
         self.task_space_pub = task_space_pub
         self.in_re_scan = in_re_scan
+        self.after_big_packages = after_big_packages
 
     def execute(self, userdata):
         # Store the coordinates list: CoordinatesList -> coordinates[coordinates]
@@ -1355,6 +1353,10 @@ class PickUpSmallPackage(smach.State):
         jaw = globals['small_package_jaw_closed']
         wrist = 2048
         num_coordinates = len(coordinates)
+
+        # Reset userdata values
+        userdata.pick_after_big_packages = False
+        userdata.move_after_big_packages = False
         for i in range(num_coordinates):
             # Get first coordinate
             target = coordinates[i]
@@ -1364,9 +1366,9 @@ class PickUpSmallPackage(smach.State):
             z = int(target.z)
 
             # Check if it's within X-axis range
-            if not self.x_coord_within_range(x, z):
+            if not self.x_coord_within_range(x, z) and not self.in_re_scan:
                 globals['scan_after_big_package_pickup'] = True
-                print(f'RE-SCAN: {globals["scan_after_big_package_pickup"]}')
+                userdata.move_after_big_packages = True
                 rospy.logwarn(f'Coordinate {target} is not within X-axis range. Scan after big package pickup needed')
                 continue
             
@@ -1387,6 +1389,15 @@ class PickUpSmallPackage(smach.State):
                 rospy.logwarn('Picking up abnormally large package anyways')
                 # else, try to pick it up. It could just be a greater contour than normal 
             
+            # TODO: Add case when the small package is next to a big package and big package pickup is needed first
+            # remember that this will wait for the big package pickup, then pick up the package, and then move if any
+            # other boxes were out of range.
+            # Check if big package pickup is needed first
+            if self.pick_after_big_packages(x,z) and not self.after_big_packages:
+                rospy.loginfo(f'Coordinate {target} is too close to the big packages. Big package pickup needed first')
+                userdata.pick_after_big_packages = True
+                continue
+            
             # Check if it's within Z-axis range
             if not self.z_coord_within_range(z):
                 rospy.logwarn(f'Coordinate {target} is too close to a side wall. Wrist angle adjustment needed')
@@ -1395,7 +1406,7 @@ class PickUpSmallPackage(smach.State):
                 # Adjust x and z with respect to new wrist value
                 x, z = self.adjust_xz_to_wrist(x, z, wrist)
                 rospy.loginfo(f'Adjusted x: {x}, z: {z}, wrist: {wrist}')
-            
+
             # Move over target small package to pick up
             rospy.loginfo(f'Moving over small package {target} to pick it up')
             publish_and_wait(pub=self.task_space_pub,
@@ -1436,8 +1447,11 @@ class PickUpSmallPackage(smach.State):
         return area < globals['max_small_package_area']
     
     def in_big_package_area(self, x, z):
-        return (100 < x < 160) and (170 < z < 210)
-
+        return (100 < x < 160) and (170 < z < 200)
+    
+    def pick_after_big_packages(self, x, z):
+        return (100 < x < 160) and (200 <= z)
+    
     def get_wrist_angle(self, z):
         return 400 if z > 0 else 3600
 
@@ -1651,7 +1665,29 @@ class StoreFuelTank(smach.State):
                          timeout_function=None)
         rospy.sleep(1)
         return 'fuel_tank_stored'
-          
+
+
+class PackageStateResolver(smach.State):
+    def __init__(self):
+        smach.State.__init__(self,
+                             input_keys=['pick_after_big_packages', 'move_after_big_packages'],
+                             output_keys=['pick_after_big_packages', 'move_after_big_packages'],
+                             outcomes=['pick_after_big_packages', 'move_after_big_packages', 'packages_picked_up'])
+
+    def execute(self, userdata):
+        if userdata.pick_after_big_packages:
+            # Reset the pick_after_big_packages flag
+            userdata.pick_after_big_packages = False
+            return 'pick_after_big_packages'
+        elif userdata.move_after_big_packages:
+            # Reset the move_after_big_packages flag
+            userdata.move_after_big_packages = False
+            return 'move_after_big_packages'
+        else:
+            return 'packages_picked_up'
+
+
+
 ####################################################################################################
 #    
 ####################################################################################################
