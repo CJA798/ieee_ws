@@ -33,7 +33,7 @@ class ImageProcessor_():
     }
 
     POSE_AREA_RANGES = {
-        Poses.SMALL_PACKAGE_SCAN: (0.0005, 0.0075),
+        Poses.SMALL_PACKAGE_SCAN: (0.0015, 0.015),
         Poses.FUEL_TANK_SCAN: (0.005, 0.075)
     }
 
@@ -59,7 +59,7 @@ class ImageProcessor_():
         "orange": self.get_color_bounds([0, 85, 255], hue_offset=30, value=(100, 255), saturation=(200, 255)),
         "copper": self.get_color_bounds([75, 112, 255]),
         "yellow": self.get_color_bounds([0, 255, 255]),
-        "magenta": self.get_color_bounds([255, 0, 255], value=(100, 255), saturation=(100, 255)),
+        "magenta": self.get_color_bounds([255, 0, 255], hue_offset=40, value=(100, 255), saturation=(100, 255)),
         "black": (np.array([0, 0, 0], dtype=np.uint8), np.array([180, 255, 100], dtype=np.uint8)),
         }
         loginfo("Color data calculated")
@@ -303,6 +303,7 @@ class ImageProcessor_():
         contours = grab_contours(contours)
 
         image_area = image.size
+        print(f"Image Area: {image_area}")
         max_area = image_area * area_range_factor[1]
         min_area = image_area * area_range_factor[0]
         coords_image = self.undistorted_image_roi
@@ -318,14 +319,15 @@ class ImageProcessor_():
 
                 cv2.drawContours(coords_image, [cv2.convexHull(contour)], -1, (0, 255, 0), 2)
                 cv2.circle(coords_image, (cX, cY), 2, (0, 255, 0), -1)
-                x_arm, area, z_arm = self.coordinate_frame_conversion(cX, cY, 0, pose)
+                x_arm, contour_area, z_arm = self.coordinate_frame_conversion(cX, cY, area, pose)
                 coords = Point()
                 coords.x = x_arm    # Z-img = X-arm
                 coords.z = z_arm    # X-img = Z-arm
-                coords.y = area     # Y is hardcoded, so we provide the contour area instead to know if it's a single box or a group of boxes too close to each other
+                coords.y = contour_area     # Y is hardcoded, so we provide the contour area instead to know if it's a single box or a group of boxes too close to each other
                 coords_list.append(coords)
                 coords_text = "(%.1f, %.1f)"  % (z_arm, x_arm) 
-                cv2.putText(coords_image, coords_text, (cX - 15, cY - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)    
+                cv2.putText(coords_image, coords_text, (cX - 15, cY - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+                print(contour_area)    
                 #coords_image = np.hstack([coords_image, cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)])
         return (coords_list, coords_image)
     

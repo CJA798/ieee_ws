@@ -8,3 +8,4 @@ class Areas(Enum):
     FUEL_TANK = "FUEL_TANK"
     CRATER = "CRATER"
     BUTTON = "BUTTON"
+    RE_SCAN = "RE_SCAN"

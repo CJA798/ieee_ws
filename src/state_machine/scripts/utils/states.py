@@ -170,6 +170,7 @@ class GoTo_(smach.State):
     AREA_METHODS = {
         Areas.BIG_PACKAGE_WALL: "GoToBigPackageWall",
         Areas.PUSH_BIG_PACKAGES: "GoToPushBigPackages",
+        Areas.RE_SCAN: "GoToReScan",
         Areas.DROP_OFF: "GoToDropOffArea",
         Areas.FUEL_TANK: "GoToFuelTankArea",
         Areas.CRATER: "GoToCraterArea",
@@ -270,7 +271,19 @@ class GoTo_(smach.State):
         else:
             return 'not_arrived'
         
-
+    def GoToReScan(self):
+        '''State to move the robot to the re-scan area'''
+        # Publish command to move the robot to the re-scan area
+        try:
+            publish_and_wait(self.move_pub,
+                            "Move_Done",
+                            Float32MultiArray,
+                            [0, 1, 0, 50],
+                            delay=1,
+                            timeout_function=stop_move)
+            return 'arrived'
+        except:
+            return 'not_arrived'
         
     def GoToDropOffArea(self):
         '''State to move the robot to the drop off area'''
@@ -1000,10 +1013,10 @@ class SpiritCelebration(smach.State):
             bottom_bulk = globals['set_bulk_bottom']
             flag = globals['raised_flag']
             jaw = globals['gripper_bulk_hold']
-            speed = 50 #updated speed
+            speed = 40 #updated speed
 
-            angles = [495.0, 1669.0, 1664.0, 2507.0, 2087.0, 946.0, 3915.0, jaw, speed]  #scan pose
-            publish_command(self.arm_angles_pub, Float32MultiArray, angles, delay=2) #gets the arm out of the way for the flag
+            angles = [2041.0, 2023.0, 2017.0, 2748.0, 2078.0, 478.0, 2040.0, 2005.0]  #scan pose
+            publish_command(self.arm_angles_pub, Float32MultiArray, angles, delay=.5) #gets the arm out of the way for the flag
             #rospy.wait_for_message("Arm_Done", Int8, timeout=10)
             
 
@@ -1085,7 +1098,7 @@ class ScanPose(smach.State):
         jaw = globals['gripper_bulk_hold']
         rospy.loginfo('Moving to scan pose')
         # Publish command to set the arm to the scan pose
-        if publish_command(self.arm_angles_pub, Float32MultiArray, [2041.0, 2023.0, 2015.0, 2660.0, 2083.0, 489.0, 2039.0, jaw, speed]):
+        if publish_command(self.arm_angles_pub, Float32MultiArray, [2041.0, 2023.0, 2015.0, 2660.0, 2083.0, 500.0, 2039.0, jaw, speed]):
             # Wait for the arm to reach the pose
             #rospy.wait_for_message("Arm_Done", Int8, timeout=15)
             rospy.sleep(1.5)
@@ -1123,7 +1136,7 @@ class RestPose(smach.State):
         try:
             # Reset the arm_done global variable
             globals['arm_done'] = False
-            speed = 25 #updated speed
+            speed = 10 #updated speed
             jaw = globals['gripper_bulk_hold']
             angles_ = Float32MultiArray()
             angles_.data = [1058.0, 2852.0, 2847.0, 1405.0, 2109.0, 1736.0, 1038.0, jaw, speed]
@@ -1321,12 +1334,13 @@ class PickUp_(smach.State):
         return 'packages_not_picked_up'
 
 class PickUpSmallPackage(smach.State):
-    def __init__(self, task_space_pub):
+    def __init__(self, task_space_pub, in_re_scan=False):
         smach.State.__init__(self,
                              input_keys=['coordinates_list'],
                              output_keys=['sweep_coordinates_list'],
                              outcomes=['packages_picked_up', 'sweep_needed', 'soft_sweep_needed', 'no_coordinates_received'])
         self.task_space_pub = task_space_pub
+        self.in_re_scan = in_re_scan
 
     def execute(self, userdata):
         # Store the coordinates list: CoordinatesList -> coordinates[coordinates]
@@ -1339,6 +1353,7 @@ class PickUpSmallPackage(smach.State):
         
         # Set the jaw value to hold the small package grabber
         jaw = globals['small_package_jaw_closed']
+        wrist = 2048
         num_coordinates = len(coordinates)
         for i in range(num_coordinates):
             # Get first coordinate
@@ -1351,18 +1366,19 @@ class PickUpSmallPackage(smach.State):
             # Check if it's within X-axis range
             if not self.x_coord_within_range(x, z):
                 globals['scan_after_big_package_pickup'] = True
-                rospy.logwarn(f'Coordinate {i} is not within X-axis range. Scan after big package pickup needed')
+                print(f'RE-SCAN: {globals["scan_after_big_package_pickup"]}')
+                rospy.logwarn(f'Coordinate {target} is not within X-axis range. Scan after big package pickup needed')
                 continue
             
-            # Check if it's too close to the big packages
-            if self.in_big_package_area(x, z):
+            # Check if it's too close to the big packages, but ignore if in re-scan
+            if self.in_big_package_area(x, z) and not self.in_re_scan:
                 # Soft hardcoded sweep
-                rospy.logwarn(f'Coordinate {i} is too close to the big packages. Soft sweep needed')
+                rospy.logwarn(f'Coordinate {target} is too close to the big packages. Soft sweep needed')
                 return 'soft_sweep_needed'
                 
             # Check the area of the contour to verify it's a single box
             if not self.area_within_range(area):
-                rospy.logwarn(f'Coordinate {i} has an area of {area}, which is bigger than the max area for a single package')
+                rospy.logwarn(f'Coordinate {target} has an area of {area}, which is bigger than the max area for a single package')
                 # Double-check with the number of coordinates
                 if num_coordinates < 3:
                     # Sweep
@@ -1373,7 +1389,7 @@ class PickUpSmallPackage(smach.State):
             
             # Check if it's within Z-axis range
             if not self.z_coord_within_range(z):
-                rospy.logwarn(f'Coordinate {i} is too close to a side wall. Wrist angle adjustment needed')
+                rospy.logwarn(f'Coordinate {target} is too close to a side wall. Wrist angle adjustment needed')
                 # Adjust wrist
                 wrist = self.get_wrist_angle(z)
                 # Adjust x and z with respect to new wrist value
@@ -1381,52 +1397,52 @@ class PickUpSmallPackage(smach.State):
                 rospy.loginfo(f'Adjusted x: {x}, z: {z}, wrist: {wrist}')
             
             # Move over target small package to pick up
-            rospy.loginfo(f'Moving over small package {i} to pick it up')
+            rospy.loginfo(f'Moving over small package {target} to pick it up')
             publish_and_wait(pub=self.task_space_pub,
                                 wait_for_topic='Arm_Done',
                                 message_type=Float32MultiArray,
-                                message_data=[x, 50, z, 2048, jaw, 50],
+                                message_data=[x, 50, z, wrist, jaw, 50],
                                 delay=3,
                                 timeout_function=None)
             
             # Lower the arm to pick up the small package
-            rospy.loginfo(f'Lowering arm to pick up small package {i}')
+            rospy.loginfo(f'Lowering arm to pick up small package {target}')
             publish_and_wait(pub=self.task_space_pub,
                                 wait_for_topic='Arm_Done',
                                 message_type=Float32MultiArray,
-                                message_data=[x, 50, z, 2048, jaw, -140],
+                                message_data=[x, 50, z, wrist, jaw, -140],
                                 delay=3,
                                 timeout_function=None)
             
             # Raise the arm to avoid pushing other blocks around
-            rospy.loginfo(f'Raising arm after picking up small package {i}')
+            rospy.loginfo(f'Raising arm after picking up small package {target}')
             publish_and_wait(pub=self.task_space_pub,
                                 wait_for_topic='Arm_Done',
                                 message_type=Float32MultiArray,
-                                message_data=[x, 80, z, 2048, jaw, 100],
+                                message_data=[x, 50, z, wrist, jaw, 100],
                                 delay=3,
                                 timeout_function=None)
             
-            rospy.loginfo(f'Successfully picked up small package {i}')
+            rospy.loginfo(f'Successfully picked up small package {target}')
         return 'packages_picked_up'
 
     def x_coord_within_range(self, x, z):
-        return (70 < x < 260)
+        return (70 < x < 250)
     
     def z_coord_within_range(self, z):
         return (-200 < z < 200)
     
     def area_within_range(self, area):
-        return area > globals['max_small_package_area']
+        return area < globals['max_small_package_area']
     
     def in_big_package_area(self, x, z):
         return (100 < x < 160) and (170 < z < 210)
 
     def get_wrist_angle(self, z):
-        pass
+        return 400 if z > 0 else 3600
 
     def adjust_xz_to_wrist(self, x, z, wrist):
-        pass
+        return (x, z) if wrist < 2048 else (x, z) # less than 2048 for the wrist means the arm is going towards the right wall
      
 class Sweep(smach.State):
     def __init__(self, task_space_pub, soft=False):
@@ -1456,12 +1472,59 @@ class Sweep(smach.State):
             publish_and_wait(pub=self.task_space_pub,
                                 wait_for_topic='Arm_Done',
                                 message_type=Float32MultiArray,
-                                message_data=[150, -70, 180, 2048, 1980, 10],
+                                message_data=[200, -70, 180, 2048, 1980, 10],
+                                delay=2,
+                                timeout_function=None)
+            # Raise the arm to avoid pushing other blocks around
+            publish_and_wait(pub=self.task_space_pub,
+                                wait_for_topic='Arm_Done',
+                                message_type=Float32MultiArray,
+                                message_data=[200, 50, 180, 2048, 1980, 10],
                                 delay=2,
                                 timeout_function=None)
             
         else:
-            pass
+            target = userdata.sweep_coordinates_list
+            x = target.x - 40
+            y = 0
+            z = target.z
+            wrist = 2048
+            jaw = globals['small_package_jaw_closed']
+
+            # Move over target small package to pick up
+            rospy.loginfo(f'Moving over small package cluster to sweep it')
+            publish_and_wait(pub=self.task_space_pub,
+                                wait_for_topic='Arm_Done',
+                                message_type=Float32MultiArray,
+                                message_data=[x, y, z, wrist, jaw, 50],
+                                delay=3,
+                                timeout_function=None)
+            # Lower the arm
+            y = -70
+            rospy.loginfo(f'Lowering arm to sweep small package cluster')
+            publish_and_wait(pub=self.task_space_pub,
+                                wait_for_topic='Arm_Done',
+                                message_type=Float32MultiArray,
+                                message_data=[x, y, z, wrist, jaw, 50],
+                                delay=2,
+                                timeout_function=None)
+            # Sweep
+            y = 50
+            x_sweep = x + 100
+            rospy.loginfo(f'Sweeping small package cluster')
+            publish_and_wait(pub=self.task_space_pub,
+                                wait_for_topic='Arm_Done',
+                                message_type=Float32MultiArray,
+                                message_data=[x_sweep, y, z, wrist, jaw, 100],
+                                delay=2,
+                                timeout_function=None)
+            # Raise the arm to avoid pushing other blocks around
+            publish_and_wait(pub=self.task_space_pub,
+                                wait_for_topic='Arm_Done',
+                                message_type=Float32MultiArray,
+                                message_data=[x_sweep, y, z, wrist, jaw, 100],
+                                delay=2,
+                                timeout_function=None)
         return 'succeeded'
 
 class PickUpFuelTank(smach.State):

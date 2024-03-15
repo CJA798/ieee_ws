@@ -48,7 +48,7 @@ def main():
         
         # Read the start green LED and wait for it to be detected
         smach.StateMachine.add('READING_START_LED', ReadingStartLED(), 
-                               transitions={'green_led_detected': 'PICKUP_SMALL_PACKAGES', 
+                               transitions={'green_led_detected': 'PICKUP_SMALL_PACKAGES',     
                                             'green_led_not_detected':'READING_START_LED'})
         
         small_packages_sm = smach.StateMachine(outcomes=['packages_picked_up', 'packages_not_picked_up'])
@@ -68,6 +68,7 @@ def main():
                                     transitions={'succeeded':'SCAN_POSE', 'aborted':'SWEEP_SMALL_PACKAGES'})
             smach.StateMachine.add('SOFT_SWEEP', Sweep(task_space_pub=task_space_pub, soft=True),
                                     transitions={'succeeded':'SCAN_POSE', 'aborted':'SOFT_SWEEP'})
+            
             #smach.StateMachine.add('VERIFY_POSE', VerifyPose(task_space_pub=task_space_pub),
                                     #transitions={'pose_reached':'REST_POSE', 'pose_not_reached':'VERIFY_POSE'})
             smach.StateMachine.add('REST_POSE', RestPose(arm_angles_pub=arm_angles_pub),
@@ -105,10 +106,35 @@ def main():
                                     transitions={'pose_reached':'packages_picked_up', 'pose_not_reached':'RAISE_BULK_GRABBER'})
         
         smach.StateMachine.add('PICKUP_BIG_PACKAGES', big_packages_sm,
-                                transitions={'packages_picked_up':'GO_TO_DROP_OFF_AREA',
+                                transitions={'packages_picked_up':'GO_TO_DROP_OFF_AREA' if not globals['scan_after_big_package_pickup'] else 'RE-SCAN',
                                             'packages_not_picked_up':'PICKUP_BIG_PACKAGES'})
         
-        
+        re_scan_sm: smach.StateMachine = smach.StateMachine(outcomes=['packages_picked_up', 'packages_not_picked_up'])
+
+        with re_scan_sm:
+            smach.StateMachine.add('MOVE_FORWARD', GoTo_(Areas.RE_SCAN, move_publisher=move_pub, grav_enable_publisher=grav_enable_pub),
+                                    transitions={'arrived':'SCAN_POSE', 'not_arrived':'MOVE_FORWARD'})
+            smach.StateMachine.add('SCAN_POSE', ScanPose(arm_angles_pub=arm_angles_pub),
+                                    transitions={'pose_reached':'GET_SP_COORDS', 'pose_not_reached':'SCAN_POSE'})
+            smach.StateMachine.add('GET_SP_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value, timeout=2.0, expected_pairs=3, camera_enable_publisher=camera_enable_pub),
+                                    transitions={'coords_received':'PICK_UP_SP', 'coords_not_received':'GET_SP_COORDS'})
+            smach.StateMachine.add('PICK_UP_SP', PickUpSmallPackage(task_space_pub=task_space_pub, in_re_scan=True),
+                                   transitions={'packages_picked_up':'REST_POSE',
+                                                'sweep_needed': 'SWEEP_SMALL_PACKAGES',
+                                                'soft_sweep_needed': 'SOFT_SWEEP',
+                                                'no_coordinates_received': 'REST_POSE'})
+            
+            smach.StateMachine.add('SWEEP_SMALL_PACKAGES', Sweep(task_space_pub=task_space_pub),
+                                    transitions={'succeeded':'SCAN_POSE', 'aborted':'SWEEP_SMALL_PACKAGES'})
+            smach.StateMachine.add('SOFT_SWEEP', Sweep(task_space_pub=task_space_pub, soft=True),
+                                    transitions={'succeeded':'SCAN_POSE', 'aborted':'SOFT_SWEEP'})
+
+            smach.StateMachine.add('REST_POSE', RestPose(arm_angles_pub=arm_angles_pub),
+                                    transitions={'pose_reached':'packages_picked_up', 'pose_not_reached':'REST_POSE'})
+            
+        smach.StateMachine.add('RE-SCAN', re_scan_sm,
+                                transitions={'packages_picked_up':'GO_TO_DROP_OFF_AREA',
+                                            'packages_not_picked_up':'RE-SCAN'})
 
         # Go to dropoff area
         smach.StateMachine.add('GO_TO_DROP_OFF_AREA', GoTo_(Areas.DROP_OFF, move_publisher=move_pub, grav_enable_publisher=grav_enable_pub), 
