@@ -63,32 +63,34 @@ using namespace dynamixel;
 
 // #if macros
 #define DEBUG                   1       // Prints out ros info's
-#define CUSTOM_PIDS             1       // Set to 1 for custom variable pids, or 0 for preset
+#define CUSTOM_PIDS             0       // Set to 1 for custom variable pids, or 0 for preset
 
 // PID's and Move constants x = left/right, y = forward/backwards, z = rotation
 #if CUSTOM_PIDS// Custom PIDs for use with publishing
-double KP_X = 4.0, KI_X = 0.01, KD_X = 0.5, KP_Y = 4.0, KI_Y = 0.01, KD_Y = 0.5, KP_Z = 6.0, KI_Z = 0.01, KD_Z = 0.3, ALLOWABLE_ERROR = 5, SEQUENTIAL_READS = 5;
+double KP_X = 6.0, KI_X = 0.01, KD_X = 0.3, KP_Y = 6.0, KI_Y = 0.01, KD_Y = 0.3, KP_Z = 20.0, KI_Z = 0.01, KD_Z = 0.4, ALLOWABLE_ERROR = 5, SEQUENTIAL_READS = 5;
+//double KP_X = 4.0, KI_X = 0.01, KD_X = 0.5, KP_Y = 4.0, KI_Y = 0.01, KD_Y = 0.5, KP_Z = 6.0, KI_Z = 0.01, KD_Z = 0.3, ALLOWABLE_ERROR = 5, SEQUENTIAL_READS = 5; // old wheels
 
 #else // Preset PIDs
-#define KP_X    7.0//7.0
-#define KI_X    0.1//0.1
-#define KD_X    0.8//0.8
+#define KP_X    6.0//7.0
+#define KI_X    0.01//0.1
+#define KD_X    0.3//0.8
 
-#define KP_Y    7.0//7.0
-#define KI_Y    0.1//0.1
-#define KD_Y    0.8//0.8
+#define KP_Y    6.0//7.0
+#define KI_Y    0.01//0.1
+#define KD_Y    0.3//0.8
 
-#define KP_Z    10.0//10.0
+#define KP_Z    20.0//10.0
 #define KI_Z    0.01//0.01
-#define KD_Z    0.5//0.5
+#define KD_Z    0.4//0.5
 
 #define ALLOWABLE_ERROR     5//5  // How close we need to be to the final posistion for each axis in mm
 #define SEQUENTIAL_READS    5//5  // How many readings we need to be in these posistion before declaring arrival about 10 reading/sec
 #endif
 
 // Other PID and wheel constants
+#define MAX_SPEED           460//255        // Maximum velocity of wheeled servos
 #define TS                  10      // Estimation of TOF samples per sec
-#define MAX_SPEED           5       // Scaler for max_speed of wheels
+#define MAX_SPEED_SCALE     5       // Scaler for max_speed of wheels
 #define CUMULATIVE_CAP      1000    // Cap on cumlative error for pid
 #define LIFTUP_SAFETY       200     // Distance bot must be picked up to stop
 #define BACKUP_SAFETY       120     // Distance that will halt a backup move if read from back tof
@@ -209,7 +211,7 @@ public:
 
 
         // Create and write misc servos to custom starting pos
-        int Misc_Start_Angles[4] = { 2048, 1050, 1050, 2048 };
+        int Misc_Start_Angles[4] = { 2048, 1050, 1400, 2048 };  //3) 1050 -> 1400
 
         // Creates and assigns array with each byte of message
         uint8_t data_array[4];
@@ -526,7 +528,7 @@ public:
         desired_x = Move.data[0];
         desired_y = Move.data[1];
         desired_z = Move.data[2];
-        max_speed = Move.data[3] * MAX_SPEED;
+        max_speed = Move.data[3] * MAX_SPEED_SCALE;
 
         // Reset arrived tally to not trigger imediatly
         arrived_x = 0;
@@ -772,10 +774,10 @@ public:
             max = abs(wheel_speeds[2]); 
 
         // If max value greater than fastest wheel speeds scale all speeds down
-        if(max > 255){
-            wheel_speeds[0] = wheel_speeds[0] / max * 255;
-            wheel_speeds[1] = wheel_speeds[1] / max * 255;
-            wheel_speeds[2] = wheel_speeds[2] / max * 255;
+        if(max > MAX_SPEED){
+            wheel_speeds[0] = wheel_speeds[0] / max * MAX_SPEED;
+            wheel_speeds[1] = wheel_speeds[1] / max * MAX_SPEED;
+            wheel_speeds[2] = wheel_speeds[2] / max * MAX_SPEED;
         }
 
         //ROS_INFO("Arrived array: %f, %f, %f", arrived_x, arrived_y, arrived_z);
@@ -846,7 +848,7 @@ public:
         }
 
         // Sync write/clear if new arm posistions ready
-        if(sync_arm_goal_pos){
+        else if(sync_arm_goal_pos){
             int write_result3 = groupSyncWrite_armGoalPos.txPacket();
             groupSyncWrite_armGoalPos.clearParam();
             sync_arm_goal_pos = 0;
@@ -857,7 +859,7 @@ public:
         }
 
         // Sync write/clear if new misc posistions ready
-        if(sync_misc_goal_pos){
+        else if(sync_misc_goal_pos){
             int write_result4 = groupSyncWrite_miscGoalPos.txPacket();
             //if(!write_result4){
                 groupSyncWrite_miscGoalPos.clearParam();
@@ -872,10 +874,14 @@ public:
         }
 
         // Sync write/clear if new wheel speeds ready
-        if(sync_wheel_goal_vel){
+        else if(sync_wheel_goal_vel){
             int write_result5 = groupSyncWrite_wheelGoalVel.txPacket();
             groupSyncWrite_wheelGoalVel.clearParam();
             sync_wheel_goal_vel = 0;
+            // Debug info
+            #if DEBUG
+                ROS_WARN("**********Sync write misc goal result: %d", write_result5);
+            #endif
         }
     }
  
