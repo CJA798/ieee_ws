@@ -1136,7 +1136,7 @@ class RestPose(smach.State):
             speed = 10 #updated speed
             jaw = globals['gripper_bulk_hold']
             angles_ = Float32MultiArray()
-            angles_.data = [1058.0, 2852.0, 2847.0, 1405.0, 2109.0, 1736.0, 1038.0, jaw, speed]
+            angles_.data = [2009.0, 2721.0, 2706.0, 1635.0, 2166.0, 1661.0, 1886.0, jaw, speed]
             self.arm_angles_pub.publish(angles_)
             rospy.loginfo('Moving to rest pose')
             
@@ -1341,6 +1341,10 @@ class PickUpSmallPackage(smach.State):
         self.after_big_packages = after_big_packages
 
     def execute(self, userdata):
+        # Reset userdata values
+        userdata.pick_after_big_packages = False
+        userdata.move_after_big_packages = False
+
         # Store the coordinates list: CoordinatesList -> coordinates[coordinates]
         coordinates = userdata.coordinates_list.coordinates
         rospy.loginfo(f'Coordinates: {coordinates}')
@@ -1353,10 +1357,7 @@ class PickUpSmallPackage(smach.State):
         jaw = globals['small_package_jaw_closed']
         wrist = 2048
         num_coordinates = len(coordinates)
-
-        # Reset userdata values
-        userdata.pick_after_big_packages = False
-        userdata.move_after_big_packages = False
+                
         for i in range(num_coordinates):
             # Get first coordinate
             target = coordinates[i]
@@ -1377,7 +1378,13 @@ class PickUpSmallPackage(smach.State):
                 # Soft hardcoded sweep
                 rospy.logwarn(f'Coordinate {target} is too close to the big packages. Soft sweep needed')
                 return 'soft_sweep_needed'
-                
+            
+            # Check if big package pickup is needed first
+            if self.pick_after_big_packages(x,z) and not self.after_big_packages:
+                rospy.loginfo(f'Coordinate {target} is too close to the big packages. Big package pickup needed first')
+                userdata.pick_after_big_packages = True
+                continue
+
             # Check the area of the contour to verify it's a single box
             if not self.area_within_range(area):
                 rospy.logwarn(f'Coordinate {target} has an area of {area}, which is bigger than the max area for a single package')
@@ -1388,15 +1395,6 @@ class PickUpSmallPackage(smach.State):
                     return 'sweep_needed'
                 rospy.logwarn('Picking up abnormally large package anyways')
                 # else, try to pick it up. It could just be a greater contour than normal 
-            
-            # TODO: Add case when the small package is next to a big package and big package pickup is needed first
-            # remember that this will wait for the big package pickup, then pick up the package, and then move if any
-            # other boxes were out of range.
-            # Check if big package pickup is needed first
-            if self.pick_after_big_packages(x,z) and not self.after_big_packages:
-                rospy.loginfo(f'Coordinate {target} is too close to the big packages. Big package pickup needed first')
-                userdata.pick_after_big_packages = True
-                continue
             
             # Check if it's within Z-axis range
             if not self.z_coord_within_range(z):

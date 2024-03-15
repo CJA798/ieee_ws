@@ -30,7 +30,7 @@ globals: Dict[str, Union[bool, int, None]] = {
 
     'scan_after_big_package_pickup': False,
     #TODO: Find the actual contour area value for a single box
-    'max_small_package_area': 1000,
+    'max_small_package_area': 1080,
     
     # Arm Macros
     'gripper_bulk_hold': 2000,

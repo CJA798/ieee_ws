@@ -65,7 +65,7 @@ def main():
                                                 'sweep_needed': 'SWEEP_SMALL_PACKAGES',
                                                 'soft_sweep_needed': 'SOFT_SWEEP',
                                                 'no_coordinates_received': 'HOME_POSE'})
-            smach.StateMachine.add('HOME_POSE', ScanPose(arm_angles_pub=arm_angles_pub),
+            smach.StateMachine.add('HOME_POSE', RestPose(arm_angles_pub=arm_angles_pub),
                                     transitions={'pose_reached':'SET_BULK_GRABBER_ARMS', 'pose_not_reached':'HOME_POSE'})
             
             # Sweep if necessary
@@ -135,14 +135,12 @@ def main():
             smach.StateMachine.add('POST_SOFT_SWEEP', Sweep(task_space_pub=task_space_pub, soft=True),
                                     transitions={'succeeded':'POST_SCAN_POSE', 'aborted':'POST_SOFT_SWEEP'})
 
+            # Determine if move to re-scan is necessary after picking up the packages that were too close to the big packages
             smach.StateMachine.add('POST_PACKAGE_STATE_RESOLVER', PackageStateResolver(),
                                     transitions={'pick_after_big_packages':'POST_SCAN_POSE', 'move_after_big_packages':'MOVE_FORWARD_TO_RE_SCAN', 'packages_picked_up':'packages_picked_up'})
         
-            #################################################################################################################################       
-
-
-
-
+            #################################################################################################################################
+            # Set the arm to a safe (non-blocking) pose after picking up all packages
             smach.StateMachine.add('REST_POSE', RestPose(arm_angles_pub=arm_angles_pub),
                                     transitions={'pose_reached':'packages_picked_up', 'pose_not_reached':'REST_POSE'})
             
