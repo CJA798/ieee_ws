@@ -924,7 +924,7 @@ private:
     std_msgs::Bool Local_En;
 
     // Variable arm values
-    int last_arm_angles[8], moving_down = 0;
+    int last_arm_angles[8], moving_down = 0, arm_tolerance = 10;
 
     // Variables for bot movement functions
     double  desired_x = 0, error_x_prev = 0, error_x_cumulative = 0, linear_x = 0, arrived_x = 0,
