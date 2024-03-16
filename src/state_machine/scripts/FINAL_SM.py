@@ -49,7 +49,7 @@ def main():
         
         # Read the start green LED and wait for it to be detected
         smach.StateMachine.add('READING_START_LED', ReadingStartLED(), 
-                               transitions={'green_led_detected': 'PACKAGE_PICK_UP',     
+                               transitions={'green_led_detected': 'GO_TO_DROP_OFF_AREA',     
                                             'green_led_not_detected':'READING_START_LED'})
         
         package_pickup_sm = smach.StateMachine(outcomes=['packages_picked_up', 'packages_not_picked_up'])
@@ -203,7 +203,7 @@ def main():
         fuel_tank_sort_and_final_area_sm = smach.Concurrence(outcomes=['succeeded','aborted'],
                                     default_outcome='aborted',
                                     outcome_map={'succeeded':{
-                                        'STORE_FUEL_TANKS':'fuel_tanks_stored',
+                                        #'STORE_FUEL_TANKS':'fuel_tanks_stored',
                                         'GO_TO_FINAL':'arrived'
                                     }})
         
@@ -242,7 +242,7 @@ def main():
                 smach.StateMachine.add('GO_TO_FINAL', GoTo_(Areas.BUTTON, move_publisher=move_pub, grav_enable_publisher=grav_enable_pub), 
                                     transitions={'arrived':'arrived', 'not_arrived':'GO_TO_FINAL'})
                 
-            smach.Concurrence.add('STORE_FUEL_TANKS', fuel_tank_sort_sm)
+            #smach.Concurrence.add('STORE_FUEL_TANKS', fuel_tank_sort_sm)
             smach.Concurrence.add('GO_TO_FINAL', go_to_final_sm)
 
         

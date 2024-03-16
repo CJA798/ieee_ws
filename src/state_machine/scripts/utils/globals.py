@@ -40,7 +40,7 @@ globals: Dict[str, Union[bool, int, None]] = {
     # Big Package Macros
     'big_package_Y_offset': -248,
 
-    'set_bulk_top': 1400,
+    'set_bulk_top': 1800, # 1400 -> 1800
     'set_bulk_bottom': 1050,
 
     #'close_bulk_top': 1150,

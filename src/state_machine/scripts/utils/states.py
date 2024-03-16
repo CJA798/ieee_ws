@@ -216,9 +216,9 @@ class GoTo_(smach.State):
                 outcome = getattr(self, method_name)()
 
                 # Disable the gravity vector
-                grav_enable_msg.data = False
-                self.grav_enable_pub.publish(grav_enable_msg)
-                rospy.logwarn('Gravity vector disabled')
+                #grav_enable_msg.data = False
+                #self.grav_enable_pub.publish(grav_enable_msg)
+                #rospy.logwarn('Gravity vector disabled')
                 
             # Handle any exceptions that occur during the state execution
             except Exception as e:
@@ -241,7 +241,8 @@ class GoTo_(smach.State):
         y_offset = globals['big_package_Y_offset']
         #try TOF left values
         #publish_command(self.move_pub, Float32MultiArray, [1, 0, 0, 20], delay=2.25)
-        publish_command(self.move_pub, Float32MultiArray, [-250, 0, 0, 20], delay = 1)
+        #publish_command(self.move_pub, Float32MultiArray, [-248, 0, 0, 20], delay = 1)
+        publish_command(self.move_pub, Float32MultiArray, [-248, 0, 0, 20])
         #publish_command(self.misc_angles_pub, Float32MultiArray, [-1, -1, -3, -1], delay=0.1)
         rospy.wait_for_message('Move_Done',Int8, timeout = 10)
 
@@ -285,6 +286,14 @@ class GoTo_(smach.State):
         
     def GoToDropOffArea(self):
         '''State to move the robot to the drop off area'''
+        publish_and_wait(pub=self.move_pub,
+                        wait_for_topic="Move_Done",
+                        message_type=Float32MultiArray,
+                        message_data=[170, 1, 0, 100],
+                        delay=5,
+                        timeout_function=None)
+        publish_command(self.move_pub, Float32MultiArray, [170, 180, 0, 100])
+        '''
         rate = rospy.Rate(20)
         
         # Publish command to go straight indefinitely
@@ -304,7 +313,7 @@ class GoTo_(smach.State):
 
         # Publish command to reach to the drop off area
         publish_command(self.move_pub, Float32MultiArray, [170, 180, 0, 100])
-
+        '''
         # Wait for the move to complete
         rospy.wait_for_message("Move_Done", Int8, timeout=10)
 
