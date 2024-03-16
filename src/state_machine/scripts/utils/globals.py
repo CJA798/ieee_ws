@@ -28,14 +28,19 @@ globals: Dict[str, Union[bool, int, None]] = {
     'fuel_tank_gripper_open': 2440,
     'fuel_tank_gripper_close': 2640,
 
+    'scan_after_big_package_pickup': False,
+    #TODO: Find the actual contour area value for a single box
+    'max_small_package_area': 1080,
+    
     # Arm Macros
     'gripper_bulk_hold': 2000,
     'gripper_bulk_release': 1750,
+    'small_package_jaw_closed': 1980,
 
     # Big Package Macros
     'big_package_Y_offset': -248,
 
-    'set_bulk_top': 1400,
+    'set_bulk_top': 1800, # 1400 -> 1800
     'set_bulk_bottom': 1050,
 
     #'close_bulk_top': 1150,

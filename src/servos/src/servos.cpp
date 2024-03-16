@@ -57,34 +57,40 @@ using namespace dynamixel;
 //#define ARM_TOLERANCE           10      // Allowable error in arm before declareing arrived
 #define STEPS_DOWN              10      // Number of millimeters to move down per step
 #define MAX_CURRENT             500     // Max current small servos can pull
+#define DOWN_SPEED_SCALE        1       // Scale of acc's/vel's for linear interpolation
+#define DOWN_WAIT               150     // Milli seconds to wait before moving down for linear interpolation
+#define MAX_DOWN_SPEED          50      // Max acc's/vel's for lineal interpolation
 
+// #if macros
 #define DEBUG                   1       // Prints out ros info's
-#define CUSTOM_PIDS             1       // Set to 1 for custom variable pids, or 0 for preset
+#define CUSTOM_PIDS             0       // Set to 1 for custom variable pids, or 0 for preset
 
 // PID's and Move constants x = left/right, y = forward/backwards, z = rotation
 #if CUSTOM_PIDS// Custom PIDs for use with publishing
-double KP_X = 4.0, KI_X = 0.01, KD_X = 0.5, KP_Y = 4.0, KI_Y = 0.01, KD_Y = 0.5, KP_Z = 6.0, KI_Z = 0.01, KD_Z = 0.3, ALLOWABLE_ERROR = 5, SEQUENTIAL_READS = 5;
+double KP_X = 6.0, KI_X = 0.01, KD_X = 0.3, KP_Y = 6.0, KI_Y = 0.01, KD_Y = 0.3, KP_Z = 20.0, KI_Z = 0.01, KD_Z = 0.4, ALLOWABLE_ERROR = 5, SEQUENTIAL_READS = 5;
+//double KP_X = 4.0, KI_X = 0.01, KD_X = 0.5, KP_Y = 4.0, KI_Y = 0.01, KD_Y = 0.5, KP_Z = 6.0, KI_Z = 0.01, KD_Z = 0.3, ALLOWABLE_ERROR = 5, SEQUENTIAL_READS = 5; // old wheels
 
 #else // Preset PIDs
-#define KP_X    7.0//7.0
-#define KI_X    0.1//0.1
-#define KD_X    0.8//0.8
+#define KP_X    6.0//7.0
+#define KI_X    0.01//0.1
+#define KD_X    0.3//0.8
 
-#define KP_Y    7.0//7.0
-#define KI_Y    0.1//0.1
-#define KD_Y    0.8//0.8
+#define KP_Y    6.0//7.0
+#define KI_Y    0.01//0.1
+#define KD_Y    0.3//0.8
 
-#define KP_Z    10.0//10.0
+#define KP_Z    20.0//10.0
 #define KI_Z    0.01//0.01
-#define KD_Z    0.5//0.5
+#define KD_Z    0.4//0.5
 
 #define ALLOWABLE_ERROR     5//5  // How close we need to be to the final posistion for each axis in mm
 #define SEQUENTIAL_READS    5//5  // How many readings we need to be in these posistion before declaring arrival about 10 reading/sec
 #endif
 
 // Other PID and wheel constants
+#define MAX_SPEED           460//255        // Maximum velocity of wheeled servos
 #define TS                  10      // Estimation of TOF samples per sec
-#define MAX_SPEED           5       // Scaler for max_speed of wheels
+#define MAX_SPEED_SCALE     5       // Scaler for max_speed of wheels
 #define CUMULATIVE_CAP      1000    // Cap on cumlative error for pid
 #define LIFTUP_SAFETY       200     // Distance bot must be picked up to stop
 #define BACKUP_SAFETY       120     // Distance that will halt a backup move if read from back tof
@@ -196,8 +202,8 @@ public:
         for(int i = 12; i < 16; i++)
             groupSyncRead_miscPresPos.addParam(i);
 
-        // Publish 8 starting servo angles and speed to Arm_Angles
-        int Arm_Start_Angles[9] = { 1586, 2902, 2898, 1471, 2063, 1802, 1041, 1980, 2 };
+        // Publish 8 starting arm angles and speed to Arm_Angles
+        int Arm_Start_Angles[9] = { 1586, 2902, 2898, 1471, 2063, 1802, 1041, 1980, 10 };
         for (int i = 0; i < 9; i++) {
             Arm_Angles.data[i] = Arm_Start_Angles[i];
         }
@@ -205,7 +211,7 @@ public:
 
 
         // Create and write misc servos to custom starting pos
-        int Misc_Start_Angles[4] = { 2048, 2500, 2600, 2048 };
+        int Misc_Start_Angles[4] = { 2048, 1050, 1400, 2048 };  //3) 1050 -> 1400
 
         // Creates and assigns array with each byte of message
         uint8_t data_array[4];
@@ -246,8 +252,11 @@ public:
         theta = Task_Space.data[3];
         phi = Task_Space.data[4];
 
-        // If speed was negative then slowly move down at STEPS_DOWN pace
+        // If speed was negative then move down at STEPS_DOWN pace
         if(Task_Space.data[5] < 0){
+            // Declare moving down
+            moving_down = 1;
+
             // Copy to local task space
             for(int i = 0; i < 7; i++)
                 local_task_space[i] = Task_Space.data[i];
@@ -261,12 +270,14 @@ public:
             // Move y down to final destination
             else{
                 y += Task_Space.data[5];
-                local_task_space[5] = 1;
+                local_task_space[5] = 10;
             }
 
             // Update y value
             local_task_space[1] = y;
         }
+        else // No longer moving down slowly
+            moving_down = 0;
 
         //Print x, y, z recieved to ros
         //ROS_INFO("%d, %d, %d, %d, %d]", (int)x, (int)y, (int)z, (int)theta, (int)phi);
@@ -327,14 +338,27 @@ public:
         // Create array for arm speeds defaulting to received speeds
         double speed[8] = {Arm_Angles.data[8], Arm_Angles.data[8], Arm_Angles.data[8], Arm_Angles.data[8], Arm_Angles.data[8], Arm_Angles.data[8], Arm_Angles.data[8], Arm_Angles.data[8]};
 
-        // Find change in angles then save current angles as new old angles
-        for(int i = 0; i < 8; i++){
-            double delta_arm_angles = abs(arm_Angles.data[i] - last_arm_angles[i]);
-            last_arm_angles[i] = arm_Angles.data[i];
-            speed[i] = delta_arm_angles;
-            if(delta_arm_angles == 0)
-                speed[i] = 1;
+        // If moving down using linear interp scales speeds
+        if(moving_down){
+            for(int i = 0; i < 8; i++){
+                double delta_arm_angles = abs(Arm_Angles.data[i] - last_arm_angles[i]);     // Calculate change in each joint
+                speed[i] = delta_arm_angles * DOWN_SPEED_SCALE;                             // Scale each joint change to get acc's/vel's
+                if(delta_arm_angles == 0)                                                   // If arm speed of 0 set to minimum
+                    speed[i] = 1;
+                if(speed[i] > MAX_DOWN_SPEED)                                               // Prevent crazy speeds
+                    speed[i] = MAX_DOWN_SPEED;
+            }
+
+            // Start timing from move down issued
+            next_down_time = clock() + DOWN_WAIT * 1000;
         }
+
+        // Echo jont speeds
+        //ROS_WARN("**********Speeds: %f, %f, %f, %f, %f, %f, %f, %f", speed[0], speed[1], speed[2], speed[3], speed[4], speed[5], speed[6], speed[7]);
+
+        // Store new angles in last angles for next time
+        for(int i = 0; i < 8; i++)
+            last_arm_angles[i] = Arm_Angles.data[i];
 
         // Write accel and speed for servos of arm
         armSpeed(Arm_Angles.data[8]);
@@ -362,8 +386,19 @@ public:
 
     // Checks if robot arm is within exceptable error to declare it has arrived
     void armMoving(){
-        // Executes sync read
-        groupSyncRead_armPresPos.txRxPacket(); 
+        // If moving down for linear interp just time, dont check arrival
+        if(moving_down && local_task_space[5] < 0){
+            // If enough time has elapsed to next step
+            if(next_down_time < clock()){
+                // Copy local variable and pub
+                for(int i = 0; i < 6; i++)
+                    Task_Space.data[i] = local_task_space[i];
+                Task_Space_pub.publish(Task_Space);
+            }
+        }
+        else{ // Not moving down in steps
+            // Executes sync read
+            groupSyncRead_armPresPos.txRxPacket(); 
 
         // Checks if current posistion and goal posistion are withen acceptable toleracne
         for (int i = 0; i < 8; i++){
@@ -375,14 +410,6 @@ public:
             }
         }
 
-        // If moving down slowly, don't post arm done
-        if(local_task_space[5] < 0){
-            // Copy local variable and pub
-            for(int i = 0; i < 6; i++)
-                Task_Space.data[i] = local_task_space[i];
-            Task_Space_pub.publish(Task_Space); 
-        }
-        else{
             // ROS INFO
             #if DEBUG
                 ROS_WARN("**********Arm arrived");
@@ -466,9 +493,6 @@ public:
         
         // Sets flag to sync write outside of callback
         sync_misc_goal_pos = 1;
-
-        // Sets the misc moving flag to start checking for servos to complete move
-        misc_moving = 1;
     }
 
 
@@ -508,7 +532,7 @@ public:
         desired_x = Move.data[0];
         desired_y = Move.data[1];
         desired_z = Move.data[2];
-        max_speed = Move.data[3] * MAX_SPEED;
+        max_speed = Move.data[3] * MAX_SPEED_SCALE;
 
         // Reset arrived tally to not trigger imediatly
         arrived_x = 0;
@@ -754,10 +778,10 @@ public:
             max = abs(wheel_speeds[2]); 
 
         // If max value greater than fastest wheel speeds scale all speeds down
-        if(max > 255){
-            wheel_speeds[0] = wheel_speeds[0] / max * 255;
-            wheel_speeds[1] = wheel_speeds[1] / max * 255;
-            wheel_speeds[2] = wheel_speeds[2] / max * 255;
+        if(max > MAX_SPEED){
+            wheel_speeds[0] = wheel_speeds[0] / max * MAX_SPEED;
+            wheel_speeds[1] = wheel_speeds[1] / max * MAX_SPEED;
+            wheel_speeds[2] = wheel_speeds[2] / max * MAX_SPEED;
         }
 
         //ROS_INFO("Arrived array: %f, %f, %f", arrived_x, arrived_y, arrived_z);
@@ -828,7 +852,7 @@ public:
         }
 
         // Sync write/clear if new arm posistions ready
-        if(sync_arm_goal_pos){
+        else if(sync_arm_goal_pos){
             int write_result3 = groupSyncWrite_armGoalPos.txPacket();
             groupSyncWrite_armGoalPos.clearParam();
             sync_arm_goal_pos = 0;
@@ -839,11 +863,13 @@ public:
         }
 
         // Sync write/clear if new misc posistions ready
-        if(sync_misc_goal_pos){
+        else if(sync_misc_goal_pos){
             int write_result4 = groupSyncWrite_miscGoalPos.txPacket();
             //if(!write_result4){
                 groupSyncWrite_miscGoalPos.clearParam();
                 sync_misc_goal_pos = 0;
+                // Sets the misc moving flag to start checking for servos to complete move
+                misc_moving = 1;
             //}
             // Debug info
             #if DEBUG
@@ -852,10 +878,14 @@ public:
         }
 
         // Sync write/clear if new wheel speeds ready
-        if(sync_wheel_goal_vel){
+        else if(sync_wheel_goal_vel){
             int write_result5 = groupSyncWrite_wheelGoalVel.txPacket();
             groupSyncWrite_wheelGoalVel.clearParam();
             sync_wheel_goal_vel = 0;
+            // Debug info
+            #if DEBUG
+                //ROS_WARN("**********Sync write wheel goal result: %d", write_result5);
+            #endif
         }
     }
  
@@ -893,17 +923,20 @@ private:
     std_msgs::Int8 Misc_Done;
     std_msgs::Bool Local_En;
 
-    // Variable for arm
-    int last_arm_angles[8], arm_tolerance = 10;
+    // Variable arm values
+    int last_arm_angles[8], moving_down = 0;
 
     // Variables for bot movement functions
     double  desired_x = 0, error_x_prev = 0, error_x_cumulative = 0, linear_x = 0, arrived_x = 0,
             desired_y = 0, error_y_prev = 0, error_y_cumulative = 0, linear_y = 0, arrived_y = 0,
             desired_z = -1, error_z_prev = 0, error_z_cumulative = 0, linear_z = 0, arrived_z = 0,
-            max_speed = 0, bearing_offset = -1, e_stop = 0, imu_wakeup = -5;
+            max_speed = 0, bearing_offset = -1, e_stop = 0, imu_wakeup = -100;
 
     // Local task space 
     float local_task_space[6];
+
+    // Clock timers
+    clock_t next_down_time;
 };
 
 

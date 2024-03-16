@@ -33,7 +33,7 @@ class ImageProcessor_():
     }
 
     POSE_AREA_RANGES = {
-        Poses.SMALL_PACKAGE_SCAN: (0.0005, 0.0075),
+        Poses.SMALL_PACKAGE_SCAN: (0.0015, 0.015),
         Poses.FUEL_TANK_SCAN: (0.005, 0.075)
     }
 
@@ -59,7 +59,7 @@ class ImageProcessor_():
         "orange": self.get_color_bounds([0, 85, 255], hue_offset=30, value=(100, 255), saturation=(200, 255)),
         "copper": self.get_color_bounds([75, 112, 255]),
         "yellow": self.get_color_bounds([0, 255, 255]),
-        "magenta": self.get_color_bounds([255, 0, 255], value=(100, 255), saturation=(100, 255)),
+        "magenta": self.get_color_bounds([255, 0, 255], hue_offset=40, value=(100, 255), saturation=(100, 255)),
         "black": (np.array([0, 0, 0], dtype=np.uint8), np.array([180, 255, 100], dtype=np.uint8)),
         }
         loginfo("Color data calculated")
@@ -303,6 +303,7 @@ class ImageProcessor_():
         contours = grab_contours(contours)
 
         image_area = image.size
+        print(f"Image Area: {image_area}")
         max_area = image_area * area_range_factor[1]
         min_area = image_area * area_range_factor[0]
         coords_image = self.undistorted_image_roi
@@ -318,18 +319,19 @@ class ImageProcessor_():
 
                 cv2.drawContours(coords_image, [cv2.convexHull(contour)], -1, (0, 255, 0), 2)
                 cv2.circle(coords_image, (cX, cY), 2, (0, 255, 0), -1)
-                x_arm, y_arm, z_arm = self.coordinate_frame_conversion(cX, cY, 0, pose)
+                x_arm, contour_area, z_arm = self.coordinate_frame_conversion(cX, cY, area, pose)
                 coords = Point()
                 coords.x = x_arm    # Z-img = X-arm
                 coords.z = z_arm    # X-img = Z-arm
-                coords.y = y_arm
+                coords.y = contour_area     # Y is hardcoded, so we provide the contour area instead to know if it's a single box or a group of boxes too close to each other
                 coords_list.append(coords)
                 coords_text = "(%.1f, %.1f)"  % (z_arm, x_arm) 
-                cv2.putText(coords_image, coords_text, (cX - 15, cY - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)    
+                cv2.putText(coords_image, coords_text, (cX - 15, cY - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+                print(contour_area)    
                 #coords_image = np.hstack([coords_image, cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)])
         return (coords_list, coords_image)
     
-    def coordinate_frame_conversion(self, x: Union[int, float], y: Union[int, float], z: Union[int, float], pose: Poses) -> Tuple[float, float, float]:
+    def coordinate_frame_conversion(self, x: Union[int, float], y: Union[int, float], area: Union[int, float], pose: Poses) -> Tuple[float, float, float]:
         '''
         Convert the coordinates from the image frame to the arm frame.
         Arguments:
@@ -355,15 +357,25 @@ class ImageProcessor_():
 
             # Convert px to mm
             Xarm_xi_obj = ((self.image_height - y) * PX2MM_Y + A) * KY
-            Yarm_xi_obj = globals['small_package_Y_arm_offset']
+            contour_area = area # Y is hardcoded, so we provide the contour area instead to know if it's a single box or a group of boxes too close to each other
             Zarm_xi_obj = (x - self.image_width/2) * PX2MM_X * KX
             #print(f"Y: {y}  |   Max_Cam_Height: {self.image_height}     |   Conversion Factior: {PX2MM_Y}")
 
             # Correction offsets
-            Xarm_offset = self.map_offset(y, (50,350), (10,50))
-            Zarm_offset = 0
+            Xarm_offset = -30
+            Zarm_offset = -17
 
-            return Xarm_xi_obj + Xarm_offset, Yarm_xi_obj, Zarm_xi_obj + Zarm_offset
+            Xarm_xi_obj = Xarm_xi_obj + Xarm_offset
+            Zarm_xi_obj = Zarm_xi_obj + Zarm_offset
+
+            # Mapped offsets using polynomial regression
+            Xarm_poly_offset, Zarm_poly_offset = self.get_small_package_poly_offset(Xarm_xi_obj, Zarm_xi_obj)
+
+            # Total mm
+            Xarm_xi_obj = Xarm_poly_offset + Xarm_xi_obj
+            Zarm_xi_obj = Zarm_xi_obj + Zarm_poly_offset
+
+            return Xarm_xi_obj, contour_area, Zarm_xi_obj
         
         elif pose == Poses.FUEL_TANK_SCAN:
             KX = -1
@@ -409,6 +421,29 @@ class ImageProcessor_():
         '''
         return round(1e-7 * x**4 + 4e-6 * x**3 - 12e-4 * x**2 - 0.1354 * x + 5.6302, 1)
     
+    def get_small_package_poly_offset(self, x: float, z: float) -> float:
+        '''
+        Get the offset for the fuel tank polynomial regression.
+        Arguments:
+            x: float - The x-coordinate in the arm frame.
+            z: float - The z-coordinate in the arm frame.
+        Returns:
+            x_offset: float - The offset for the fuel tank polynomial regression.
+            z_offset: float - The offset for the fuel tank polynomial regression.
+        '''
+        #x_offset = round(1e-6 * x**4 - 1e-3 * x**3 + 0.2586 * x**2 - 30.3776 * x + 1306.2392, 2)
+        #print(f'X-ORIGINAL: {x}')
+        #x_offset = round(0.00001 * x**3 - 0.005 * x**2 + 0.842 * x - 37.1179, 1)
+        x_offset =  round(-0.1609 * x + 25.9747, 1)
+        #print(f'X-OFFSET: {x_offset}')
+        #z_offset = round(1e-7 * z**3 + 2e-5 * z**2 - 486e-4 * z + 5.1474, 1)
+        #z_offset = round(-0.0474 * z + 4.9646, 1)
+        z_offset = 0
+        #z_offset = round(-2e-7 * z**4 - 2e-5 * z**3 + 2e-3 * z**2 + 0.1143 * z + 4.3528, 1)
+        z_offset = -0.0597 * z + 6.8607
+        return x_offset, z_offset
+    
+
     def map_offset(self, value: float, map_from: Tuple[float, float], map_to: Tuple[float, float]) -> float:
         '''
         Map the value from one range to another.
@@ -469,7 +504,7 @@ def main_():
             print("Can't receive frame")
             break
 
-        coords_list, coords_image = ip.get_coords(object_type=BoardObjects.FUEL_TANK.value, pose=Poses.FUEL_TANK_SCAN.value)        
+        coords_list, coords_image = ip.get_coords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value)        
         
         if coords_image is None:
             logwarn("Coords Image is None")
