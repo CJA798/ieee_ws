@@ -151,7 +151,12 @@ def main():
         
         
         # Go to dropoff area
-        smach.StateMachine.add('GO_TO_DROP_OFF_AREA', GoTo_(Areas.DROP_OFF, move_publisher=move_pub, grav_enable_publisher=grav_enable_pub), 
+        smach.StateMachine.add('GO_TO_DROP_OFF_AREA', GoTo_(Areas.DROP_OFF,
+                                                            move_publisher=move_pub,
+                                                            arm_angles_publisher=arm_angles_pub,
+                                                            task_space_publisher=task_space_pub,
+                                                            misc_angles_publisher=misc_angles_pub,
+                                                            grav_enable_publisher=grav_enable_pub), 
                                transitions={'arrived':'PACKAGE_DROP_OFF', 'not_arrived':'GO_TO_DROP_OFF_AREA'})
                                #transitions={'arrived':'GO_TO_FUEL_TANK_AREA', 'not_arrived':'GO_TO_DROP_OFF_AREA'})
 

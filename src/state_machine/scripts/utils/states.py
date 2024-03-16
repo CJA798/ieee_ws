@@ -177,11 +177,13 @@ class GoTo_(smach.State):
         Areas.BUTTON: "GoToButtonArea"
     }
 
-    def __init__(self, area, move_publisher, misc_angles_publisher=None, grav_enable_publisher=None):
+    def __init__(self, area, move_publisher, arm_angles_publisher=None, task_space_publisher=None, misc_angles_publisher=None, grav_enable_publisher=None):
         # Initialize the state with outcomes 'arrived' and 'not_arrived'
         smach.State.__init__(self, outcomes=['arrived', 'not_arrived'])
         self.area = area
         self.move_pub = move_publisher
+        self.arm_angles_pub = arm_angles_publisher
+        self.task_space_pub = task_space_publisher
         self.misc_angles_pub = misc_angles_publisher
         self.grav_enable_pub = grav_enable_publisher
 
@@ -286,12 +288,25 @@ class GoTo_(smach.State):
         
     def GoToDropOffArea(self):
         '''State to move the robot to the drop off area'''
+        # Move until crossing the ramp (time based)
         publish_and_wait(pub=self.move_pub,
                         wait_for_topic="Move_Done",
                         message_type=Float32MultiArray,
                         message_data=[170, 1, 0, 100],
                         delay=5,
                         timeout_function=None)
+        
+        # After crossing the ramp, prepare the bot for dropoff and send a new command to reach the dropoff area
+
+        # Lower the bridge a bit
+        bridge = globals['mid_bridge']
+        publish_command(self.misc_angles_pub, Float32MultiArray, [bridge, -1, -1, -1])
+        # Set the arm to drop off pose
+        jaw = globals['gripper_bulk_hold']
+        speed = 35 #speed updated
+        angles = [495.0, 1669.0, 1664.0, 2507.0, 2087.0, 946.0, 3915.0, jaw, speed]
+        publish_command(self.arm_angles_pub, Float32MultiArray, angles)
+        # Move until drop off area is reached
         publish_command(self.move_pub, Float32MultiArray, [170, 180, 0, 100])
         '''
         rate = rospy.Rate(20)
@@ -905,11 +920,11 @@ class DropOff(smach.State):
     
     def DropOffSmallPackages(self):
         # Go over red area
-        jaw = globals['gripper_bulk_hold']
-        speed = 35 #speed updated
-        angles = [495.0, 1669.0, 1664.0, 2507.0, 2087.0, 946.0, 3915.0, jaw, speed]
-        publish_command(self.arm_angles_pub, Float32MultiArray, angles, delay=4)
-        rospy.loginfo('Moving arm over red area')
+        #jaw = globals['gripper_bulk_hold']
+        #speed = 35 #speed updated
+        #angles = [495.0, 1669.0, 1664.0, 2507.0, 2087.0, 946.0, 3915.0, jaw, speed]
+        #publish_command(self.arm_angles_pub, Float32MultiArray, angles, delay=4)
+        #rospy.loginfo('Moving arm over red area')
         #rospy.wait_for_message("Arm_Done", Int8, timeout=10) 
 
         # Lower the arm

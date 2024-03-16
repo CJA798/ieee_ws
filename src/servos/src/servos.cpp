@@ -880,7 +880,7 @@ public:
             sync_wheel_goal_vel = 0;
             // Debug info
             #if DEBUG
-                ROS_WARN("**********Sync write misc goal result: %d", write_result5);
+                ROS_WARN("**********Sync write wheel goal result: %d", write_result5);
             #endif
         }
     }
