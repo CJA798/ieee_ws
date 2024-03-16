@@ -49,7 +49,7 @@ def main():
         
         # Read the start green LED and wait for it to be detected
         smach.StateMachine.add('READING_START_LED', ReadingStartLED(), 
-                               transitions={'green_led_detected': 'GO_TO_DROP_OFF_AREA',     
+                               transitions={'green_led_detected': 'PACKAGE_PICK_UP',     
                                             'green_led_not_detected':'READING_START_LED'})
         
         package_pickup_sm = smach.StateMachine(outcomes=['packages_picked_up', 'packages_not_picked_up'])
@@ -207,7 +207,7 @@ def main():
         fuel_tank_sort_and_final_area_sm = smach.Concurrence(outcomes=['succeeded','aborted'],
                                     default_outcome='aborted',
                                     outcome_map={'succeeded':{
-                                        #'STORE_FUEL_TANKS':'fuel_tanks_stored',
+                                        'STORE_FUEL_TANKS':'fuel_tanks_stored',
                                         'GO_TO_FINAL':'arrived'
                                     }})
         
@@ -215,8 +215,9 @@ def main():
             # State machine for fuel tank sorting       
             fuel_tank_sort_sm = smach.StateMachine(outcomes=['fuel_tanks_stored', 'fuel_tanks_not_stored'])
             with fuel_tank_sort_sm:
-                #smach.StateMachine.add('SCAN_FUEL_TANK_POSE', ScanFuelTankPose(arm_angles_pub=arm_angles_pub),
-                                        #transitions={'pose_reached':'GET_FT_COORDS', 'pose_not_reached':'SCAN_FUEL_TANK_POSE'})
+                '''
+                smach.StateMachine.add('SCAN_FUEL_TANK_POSE', ScanFuelTankPose(arm_angles_pub=arm_angles_pub),
+                                        transitions={'pose_reached':'GET_FT_COORDS', 'pose_not_reached':'SCAN_FUEL_TANK_POSE'})
                 smach.StateMachine.add('GET_FT_COORDS', GetCoords(object_type=BoardObjects.FUEL_TANK.value, pose=Poses.FUEL_TANK_SCAN.value, timeout=2.0, expected_pairs=3, camera_enable_publisher=camera_enable_pub),
                                         transitions={'coords_received':'PICK_UP_FUEL_TANK', 'coords_not_received':'GET_FT_COORDS'})
                 smach.StateMachine.add('PICK_UP_FUEL_TANK', PickUpFuelTank(task_space_publisher=task_space_pub),
@@ -230,9 +231,9 @@ def main():
                                         transitions={'fuel_tank_picked_up':'STORE_FUEL_TANK2', 'fuel_tank_not_picked_up':'PICK_UP_FUEL_TANK2'})
                 smach.StateMachine.add('STORE_FUEL_TANK2', StoreFuelTank(task_space_publisher=task_space_pub, arm_angles_publisher=arm_angles_pub, slot_number=2),
                                         transitions={'fuel_tank_stored':'fuel_tanks_stored', 'fuel_tank_not_stored':'STORE_FUEL_TANK2'})
-                
-                #smach.StateMachine.add('REST_POSE', RestPose(arm_angles_pub=arm_angles_pub),
-                                    #transitions={'pose_reached':'fuel_tanks_stored', 'pose_not_reached':'REST_POSE'})
+                '''
+                smach.StateMachine.add('REST_POSE', RestPose(arm_angles_pub=arm_angles_pub),
+                                    transitions={'pose_reached':'fuel_tanks_stored', 'pose_not_reached':'REST_POSE'})
             
     
 
@@ -246,7 +247,7 @@ def main():
                 smach.StateMachine.add('GO_TO_FINAL', GoTo_(Areas.BUTTON, move_publisher=move_pub, grav_enable_publisher=grav_enable_pub), 
                                     transitions={'arrived':'arrived', 'not_arrived':'GO_TO_FINAL'})
                 
-            #smach.Concurrence.add('STORE_FUEL_TANKS', fuel_tank_sort_sm)
+            smach.Concurrence.add('STORE_FUEL_TANKS', fuel_tank_sort_sm)
             smach.Concurrence.add('GO_TO_FINAL', go_to_final_sm)
 
         

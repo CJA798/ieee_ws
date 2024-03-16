@@ -281,11 +281,12 @@ class GoTo_(smach.State):
     def GoToDropOffArea(self):
         '''State to move the robot to the drop off area'''
         # Move until crossing the ramp (time based)
+        '''
         publish_and_wait(pub=self.move_pub,
                         wait_for_topic="Move_Done",
                         message_type=Float32MultiArray,
                         message_data=[170, 1, 0, 100],
-                        delay=5,
+                        delay=6,
                         timeout_function=None)
         
         # After crossing the ramp, prepare the bot for dropoff and send a new command to reach the dropoff area
@@ -298,13 +299,14 @@ class GoTo_(smach.State):
         speed = 35 #speed updated
         angles = [495.0, 1669.0, 1664.0, 2507.0, 2087.0, 946.0, 3915.0, jaw, speed]
         publish_command(self.arm_angles_pub, Float32MultiArray, angles)
+        
         # Move until drop off area is reached
         publish_command(self.move_pub, Float32MultiArray, [170, 180, 0, 100])
         '''
         rate = rospy.Rate(20)
         
         # Publish command to go straight indefinitely
-        publish_command(self.move_pub, Float32MultiArray, [200, 1, 0, 100])
+        publish_command(self.move_pub, Float32MultiArray, [200, 1, 0, 90])
 
         # Wait for the move to complete
         while globals['gravity_vector'] > -25  and not rospy.is_shutdown():
@@ -318,9 +320,18 @@ class GoTo_(smach.State):
 
         rospy.loginfo('Crossed first ramps')
 
+        # Lower the bridge a bit
+        bridge = globals['mid_bridge']
+        publish_command(self.misc_angles_pub, Float32MultiArray, [bridge, -1, -1, -1])
+        # Set the arm to drop off pose
+        jaw = globals['gripper_bulk_hold']
+        speed = 35 #speed updated
+        angles = [495.0, 1669.0, 1664.0, 2507.0, 2087.0, 946.0, 3915.0, jaw, speed]
+        publish_command(self.arm_angles_pub, Float32MultiArray, angles)
+
         # Publish command to reach to the drop off area
         publish_command(self.move_pub, Float32MultiArray, [170, 180, 0, 100])
-        '''
+        
         # Wait for the move to complete
         rospy.wait_for_message("Move_Done", Int8, timeout=10)
 
@@ -351,82 +362,53 @@ class GoTo_(smach.State):
     def GoToCraterArea(self):
         rate = rospy.Rate(30)
         record_tof_back = 0
-        #angle = 0
-      
-        # Reset the move_done global variable
-        #globals['move_done'] = False
-
-        # Rotate
-        message = Float32MultiArray() # create an instance of the Float32MultiArray message
-        #message.data = [0, 0, angle, 100]
-        #self.move_pub.publish(message)
-
-        # Wait for the move to complete
-       # while not globals['move_done']  and not rospy.is_shutdown():
-       #     rate.sleep()
         
-        # Publish command to reach to the drop off area
-        publish_command(self.move_pub, Float32MultiArray, [0, 0, -180, 100])
+        # Publish command to rotate
+        publish_and_wait(pub=self.move_pub,
+                        wait_for_topic="Move_Done",
+                        message_type=Float32MultiArray,
+                        message_data=[0, 0, -180, 20],
+                        delay=5,
+                        timeout_function=None)
 
-        # Wait for the move to complete
-        rospy.wait_for_message("Move_Done", Int8, timeout=10)
-        
         rospy.loginfo('Rotated 180 degrees')
 
         record_tof_back = globals['tof_back']
 
-
-        # Publish command to reach to the drop off area
-        publish_command(self.move_pub, Float32MultiArray, [200, 1, -180, 100])
-
-        # Wait for the move to complete
-        #rospy.wait_for_message("Move_Done", Int8, timeout=10)
-
-        # Reset the move_done global variable 
-        #globals['move_done'] = False
-
-        # Move to the top second ramp
-        #message.data = [200, 1, angle, 75]
-        #self.move_pub.publish(message)
-
-        # Wait for the move to complete
+        # Publish command to go forward
+        publish_command(self.move_pub, Float32MultiArray, [200, 1, -180, 90])
         while globals['gravity_vector'] < 28  and not rospy.is_shutdown():
             rate.sleep()
-        
         rospy.loginfo('Half second ramp reached')
-       
-
         while globals['gravity_vector'] > 5  and not rospy.is_shutdown():
             rate.sleep()
-   
-            
         while ((globals['tof_back'] - record_tof_back) > 5) and not rospy.is_shutdown():
             rospy.loginfo('Top second ramp reached')
             rospy.sleep(0.5)
             break
 
-        #stop_move(self.move_pub)
-        #rospy.wait_for_message("Move_Done", Int8, timeout=10)
-        #rate2 = rospy.Rate(1)
-        #rate3 = rospy.Rate(2)
-        #rate3.sleep()
-
         # Rotate to drop bridge
-        publish_command(self.move_pub, Float32MultiArray, [0, 0, 0, 100])
-
-        # Wait for the move to complete
-        rospy.wait_for_message("Move_Done", Int8, timeout=10)
-
+        publish_and_wait(pub=self.move_pub,
+                        wait_for_topic="Move_Done",
+                        message_type=Float32MultiArray,
+                        message_data=[0, 0, 0, 20],
+                        delay=5,
+                        timeout_function=None)
+        
         rospy.loginfo('Rotated to place bridge')
 
   
-         # Publish command  to back up
-        publish_command(self.move_pub, Float32MultiArray, [0, -1, 0, 20])
-        rospy.wait_for_message("Move_Done", Int8, timeout=10)
+        # Publish command  to back up
+        publish_and_wait(pub=self.move_pub,
+                        wait_for_topic="Move_Done",
+                        message_type=Float32MultiArray,
+                        message_data=[200, -1, 0, 20],
+                        delay=4,
+                        timeout_function=None)
+        
         rospy.loginfo('Backed up')
 
         #Maxwells edit here
-        # Publish command to drop the bridge
         '''
         bridge = globals['lowered_bridge']
         publish_command(self.misc_angles_pub, Float32MultiArray, [bridge, -1, -1, -1])
@@ -436,18 +418,26 @@ class GoTo_(smach.State):
             pass
         rospy.loginfo('Bridge dropped')
         '''
-
+        
+        # Publish command to drop the bridge
         bridge = globals['lowered_bridge']
-        publish_command(self.misc_angles_pub, Float32MultiArray, [bridge, -1, -1, -1])
-    
-        rospy.wait_for_message("Misc_Done", Int8, timeout=10)
-     
+        publish_and_wait(pub=self.misc_angles_pub,
+                        wait_for_topic="Misc_Done",
+                        message_type=Float32MultiArray,
+                        message_data=[bridge, -1, -1, -1],
+                        delay=10,
+                        timeout_function=None)
+        
         rospy.loginfo('Bridge dropped')
 
-        # Publish command to go fwd 
-        publish_command(self.move_pub, Float32MultiArray, [0, 1, 0, 20])
-        rospy.sleep(2)
-        stop_move(self.move_pub)
+        # Publish command to go fwd
+        publish_and_wait(pub=self.move_pub,
+                        wait_for_topic="Move_Done",
+                        message_type=Float32MultiArray,
+                        message_data=[200, 1, 0, 20],
+                        delay=2,
+                        timeout_function=lambda: stop_move(self.move_pub))
+        
         rospy.loginfo('DONE FORWARD FOR 2 SECONDS AHHH!')
 
         # Publiish command to raise the bridge
@@ -463,7 +453,7 @@ class GoTo_(smach.State):
         rate = rospy.Rate(20)
 
         #Back until finding the flat area        
-        publish_command(self.move_pub, Float32MultiArray, [0, -1, 0, 40])
+        publish_command(self.move_pub, Float32MultiArray, [0, -1, 0, 90])
 
         #wait until we cross bridge
         while globals['gravity_vector'] < 10  and not rospy.is_shutdown():
@@ -482,7 +472,7 @@ class GoTo_(smach.State):
             rate.sleep()
         rospy.loginfo('Flat area reached')
 
-        publish_command(self.move_pub, Float32MultiArray, [0, 0, 90, 100])
+        publish_command(self.move_pub, Float32MultiArray, [0, 0, 90, 65])
         rospy.wait_for_message("Move_Done", Int8, timeout=10)
 
         #Here we would like the bot to stop until the fuel tanks have been sorted and placed
