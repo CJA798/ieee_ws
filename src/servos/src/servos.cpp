@@ -361,10 +361,10 @@ public:
             last_arm_angles[i] = Arm_Angles.data[i];
 
         // Write accel and speed for servos of arm
-        armSpeed(Arm_Angles.data[8]);
+        armSpeed(speed);
 
         // Set tolerance of angles
-        arm_tolerance = Arm_Angles[9];
+        arm_tolerance = Arm_Angles.data[9];
 
         // Creates and assigns array with each byte of message
         uint8_t data_array[4];
