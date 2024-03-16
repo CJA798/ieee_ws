@@ -199,8 +199,7 @@ def main():
         smach.StateMachine.add('GO_TO_FUEL_TANK_AREA', GoTo_(Areas.FUEL_TANK, move_publisher=move_pub, grav_enable_publisher=grav_enable_pub), 
                                        transitions={'arrived':'PICK_UP_FUEL_TANKS', 'not_arrived':'GO_TO_FUEL_TANK_AREA'})
 
-        # TODO: Add fuel tank pickup states
-
+        # Pick up fuel tanks
         smach.StateMachine.add('PICK_UP_FUEL_TANKS', PickUp(board_object=BoardObjects.FUEL_TANK, arm_angles_publisher=arm_angles_pub, misc_angles_publisher=misc_angles_pub, move_publisher=move_pub),
                                       transitions={'packages_picked_up':'FUEL_TANK_SORT_AND_FINAL_AREA', 'packages_not_picked_up':'PICK_UP_FUEL_TANKS'})
               
