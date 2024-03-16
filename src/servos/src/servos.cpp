@@ -54,7 +54,7 @@ using namespace dynamixel;
 #define POS_D_GAIN              4000    // Angle mode D gain
 #define STOP                    0       // Velocity mode stop
 #define MISC_ANGLE_TOLERANCE    50//10      // Counts we need to be off to count as arrived
-#define ARM_TOLERANCE           10      // Allowable error in arm before declareing arrived
+//#define ARM_TOLERANCE           10      // Allowable error in arm before declareing arrived
 #define STEPS_DOWN              10      // Number of millimeters to move down per step
 #define MAX_CURRENT             500     // Max current small servos can pull
 
@@ -231,7 +231,7 @@ public:
     }
 
 
-    // Takes global x, y, z, theta(wrist), phi(claw), and speed and pubs servo values to Arm_Angles
+    // Takes global x, y, z, theta(wrist), phi(claw), speed, and tolerance and pubs servo values to Arm_Angles
     void Task_SpaceCallback(const std_msgs::Float32MultiArray& Task_Space){
         // Optional debug info
         #if DEBUG
@@ -249,7 +249,7 @@ public:
         // If speed was negative then slowly move down at STEPS_DOWN pace
         if(Task_Space.data[5] < 0){
             // Copy to local task space
-            for(int i = 0; i < 6; i++)
+            for(int i = 0; i < 7; i++)
                 local_task_space[i] = Task_Space.data[i];
 
             // Move y down by STEPS_DOWN
@@ -273,7 +273,7 @@ public:
 
         // Creat arrays for calculations and predefined values
         float q[6] = { 0, 0, 0, 0, 0, 0 };                          // Major joint angles of robot
-        int Q[9] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };                      // Final joint angles for servos including duplicated j2 and claw
+        int Q[10] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };                      // Final joint angles for servos including duplicated j2 and claw
         //float l[9] = { 32.5, 162, 24, 24, 148.5, 150, 53, 0, 0 }; // Predefined lengths of links for jaws attachment DH params
         //float l[9] = { 32.5, 162, 24, 24, 148.5, 82.5, 22.5, 0, 0 }; // Predefined lengths of links for new claw DH params
         //float l[9] = { 32.5, 162, 24, 24, 148.5, 75.34, 17, 0, 0 }; // Predefined lengths of links for old claw DH params
@@ -307,16 +307,17 @@ public:
         Q[6] = (int)theta;
         Q[7] = (int)phi;
         Q[8] = Task_Space.data[5];
+        Q[9] = Task_Space.data[6];
 
         // Publish 8 servo angles and speed to Arm_Angles
-        for (int i = 0; i < 9; i++){
+        for (int i = 0; i < 10; i++){
             Arm_Angles.data[i] = Q[i];
         }
         Arm_Angles_pub.publish(Arm_Angles);
     }
 
 
-    // Takes 8 Arm_Angles and speed and writes to servos ID 1-8
+    // Takes 8 Arm_Angles, speed, and tolerance and writes to servos ID 1-8
     void Arm_AnglesCallback(const std_msgs::Float32MultiArray& Arm_Angles){
         // Optional debug info
         #if DEBUG
@@ -337,6 +338,9 @@ public:
 
         // Write accel and speed for servos of arm
         armSpeed(Arm_Angles.data[8]);
+
+        // Set tolerance of angles
+        arm_tolerance = Arm_Angles[9];
 
         // Creates and assigns array with each byte of message
         uint8_t data_array[4];
@@ -363,7 +367,7 @@ public:
 
         // Checks if current posistion and goal posistion are withen acceptable toleracne
         for (int i = 0; i < 8; i++){
-            if(abs(Arm_Angles.data[i] - groupSyncRead_armPresPos.getData((i + 1), 132, 4)) > ARM_TOLERANCE){ // Used to use uint32_t pos[8]; for storing
+            if(abs(Arm_Angles.data[i] - groupSyncRead_armPresPos.getData((i + 1), 132, 4)) > arm_tolerance){ // Used to use uint32_t pos[8]; for storing
                 arm_moving = 1;                 // Joint error is to large que up another check
                 Arm_Done.data = 0;              //  mark arm as not done moving
                 //Arm_Done_pub.publish(Arm_Done); //  publish not done moving result
@@ -889,8 +893,8 @@ private:
     std_msgs::Int8 Misc_Done;
     std_msgs::Bool Local_En;
 
-    // Variable for storing old arm angles
-    int last_arm_angles[8];
+    // Variable for arm
+    int last_arm_angles[8], arm_tolerance = 10;
 
     // Variables for bot movement functions
     double  desired_x = 0, error_x_prev = 0, error_x_cumulative = 0, linear_x = 0, arrived_x = 0,
