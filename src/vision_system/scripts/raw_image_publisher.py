@@ -68,27 +68,23 @@ cap.set(cv2.CAP_PROP_SATURATION, 150)   # Makes purple magenta
 # Create CvBridge object to convert images to messages
 bridge = CvBridge()
 
-while not rospy.is_shutdown():
-    if globals['publish_raw_image']:
-        # Get frame from video capture object
-        ret, raw_image = cap.read()
+try:
+    while not rospy.is_shutdown():
+        if globals['publish_raw_image']:
+            # Get frame from video capture object
+            ret, raw_image = cap.read()
 
-        # Check if frame was received successfully
-        if ret:
-            #cv2.imshow("Raw Image", raw_image)
-            #cv2.waitKey(5)
-            #rospy.loginfo("Frame2 received successfully")
+            # Check if frame was received successfully
+            if ret:
+                # Convert frame to msg format
+                img_to_publish = bridge.cv2_to_imgmsg(raw_image)
+                
+                # Publish frame to topic
+                publisher.publish(img_to_publish)
 
-            # Convert frame to msg format
-            img_to_publish = bridge.cv2_to_imgmsg(raw_image)
-            
-            # Publish frame to topic
-            publisher.publish(img_to_publish)
+        rate.sleep()
 
-            # Assert publication
-            #rospy.loginfo("Video frame published successfully")
-        
-    rate.sleep()
-
-cv2.destroyAllWindows()
-cap.release()
+finally:
+    # Release camera and OpenCV resources
+    cv2.destroyAllWindows()
+    cap.release()
