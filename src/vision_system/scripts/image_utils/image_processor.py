@@ -193,7 +193,7 @@ class ImageProcessor_():
         coordinates, coords_image = self.find_contours(gray, pose_, area_range_factor=area_range_factor)
         #coords_image = np.hstack([image, blur, median, darkened_frame, self.image])
         
-        sorted_coordinates_list = sorted(coordinates, key=lambda coord: coord.x, reverse=True)
+        sorted_coordinates_list = sorted(coordinates, key=lambda coord: coord.z, reverse=True)
         return (sorted_coordinates_list, coords_image)
     
     def find_fuel_tank_coords(self, pose: str) -> Tuple[List[Point], np.ndarray]:
@@ -374,6 +374,13 @@ class ImageProcessor_():
             # Total mm
             Xarm_xi_obj = Xarm_xi_obj + Xarm_poly_offset
             Zarm_xi_obj = Zarm_xi_obj + Zarm_poly_offset
+            
+            if 220 <= x < 230:
+                Xarm_targeted_offset = 6
+                Xarm_xi_obj = Xarm_xi_obj + Xarm_targeted_offset
+            elif 230 <= x <= 245:
+                Xarm_targeted_offset = -10
+                Xarm_xi_obj = Xarm_xi_obj + Xarm_targeted_offset
 
             return Xarm_xi_obj, contour_area, Zarm_xi_obj
         
