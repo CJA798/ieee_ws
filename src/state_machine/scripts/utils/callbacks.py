@@ -19,7 +19,8 @@ def stop_all(arm_angles_pub, move_pub, misc_angles_pub) -> bool:
         stop_msg.data = [0, 0, 0, 0]
         move_pub.publish(stop_msg)
         # Stop Arm
-        stop_msg.data = [2041.0, 2023.0, 2015.0, 2660.0, 2083.0, 489.0, 2039.0, 2048, 5]
+        # TODO: FIX POSE
+        stop_msg.data = [1586, 2902, 2898, 1471, 2063, 1802, 1041, 1980, 10]
         arm_angles_pub.publish(stop_msg)
         # Stop Misc
         stop_msg.data = [-1, -1, -1, -1]
@@ -33,7 +34,7 @@ def check_heartbeat_cb(arm_angles_pub, move_pub, misc_angles_pub):
     last_heartbeat_time = globals['last_heartbeat_time']
     current_time = rospy.get_time()
     #print(f'Last heartbeat time: {last_heartbeat_time} | Current time: {current_time} | Difference: {int(current_time - last_heartbeat_time)}')
-    if last_heartbeat_time is not None and int(current_time - last_heartbeat_time) > 2:
+    if last_heartbeat_time is not None and int(current_time - last_heartbeat_time) > 5:
         stop_all(arm_angles_pub, move_pub, misc_angles_pub)
         rospy.logerr("Arduino heartbeat lost, restarting rosserial node...")
         run(["rosnode", "kill", "/serial_node_1"])

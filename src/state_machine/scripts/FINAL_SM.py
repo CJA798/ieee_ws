@@ -58,7 +58,7 @@ def main():
             # Pickup small packages
             smach.StateMachine.add('SCAN_POSE', ScanPose(arm_angles_pub=arm_angles_pub),
                                     transitions={'pose_reached':'GET_SP_COORDS', 'pose_not_reached':'SCAN_POSE'})
-            smach.StateMachine.add('GET_SP_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value, timeout=2.0, expected_pairs=3, camera_enable_publisher=camera_enable_pub),
+            smach.StateMachine.add('GET_SP_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value, timeout=5, expected_pairs=3, camera_enable_publisher=camera_enable_pub),
                                     transitions={'coords_received':'PICK_UP_SP', 'coords_not_received':'GET_SP_COORDS'})
             smach.StateMachine.add('PICK_UP_SP', PickUpSmallPackage(task_space_pub=task_space_pub),
                                    transitions={'packages_picked_up':'HOME_POSE',
@@ -102,7 +102,7 @@ def main():
                                    transitions={'arrived':'RE_SCAN_POSE', 'not_arrived':'MOVE_FORWARD_TO_RE_SCAN'})
             smach.StateMachine.add('RE_SCAN_POSE', ScanPose(arm_angles_pub=arm_angles_pub),
                                     transitions={'pose_reached':'RE_GET_SP_COORDS', 'pose_not_reached':'RE_SCAN_POSE'})
-            smach.StateMachine.add('RE_GET_SP_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value, timeout=2.0, expected_pairs=3, camera_enable_publisher=camera_enable_pub),
+            smach.StateMachine.add('RE_GET_SP_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value, timeout=1.5, expected_pairs=3, camera_enable_publisher=camera_enable_pub),
                                     transitions={'coords_received':'RE_PICK_UP_SP', 'coords_not_received':'RE_GET_SP_COORDS'})
             smach.StateMachine.add('RE_PICK_UP_SP', PickUpSmallPackage(task_space_pub=task_space_pub, in_re_scan=True),
                                    transitions={'packages_picked_up':'REST_POSE',
@@ -122,7 +122,7 @@ def main():
             # If a package was too close to the big packages and needs to be picked up after picking up the big packages (exclusive), do this:
             smach.StateMachine.add('POST_SCAN_POSE', ScanPose(arm_angles_pub=arm_angles_pub),
                                     transitions={'pose_reached':'POST_GET_SP_COORDS', 'pose_not_reached':'POST_SCAN_POSE'})
-            smach.StateMachine.add('POST_GET_SP_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value, timeout=2.0, expected_pairs=3, camera_enable_publisher=camera_enable_pub),
+            smach.StateMachine.add('POST_GET_SP_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value, timeout=1.5, expected_pairs=3, camera_enable_publisher=camera_enable_pub),
                                     transitions={'coords_received':'POST_PICK_UP_SP', 'coords_not_received':'POST_GET_SP_COORDS'})
             smach.StateMachine.add('POST_PICK_UP_SP', PickUpSmallPackage(task_space_pub=task_space_pub, after_big_packages=True),
                                    transitions={'packages_picked_up':'POST_PACKAGE_STATE_RESOLVER',

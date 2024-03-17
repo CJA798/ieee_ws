@@ -234,13 +234,23 @@ class GoTo_(smach.State):
         # Publish move to the big package wall
         y_offset = globals['big_package_Y_offset']
         #try TOF left values
-        #publish_command(self.move_pub, Float32MultiArray, [1, 0, 0, 20], delay=2.25)
-        #publish_command(self.move_pub, Float32MultiArray, [-248, 0, 0, 20], delay = 1)
-        publish_command(self.move_pub, Float32MultiArray, [-248, 0, 0, 20])
+        publish_command(self.move_pub, Float32MultiArray, [1, 0, 0, 30], delay=1)
+
+        '''
+        This is the sensor-based version
+        
+        publish_command(self.move_pub, Float32MultiArray, [-260, 0, 0, 20])
         #publish_command(self.misc_angles_pub, Float32MultiArray, [-1, -1, -3, -1], delay=0.1)
         rospy.wait_for_message('Move_Done',Int8, timeout = 10)
 
-        
+        # Wait for the move_done message
+        #rospy.wait_for_message("Move_Done", Int8, timeout=5)
+        if stop_move(self.move_pub):
+            return 'arrived'
+        # TODO: implement timeout routine
+        rospy.logerror('Move to big package wall failed')
+        return 'not_arrived'
+        '''
 
         # Wait for the move_done message
         #rospy.wait_for_message("Move_Done", Int8, timeout=5)
@@ -272,7 +282,7 @@ class GoTo_(smach.State):
         publish_and_wait(self.move_pub,
                         "Move_Done",
                         Float32MultiArray,
-                        [0, 0.75, 0, 100],
+                        [0, 0.2, 0, 50],
                         delay=1,
                         timeout_function=lambda: stop_move(self.move_pub))
         return 'arrived'
@@ -306,7 +316,7 @@ class GoTo_(smach.State):
         rate = rospy.Rate(20)
         
         # Publish command to go straight indefinitely
-        publish_command(self.move_pub, Float32MultiArray, [200, 1, 0, 90])
+        publish_command(self.move_pub, Float32MultiArray, [200, 1, 0, 100])
 
         # Wait for the move to complete
         while globals['gravity_vector'] > -25  and not rospy.is_shutdown():
@@ -376,7 +386,7 @@ class GoTo_(smach.State):
         record_tof_back = globals['tof_back']
 
         # Publish command to go forward
-        publish_command(self.move_pub, Float32MultiArray, [200, 1, -180, 90])
+        publish_command(self.move_pub, Float32MultiArray, [200, 1, -180, 100])
         while globals['gravity_vector'] < 28  and not rospy.is_shutdown():
             rate.sleep()
         rospy.loginfo('Half second ramp reached')
@@ -453,7 +463,7 @@ class GoTo_(smach.State):
         rate = rospy.Rate(20)
 
         #Back until finding the flat area        
-        publish_command(self.move_pub, Float32MultiArray, [0, -1, 0, 90])
+        publish_command(self.move_pub, Float32MultiArray, [200, -1, 0, 100])
 
         #wait until we cross bridge
         while globals['gravity_vector'] < 10  and not rospy.is_shutdown():
@@ -870,7 +880,7 @@ class DropOff(smach.State):
             bottom_bulk = globals['raise_bulk_bottom']
 
             #publish_command(self.misc_angles_pub, Float32MultiArray, [raised_bridge, top_bulk, bottom_bulk, flag])
-            if publish_command(self.misc_angles_pub, Float32MultiArray, [raised_bridge, bottom_bulk, top_bulk, flag]):
+            if publish_command(self.misc_angles_pub, Float32MultiArray, [mid_bridge-200, bottom_bulk, top_bulk, flag]):
             
             # Wait for the bulk grabber arms to reach the pose
                 rospy.wait_for_message("Misc_Done", Int8, timeout=10)
@@ -993,7 +1003,7 @@ class ScanPose(smach.State):
         if publish_command(self.arm_angles_pub, Float32MultiArray, [2041.0, 2023.0, 2015.0, 2660.0, 2083.0, 500.0, 2039.0, jaw, speed]):
             # Wait for the arm to reach the pose
             #rospy.wait_for_message("Arm_Done", Int8, timeout=15)
-            rospy.sleep(1.5)
+            rospy.sleep(1)
             return 'pose_reached'
         else:
             return 'pose_not_reached'
@@ -1186,7 +1196,7 @@ class PickUpSmallPackage(smach.State):
             publish_and_wait(pub=self.task_space_pub,
                                 wait_for_topic='Arm_Done',
                                 message_type=Float32MultiArray,
-                                message_data=[x, 50, z, wrist, jaw, 50],
+                                message_data=[x, 70, z, wrist, jaw, 50],
                                 delay=3,
                                 timeout_function=None)
             
@@ -1195,7 +1205,7 @@ class PickUpSmallPackage(smach.State):
             publish_and_wait(pub=self.task_space_pub,
                                 wait_for_topic='Arm_Done',
                                 message_type=Float32MultiArray,
-                                message_data=[x, 50, z, wrist, jaw, -140],
+                                message_data=[x, 70, z, wrist, jaw, -160],
                                 delay=3,
                                 timeout_function=None)
             
@@ -1204,7 +1214,7 @@ class PickUpSmallPackage(smach.State):
             publish_and_wait(pub=self.task_space_pub,
                                 wait_for_topic='Arm_Done',
                                 message_type=Float32MultiArray,
-                                message_data=[x, 50, z, wrist, jaw, 100],
+                                message_data=[x, 70, z, wrist, jaw, 100],
                                 delay=3,
                                 timeout_function=None)
             
@@ -1294,12 +1304,12 @@ class Sweep(smach.State):
             publish_and_wait(pub=self.task_space_pub,
                                 wait_for_topic='Arm_Done',
                                 message_type=Float32MultiArray,
-                                message_data=[x, y, z, wrist, jaw, 50],
+                                message_data=[x, y, z, wrist, jaw, 100],
                                 delay=2,
                                 timeout_function=None)
             # Sweep
             y = 50
-            x_sweep = x + 100
+            x_sweep = x + 70
             rospy.loginfo(f'Sweeping small package cluster')
             publish_and_wait(pub=self.task_space_pub,
                                 wait_for_topic='Arm_Done',
