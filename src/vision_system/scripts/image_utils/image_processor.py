@@ -372,7 +372,7 @@ class ImageProcessor_():
             Xarm_poly_offset, Zarm_poly_offset = self.get_small_package_poly_offset(Xarm_xi_obj, Zarm_xi_obj)
 
             # Total mm
-            Xarm_xi_obj = Xarm_poly_offset + Xarm_xi_obj
+            Xarm_xi_obj = Xarm_xi_obj + Xarm_poly_offset
             Zarm_xi_obj = Zarm_xi_obj + Zarm_poly_offset
 
             return Xarm_xi_obj, contour_area, Zarm_xi_obj
@@ -434,6 +434,7 @@ class ImageProcessor_():
         #x_offset = round(1e-6 * x**4 - 1e-3 * x**3 + 0.2586 * x**2 - 30.3776 * x + 1306.2392, 2)
         #print(f'X-ORIGINAL: {x}')
         #x_offset = round(0.00001 * x**3 - 0.005 * x**2 + 0.842 * x - 37.1179, 1)
+        '''
         x_offset =  round(-0.1609 * x + 25.9747, 1)
         #print(f'X-OFFSET: {x_offset}')
         #z_offset = round(1e-7 * z**3 + 2e-5 * z**2 - 486e-4 * z + 5.1474, 1)
@@ -441,6 +442,9 @@ class ImageProcessor_():
         z_offset = 0
         #z_offset = round(-2e-7 * z**4 - 2e-5 * z**3 + 2e-3 * z**2 + 0.1143 * z + 4.3528, 1)
         z_offset = -0.0597 * z + 6.8607
+        '''
+        x_offset = round(7.383e-11 * x**6 - 4.695e-8 * x**5 + 5.566e-6 * x**4 + 0.002374 * x**3 - 0.7866 * x**2 + 85.46 * x - 3225, 1)
+        z_offset = round(-2.919e-15 * z**7 - 6.998e-14 * z**6 + 2.578e-10 * z**5 - 1.572e-9 * z**4 - 7.515e-6 * z**3 + 0.0001577 * z**2 + 0.02068 * z + 0.8277, 1)
         return x_offset, z_offset
     
 

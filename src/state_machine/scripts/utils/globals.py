@@ -36,6 +36,7 @@ globals: Dict[str, Union[bool, int, None]] = {
     'gripper_bulk_hold': 2000,
     'gripper_bulk_release': 1750,
     'small_package_jaw_closed': 1980,
+    'regular_wrist_angle': 2048,
 
     # Big Package Macros
     'big_package_Y_offset': -248,
@@ -44,7 +45,7 @@ globals: Dict[str, Union[bool, int, None]] = {
     'set_bulk_bottom': 1050,
 
     #'close_bulk_top': 1150,
-    'close_bulk_top': 1100,
+    'close_bulk_top': 1000,
 
     'raise_bulk_offset': 1000,
     

@@ -14,7 +14,7 @@ from math import sqrt, atan2, sin, cos, degrees, radians
 from std_msgs.msg import Int8, Int32, Bool, String, Float32MultiArray
 import actionlib
 
-from vision_system.msg import GetCoordsAction, GetCoordsGoal, GetCoordsResult, GetCoordsFeedback
+from vision_system.msg import CoordinatesList, GetCoordsAction, GetCoordsGoal, GetCoordsResult, GetCoordsFeedback
 
 from utils.areas import Areas
 from utils.globals import globals
@@ -264,7 +264,7 @@ class GoTo_(smach.State):
         '''State to move the robot to the push big packages area'''
         # Publish command to push the big packages forward
         y_offset = globals['big_package_Y_offset']
-        publish_command(self.move_pub, Float32MultiArray, [y_offset, 1, 0, 50])
+        publish_command(self.move_pub, Float32MultiArray, [y_offset, 1, 0, 20])
 
         # Wait for the move to complete
         # This one is an exception bc we don't have a rear TOF
@@ -282,7 +282,7 @@ class GoTo_(smach.State):
         publish_and_wait(self.move_pub,
                         "Move_Done",
                         Float32MultiArray,
-                        [0, 0.2, 0, 50],
+                        [0, 0.2, 0, 20],
                         delay=1,
                         timeout_function=lambda: stop_move(self.move_pub))
         return 'arrived'
@@ -307,7 +307,7 @@ class GoTo_(smach.State):
         # Set the arm to drop off pose
         jaw = globals['gripper_bulk_hold']
         speed = 35 #speed updated
-        angles = [495.0, 1669.0, 1664.0, 2507.0, 2087.0, 946.0, 3915.0, jaw, speed]
+        angles = [495.0, 1669.0, 1664.0, 2507.0, 2087.0, 946.0, 3915.0, jaw, speed, 10]
         publish_command(self.arm_angles_pub, Float32MultiArray, angles)
         
         # Move until drop off area is reached
@@ -336,7 +336,7 @@ class GoTo_(smach.State):
         # Set the arm to drop off pose
         jaw = globals['gripper_bulk_hold']
         speed = 35 #speed updated
-        angles = [495.0, 1669.0, 1664.0, 2507.0, 2087.0, 946.0, 3915.0, jaw, speed]
+        angles = [495.0, 1669.0, 1664.0, 2507.0, 2087.0, 946.0, 3915.0, jaw, speed, 10]
         publish_command(self.arm_angles_pub, Float32MultiArray, angles)
 
         # Publish command to reach to the drop off area
@@ -648,7 +648,7 @@ class SetPose(smach.State):
         # Publish command to move arm over drop off area
         jaw = globals['gripper_bulk_hold']
         speed = 25 #updated speed
-        angles = [608.0, 1634.0, 1638.0, 2721.0, 2023.0, 841.0, 2194.0, jaw, speed]
+        angles = [608.0, 1634.0, 1638.0, 2721.0, 2023.0, 841.0, 2194.0, jaw, speed, 10]
         publish_command(self.arm_angles_pub, Float32MultiArray, angles)
         # Wait for the arm to reach the pose
         rospy.wait_for_message("Arm_Done", Int8, timeout=10) 
@@ -656,7 +656,7 @@ class SetPose(smach.State):
         # Publish command to lower arm
         jaw = globals['gripper_bulk_hold']
         speed = 25 #updated speed
-        angles = [497.0, 1242.0, 1245.0, 2730.0, 2022.0, 1250.0, 2077.0, jaw, speed]
+        angles = [497.0, 1242.0, 1245.0, 2730.0, 2022.0, 1250.0, 2077.0, jaw, speed, 10]
         publish_command(self.arm_angles_pub, Float32MultiArray, angles)
         # Wait for the arm to reach the pose
         rospy.wait_for_message("Arm_Done", Int8, timeout=10) 
@@ -668,7 +668,7 @@ class SetPose(smach.State):
         # Publish command to release the small packages
         jaw = globals['gripper_bulk_release']
         speed = 50 #updated speed
-        angles = [497.0, 1242.0, 1245.0, 2730.0, 2022.0, 1250.0, 2077.0, jaw, speed]
+        angles = [497.0, 1242.0, 1245.0, 2730.0, 2022.0, 1250.0, 2077.0, jaw, speed, 10]
         if publish_command(self.arm_angles_pub, Float32MultiArray, angles):
             # Wait for the arm to reach the pose
             rospy.wait_for_message("Arm_Done", Int8, timeout=10) 
@@ -682,7 +682,7 @@ class SetPose(smach.State):
         # Publish command to set the arm to fuel tank scan pose
         jaw = globals['gripper_bulk_release']
         speed = 25 #updated speed
-        angles = [1185.0, 2236.0, 2231.0, 2151.0, 2017.0, 692.0, 2109.0, jaw, speed]
+        angles = [1185.0, 2236.0, 2231.0, 2151.0, 2017.0, 692.0, 2109.0, jaw, speed, 10]
         
         if publish_command(self.arm_angles_pub, Float32MultiArray, angles):
             return 'pose_reached'
@@ -814,7 +814,7 @@ class DropOff(smach.State):
         # Go over red area
         #jaw = globals['gripper_bulk_hold']
         #speed = 35 #speed updated
-        #angles = [495.0, 1669.0, 1664.0, 2507.0, 2087.0, 946.0, 3915.0, jaw, speed]
+        #angles = [495.0, 1669.0, 1664.0, 2507.0, 2087.0, 946.0, 3915.0, jaw, speed, 10]
         #publish_command(self.arm_angles_pub, Float32MultiArray, angles, delay=4)
         #rospy.loginfo('Moving arm over red area')
         #rospy.wait_for_message("Arm_Done", Int8, timeout=10) 
@@ -822,7 +822,7 @@ class DropOff(smach.State):
         # Lower the arm
         jaw = globals['gripper_bulk_hold']
         speed = 8
-        angles = [493.0, 1459.0, 1460.0, 2196.0, 2087.0, 1432.0, 3824.0, jaw, speed]
+        angles = [493.0, 1459.0, 1460.0, 2196.0, 2087.0, 1432.0, 3824.0, jaw, speed, 10]
         publish_command(self.arm_angles_pub, Float32MultiArray, angles, delay=2)
         rospy.loginfo('Lowering arm')
         #rospy.wait_for_message("Arm_Done", Int8, timeout=10) 
@@ -830,13 +830,13 @@ class DropOff(smach.State):
         # Open the gripper
         jaw = globals['gripper_bulk_release']
         speed = 20
-        angles = [493.0, 1459.0, 1460.0, 2196.0, 2087.0, 1432.0, 3824.0, jaw, speed]
+        angles = [493.0, 1459.0, 1460.0, 2196.0, 2087.0, 1432.0, 3824.0, jaw, speed, 10]
         publish_command(self.arm_angles_pub, Float32MultiArray, angles, delay=0.7)
         #rospy.wait_for_message("Arm_Done", Int8, timeout=10) 
         rospy.loginfo('Small packages released')
         
         # Raise arm back over red area
-        angles = [495.0, 1669.0, 1664.0, 2507.0, 2087.0, 946.0, 3915.0, jaw, speed]
+        angles = [495.0, 1669.0, 1664.0, 2507.0, 2087.0, 946.0, 3915.0, jaw, speed, 10]
         #publish_command(self.arm_angles_pub, Float32MultiArray, angles, delay=1.75)
         #rospy.wait_for_message("Arm_Done", Int8, timeout=1.75)
         publish_and_wait(pub=self.arm_angles_pub,
@@ -848,7 +848,7 @@ class DropOff(smach.State):
 
         # Go to scan fuel tank position
         gripper = 2440
-        angles = [769.0, 2388.0, 2379.0, 2092.0, 2075.0, 644.0, 1800.0, gripper, speed]
+        angles = [769.0, 2388.0, 2379.0, 2092.0, 2075.0, 644.0, 1800.0, gripper, speed, 10]
         if publish_command(self.arm_angles_pub, Float32MultiArray, angles):
             rospy.loginfo('Moving arm to fuel tank scan position')
             return 'packages_dropped_off'
@@ -917,7 +917,7 @@ class SpiritCelebration(smach.State):
             jaw = globals['gripper_bulk_hold']
             speed = 40 #updated speed
 
-            angles = [2041.0, 2023.0, 2017.0, 2748.0, 2078.0, 478.0, 2040.0, 2005.0]  #scan pose
+            angles = [2041.0, 2023.0, 2017.0, 2748.0, 2078.0, 478.0, 2040.0, 2005.0, 10, 10]  #scan pose
             publish_command(self.arm_angles_pub, Float32MultiArray, angles, delay=.5) #gets the arm out of the way for the flag
             #rospy.wait_for_message("Arm_Done", Int8, timeout=10)
             
@@ -1000,7 +1000,7 @@ class ScanPose(smach.State):
         jaw = globals['gripper_bulk_hold']
         rospy.loginfo('Moving to scan pose')
         # Publish command to set the arm to the scan pose
-        if publish_command(self.arm_angles_pub, Float32MultiArray, [2041.0, 2023.0, 2015.0, 2660.0, 2083.0, 500.0, 2039.0, jaw, speed]):
+        if publish_command(self.arm_angles_pub, Float32MultiArray, [2041.0, 2023.0, 2015.0, 2660.0, 2083.0, 500.0, 2039.0, jaw, speed, 10]):
             # Wait for the arm to reach the pose
             #rospy.wait_for_message("Arm_Done", Int8, timeout=15)
             rospy.sleep(1)
@@ -1043,7 +1043,7 @@ class RestPose(smach.State):
             speed = 10 #updated speed
             jaw = globals['gripper_bulk_hold']
             angles_ = Float32MultiArray()
-            angles_.data = [2009.0, 2721.0, 2706.0, 1635.0, 2166.0, 1661.0, 1886.0, jaw, speed]
+            angles_.data = [2009.0, 2721.0, 2706.0, 1635.0, 2166.0, 1661.0, 1886.0, jaw, speed, 10]
             self.arm_angles_pub.publish(angles_)
             rospy.loginfo('Moving to rest pose')
             
@@ -1053,6 +1053,7 @@ class RestPose(smach.State):
             return 'pose_not_reached'
 
 
+# Define state GetCoords
 # Define state GetCoords
 class GetCoords(smach.State):
     def __init__(self, object_type, pose, timeout=2.0, expected_pairs=3, camera_enable_publisher=None):
@@ -1115,7 +1116,6 @@ class GetCoords(smach.State):
             rospy.logerr(f"Error in GetCoords: {e}")
             return 'coords_not_received'
         
-
 class PickUpSmallPackage(smach.State):
     def __init__(self, task_space_pub, in_re_scan=False, after_big_packages=False):
         smach.State.__init__(self,
@@ -1139,9 +1139,7 @@ class PickUpSmallPackage(smach.State):
         if not coordinates:
             return 'no_coordinates_received'
         
-        # Set the jaw value to hold the small package grabber
-        jaw = globals['small_package_jaw_closed']
-        wrist = 2048
+        
         num_coordinates = len(coordinates)
                 
         for i in range(num_coordinates):
@@ -1151,6 +1149,9 @@ class PickUpSmallPackage(smach.State):
             x = int(target.x)
             area = int(target.y)
             z = int(target.z)
+            # Set the jaw value to hold the small package grabber
+            jaw = globals['small_package_jaw_closed']
+            wrist = globals['regular_wrist_angle']
 
             # Check if it's within X-axis range
             if not self.x_coord_within_range(x, z) and not self.in_re_scan:
@@ -1196,7 +1197,7 @@ class PickUpSmallPackage(smach.State):
             publish_and_wait(pub=self.task_space_pub,
                                 wait_for_topic='Arm_Done',
                                 message_type=Float32MultiArray,
-                                message_data=[x, 70, z, wrist, jaw, 50],
+                                message_data=[x, 70, z, wrist, jaw, 50, 50],
                                 delay=3,
                                 timeout_function=None)
             
@@ -1205,7 +1206,7 @@ class PickUpSmallPackage(smach.State):
             publish_and_wait(pub=self.task_space_pub,
                                 wait_for_topic='Arm_Done',
                                 message_type=Float32MultiArray,
-                                message_data=[x, 70, z, wrist, jaw, -160],
+                                message_data=[x, 70, z, wrist, jaw, -170, 10],
                                 delay=3,
                                 timeout_function=None)
             
@@ -1214,7 +1215,7 @@ class PickUpSmallPackage(smach.State):
             publish_and_wait(pub=self.task_space_pub,
                                 wait_for_topic='Arm_Done',
                                 message_type=Float32MultiArray,
-                                message_data=[x, 70, z, wrist, jaw, 100],
+                                message_data=[x, 70, z, wrist, jaw, 100, 50],
                                 delay=3,
                                 timeout_function=None)
             
@@ -1257,28 +1258,28 @@ class Sweep(smach.State):
             publish_and_wait(pub=self.task_space_pub,
                                 wait_for_topic='Arm_Done',
                                 message_type=Float32MultiArray,
-                                message_data=[50, 20, 180, 2048, 1980, 100],
+                                message_data=[50, 20, 180, 2048, 1980, 100, 10],
                                 delay=2,
                                 timeout_function=None)
             # Lower the arm
             publish_and_wait(pub=self.task_space_pub,
                                 wait_for_topic='Arm_Done',
                                 message_type=Float32MultiArray,
-                                message_data=[50, -50, 180, 2048, 1980, 10],
+                                message_data=[50, -50, 180, 2048, 1980, 10, 10],
                                 delay=2,
                                 timeout_function=None)
             # Sweep slowly
             publish_and_wait(pub=self.task_space_pub,
                                 wait_for_topic='Arm_Done',
                                 message_type=Float32MultiArray,
-                                message_data=[200, -70, 180, 2048, 1980, 10],
+                                message_data=[200, -70, 180, 2048, 1980, 10, 10],
                                 delay=2,
                                 timeout_function=None)
             # Raise the arm to avoid pushing other blocks around
             publish_and_wait(pub=self.task_space_pub,
                                 wait_for_topic='Arm_Done',
                                 message_type=Float32MultiArray,
-                                message_data=[200, 50, 180, 2048, 1980, 10],
+                                message_data=[200, 50, 180, 2048, 1980, 10, 10],
                                 delay=2,
                                 timeout_function=None)
             
@@ -1295,7 +1296,7 @@ class Sweep(smach.State):
             publish_and_wait(pub=self.task_space_pub,
                                 wait_for_topic='Arm_Done',
                                 message_type=Float32MultiArray,
-                                message_data=[x, y, z, wrist, jaw, 50],
+                                message_data=[x, y, z, wrist, jaw, 50, 10],
                                 delay=3,
                                 timeout_function=None)
             # Lower the arm
@@ -1304,7 +1305,7 @@ class Sweep(smach.State):
             publish_and_wait(pub=self.task_space_pub,
                                 wait_for_topic='Arm_Done',
                                 message_type=Float32MultiArray,
-                                message_data=[x, y, z, wrist, jaw, 100],
+                                message_data=[x, y, z, wrist, jaw, 100, 10],
                                 delay=2,
                                 timeout_function=None)
             # Sweep
@@ -1314,14 +1315,14 @@ class Sweep(smach.State):
             publish_and_wait(pub=self.task_space_pub,
                                 wait_for_topic='Arm_Done',
                                 message_type=Float32MultiArray,
-                                message_data=[x_sweep, y, z, wrist, jaw, 100],
+                                message_data=[x_sweep, y, z, wrist, jaw, 100, 10],
                                 delay=2,
                                 timeout_function=None)
             # Raise the arm to avoid pushing other blocks around
             publish_and_wait(pub=self.task_space_pub,
                                 wait_for_topic='Arm_Done',
                                 message_type=Float32MultiArray,
-                                message_data=[x_sweep, y, z, wrist, jaw, 100],
+                                message_data=[x_sweep, y, z, wrist, jaw, 100, 10],
                                 delay=2,
                                 timeout_function=None)
         return 'succeeded'
@@ -1362,7 +1363,7 @@ class PickUpFuelTank(smach.State):
         publish_and_wait(pub=self.task_space_pub,
                          wait_for_topic='Arm_Done',
                          message_type=Float32MultiArray,
-                         message_data=[x, y, z, wrist, gripper, speed],
+                         message_data=[x, y, z, wrist, gripper, speed, 10],
                          delay=1,
                          timeout_function=None)
         
@@ -1371,7 +1372,7 @@ class PickUpFuelTank(smach.State):
         publish_and_wait(pub=self.task_space_pub,
                          wait_for_topic='Arm_Done',
                          message_type=Float32MultiArray,
-                         message_data=[x, y, z, wrist, gripper, speed],
+                         message_data=[x, y, z, wrist, gripper, speed, 10],
                          delay=1,
                          timeout_function=None)
         
@@ -1380,7 +1381,7 @@ class PickUpFuelTank(smach.State):
         publish_and_wait(pub=self.task_space_pub,
                          wait_for_topic='Arm_Done',
                          message_type=Float32MultiArray,
-                         message_data=[x, y, z, wrist, gripper, speed],
+                         message_data=[x, y, z, wrist, gripper, speed, 10],
                          delay=1,
                          timeout_function=None)
         # Go up
@@ -1388,7 +1389,7 @@ class PickUpFuelTank(smach.State):
         publish_and_wait(pub=self.task_space_pub,
                          wait_for_topic='Arm_Done',
                          message_type=Float32MultiArray,
-                         message_data=[x, y, z, wrist, gripper, speed],
+                         message_data=[x, y, z, wrist, gripper, speed, 10],
                          delay=1,
                          timeout_function=None)
         
@@ -1399,15 +1400,15 @@ class PickUpFuelTank(smach.State):
 class StoreFuelTank(smach.State):
     # Dictionary to map the slot number to the corresponding coordinates
     OVER_SLOT_COORDS = {
-        1: [-115, 100, -95, 3500, 2640, 25],      
-        2: [-30, 100, -90, 3500, 2640, 25],   #updated speeds
-        3: [40, 100, -85, 3500, 2640, 25]
+        1: [-115, 100, -95, 3500, 2640, 25, 10],      
+        2: [-30, 100, -90, 3500, 2640, 25, 10],   #updated speeds
+        3: [40, 100, -85, 3500, 2640, 25, 10]
     }
 
     IN_SLOT_COORDS = {
-        1: [-115, -17, -95, 3500, 2640, 25],
-        2: [-30, -17, -90, 3500, 2640, 25],
-        3: [40, -17, -85, 3500, 2640, 25]
+        1: [-115, -17, -95, 3500, 2640, 25, 10],
+        2: [-30, -17, -90, 3500, 2640, 25, 10],
+        3: [40, -17, -85, 3500, 2640, 25, 10]
     }
 
     def __init__(self, task_space_publisher, arm_angles_publisher, slot_number=1):
@@ -1442,7 +1443,7 @@ class StoreFuelTank(smach.State):
 
         # Go back to scan fuel tank pose
         speed = 50 #updated speed
-        angles = [769.0, 2388.0, 2379.0, 2092.0, 2075.0, 644.0, 1800.0, gripper, speed]
+        angles = [769.0, 2388.0, 2379.0, 2092.0, 2075.0, 644.0, 1800.0, gripper, speed, 10]
         publish_and_wait(pub=self.arm_angles_pub,
                          wait_for_topic='Arm_Done',
                          message_type=Float32MultiArray,
