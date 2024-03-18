@@ -105,7 +105,7 @@ PacketHandler* packetHandler = PacketHandler::getPacketHandler(PROTOCOL_VERSION)
 GroupSyncRead groupSyncRead_armPresPos(portHandler, packetHandler, PRESENT_POSITION_ADDR, NUM_BYTES_4);
 GroupSyncRead groupSyncRead_miscGoalPos(portHandler, packetHandler, GOAL_POSITION_ADDR, NUM_BYTES_4);
 GroupSyncRead groupSyncRead_miscPresPos(portHandler, packetHandler, PRESENT_POSITION_ADDR, NUM_BYTES_4);
-GroupSyncRead groupSuncRead_torque(portHandler, packetHandler, TORQUE_ENABLE_ADDR, NUM_BYTES_1);
+GroupSyncRead groupSyncRead_torque(portHandler, packetHandler, TORQUE_ENABLE_ADDR, NUM_BYTES_1);
 
 GroupSyncWrite groupSyncWrite_armGoalPos(portHandler, packetHandler, GOAL_POSITION_ADDR, NUM_BYTES_4);
 GroupSyncWrite groupSyncWrite_armAcc(portHandler, packetHandler, MAX_ACC_ADDR, NUM_BYTES_4);
@@ -1001,7 +1001,7 @@ int main(int argc, char** argv){
             ServoObject.miscMoving();
         
         // Every few seconds restart servos if torqued out
-        if(restart_check_time < clock())
+        if(ServoObject.restart_check_time < clock())
             ServoObject.readRestart();
 
         ros::spinOnce();
