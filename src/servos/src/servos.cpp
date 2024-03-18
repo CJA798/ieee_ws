@@ -934,7 +934,7 @@ private:
     double  desired_x = 0, error_x_prev = 0, error_x_cumulative = 0, linear_x = 0, arrived_x = 0,
             desired_y = 0, error_y_prev = 0, error_y_cumulative = 0, linear_y = 0, arrived_y = 0,
             desired_z = -1, error_z_prev = 0, error_z_cumulative = 0, linear_z = 0, arrived_z = 0,
-            max_speed = 0, bearing_offset = -1, e_stop = 0, imu_wakeup = -50;
+            max_speed = 0, bearing_offset = -1, e_stop = 0, imu_wakeup = -40;
 
     // Local task space 
     float local_task_space[6];

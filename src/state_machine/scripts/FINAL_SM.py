@@ -102,7 +102,7 @@ def main():
                                    transitions={'arrived':'RE_SCAN_POSE', 'not_arrived':'MOVE_FORWARD_TO_RE_SCAN'})
             smach.StateMachine.add('RE_SCAN_POSE', ScanPose(arm_angles_pub=arm_angles_pub),
                                     transitions={'pose_reached':'RE_GET_SP_COORDS', 'pose_not_reached':'RE_SCAN_POSE'})
-            smach.StateMachine.add('RE_GET_SP_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value, timeout=1.5, expected_pairs=3, camera_enable_publisher=camera_enable_pub),
+            smach.StateMachine.add('RE_GET_SP_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value, timeout=1.5, expected_pairs=4, camera_enable_publisher=camera_enable_pub),
                                     transitions={'coords_received':'RE_PICK_UP_SP', 'coords_not_received':'RE_GET_SP_COORDS'})
             smach.StateMachine.add('RE_PICK_UP_SP', PickUpSmallPackage(task_space_pub=task_space_pub, in_re_scan=True),
                                    transitions={'packages_picked_up':'REST_POSE',
@@ -217,7 +217,7 @@ def main():
             with fuel_tank_sort_sm:
                 smach.StateMachine.add('SCAN_FUEL_TANK_POSE', ScanFuelTankPose(arm_angles_pub=arm_angles_pub),
                                         transitions={'pose_reached':'GET_FT_COORDS', 'pose_not_reached':'SCAN_FUEL_TANK_POSE'})
-                smach.StateMachine.add('GET_FT_COORDS', GetCoords(object_type=BoardObjects.FUEL_TANK.value, pose=Poses.FUEL_TANK_SCAN.value, timeout=2.0, expected_pairs=3, camera_enable_publisher=camera_enable_pub),
+                smach.StateMachine.add('GET_FT_COORDS', GetCoords(object_type=BoardObjects.FUEL_TANK.value, pose=Poses.FUEL_TANK_SCAN.value, timeout=1.5, expected_pairs=3, camera_enable_publisher=camera_enable_pub),
                                         transitions={'coords_received':'PICK_UP_FUEL_TANK', 'coords_not_received':'GET_FT_COORDS'})
                 smach.StateMachine.add('PICK_UP_FUEL_TANK', PickUpFuelTank(task_space_publisher=task_space_pub),
                                         transitions={'fuel_tank_picked_up':'STORE_FUEL_TANK', 'fuel_tank_not_picked_up':'PICK_UP_FUEL_TANK'})
@@ -225,7 +225,7 @@ def main():
                                         transitions={'fuel_tank_stored':'GET_FT_COORDS2', 'fuel_tank_not_stored':'STORE_FUEL_TANK'})
                 
                 
-                smach.StateMachine.add('GET_FT_COORDS2', GetCoords(object_type=BoardObjects.FUEL_TANK.value, pose=Poses.FUEL_TANK_SCAN.value, timeout=2.0, expected_pairs=2, camera_enable_publisher=camera_enable_pub),
+                smach.StateMachine.add('GET_FT_COORDS2', GetCoords(object_type=BoardObjects.FUEL_TANK.value, pose=Poses.FUEL_TANK_SCAN.value, timeout=1.5, expected_pairs=2, camera_enable_publisher=camera_enable_pub),
                                         transitions={'coords_received':'PICK_UP_FUEL_TANK2', 'coords_not_received':'GET_FT_COORDS2'})
                 smach.StateMachine.add('PICK_UP_FUEL_TANK2', PickUpFuelTank(task_space_publisher=task_space_pub),
                                         transitions={'fuel_tank_picked_up':'STORE_FUEL_TANK2', 'fuel_tank_not_picked_up':'PICK_UP_FUEL_TANK2'})
@@ -233,7 +233,7 @@ def main():
                                         transitions={'fuel_tank_stored':'GET_FT_COORDS3', 'fuel_tank_not_stored':'STORE_FUEL_TANK2'})
 
                 
-                smach.StateMachine.add('GET_FT_COORDS3', GetCoords(object_type=BoardObjects.FUEL_TANK.value, pose=Poses.FUEL_TANK_SCAN.value, timeout=2.0, expected_pairs=2, camera_enable_publisher=camera_enable_pub),
+                smach.StateMachine.add('GET_FT_COORDS3', GetCoords(object_type=BoardObjects.FUEL_TANK.value, pose=Poses.FUEL_TANK_SCAN.value, timeout=1.5, expected_pairs=1, camera_enable_publisher=camera_enable_pub),
                                         transitions={'coords_received':'PICK_UP_FUEL_TANK3', 'coords_not_received':'GET_FT_COORDS3'})
                 smach.StateMachine.add('PICK_UP_FUEL_TANK3', PickUpFuelTank(task_space_publisher=task_space_pub),
                                         transitions={'fuel_tank_picked_up':'STORE_FUEL_TANK3', 'fuel_tank_not_picked_up':'PICK_UP_FUEL_TANK3'})

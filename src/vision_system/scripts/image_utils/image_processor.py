@@ -528,7 +528,7 @@ def main_():
             print("Can't receive frame")
             break
 
-        coords_list, coords_image = ip.get_coords(object_type=BoardObjects.FUEL_TANK.value, pose=Poses.FUEL_TANK_SCAN.value)        
+        coords_list, coords_image = ip.get_coords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value)        
         
         if coords_image is None:
             logwarn("Coords Image is None")

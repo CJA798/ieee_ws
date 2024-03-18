@@ -279,10 +279,11 @@ class GoTo_(smach.State):
     def GoToReScan(self):
         '''State to move the robot to the re-scan area'''
         # Publish command to move the robot to the re-scan area
+        rospy.loginfo('Moving to re-scan area')
         publish_and_wait(self.move_pub,
                         "Move_Done",
                         Float32MultiArray,
-                        [0, 0.2, 0, 20],
+                        [0, 0.2, 0, 50],
                         delay=1,
                         timeout_function=lambda: stop_move(self.move_pub))
         return 'arrived'
@@ -772,7 +773,7 @@ class PickUp(smach.State):
         except:
             pass
         # Raise bulk grabber arms
-        if publish_command(self.misc_angles_pub, Float32MultiArray, [-1, 3330, bulk_grabber_top+offset, -1]):
+        if publish_command(self.misc_angles_pub, Float32MultiArray, [-1, 3400, bulk_grabber_top+offset, -1]):
             try:
                 rospy.wait_for_message("Misc_Done", Int8, timeout=2)
             except:
@@ -1087,6 +1088,7 @@ class RestPose(smach.State):
 class GetCoords(smach.State):
     def __init__(self, object_type, pose, timeout=2.0, expected_pairs=3, camera_enable_publisher=None):
         smach.State.__init__(self, outcomes=['coords_received','coords_not_received'],
+                             input_keys=['coordinates_list'],
                              output_keys=['coordinates_list'])
         self.object_type = object_type
         self.pose = pose
@@ -1100,6 +1102,11 @@ class GetCoords(smach.State):
         #rospy.sleep(5)
 
     def execute(self, userdata):
+        # If userdata coord exist, reset them
+        try:
+            userdata.coordinates_list.clear()
+        except:
+            pass
         #if not globals['big_packages_picked_up']:
         #    rospy.logwarn('Big package pick up not done yet')
         #    rospy.sleep(1)
@@ -1112,7 +1119,7 @@ class GetCoords(smach.State):
             
         try:
             rospy.loginfo(f'Executing state GetCoords({self.object_type}, {self.pose})')
-            
+
             client = actionlib.SimpleActionClient('get_coords', GetCoordsAction)
             client.wait_for_server()
 
@@ -1132,6 +1139,7 @@ class GetCoords(smach.State):
 
             # Return the coordinates as userdata if they are received
             if result.coordinates:
+                #userdata.coordinates_list = []
                 userdata.coordinates_list = result.coordinates
                 # Disable camera
                 if self.camera_enable_pub:
@@ -1162,6 +1170,7 @@ class PickUpSmallPackage(smach.State):
 
         # Store the coordinates list: CoordinatesList -> coordinates[coordinates]
         coordinates = userdata.coordinates_list.coordinates
+
         rospy.loginfo(f'Coordinates: {coordinates}')
 
         # Check if the coordinates list is empty
@@ -1188,6 +1197,19 @@ class PickUpSmallPackage(smach.State):
                 userdata.move_after_big_packages = True
                 rospy.logwarn(f'Coordinate {target} is not within X-axis range. Scan after big package pickup needed')
                 continue
+
+            ##############################################################################################################
+            ##                     THE LINE BELOW IGNORES ANY PURPLE BOXES NOT IN FRONT OF THE ROBOT                    ##
+            ##############################################################################################################
+            # The safe mode is to ignore any purple boxes not in front of the robot path to the dropoff area.
+            '''
+            if not self.safe_mode(x,z):
+                rospy.logwarn(f'Coordinate {target} is outside of safe mode range. Ignoring...')
+                continue
+            '''
+            ##############################################################################################################
+            ##                     THE LINE ABOVE IGNORES ANY PURPLE BOXES NOT IN FRONT OF THE ROBOT                    ##
+            ##############################################################################################################
             
             # Check if it's too close to the big packages, but ignore if in re-scan
             if self.in_big_package_area(x, z) and not self.in_re_scan:
@@ -1250,6 +1272,9 @@ class PickUpSmallPackage(smach.State):
             
             rospy.loginfo(f'Successfully picked up small package {target}')
         return 'packages_picked_up'
+    
+    def safe_mode(self, x, z):
+        return (120 <= x <= 250) and (-170 <= z <= 170)
 
     def x_coord_within_range(self, x, z):
         return (70 < x < 250)

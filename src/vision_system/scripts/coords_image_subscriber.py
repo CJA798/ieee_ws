@@ -24,8 +24,8 @@ topic_name = 'coords_image'
 def callback(message):
     bridge = CvBridge()
     frame_to_cv = bridge.imgmsg_to_cv2(message)
-    cv2.imshow("Coords Image", frame_to_cv)
-    cv2.waitKey(5)
+    #cv2.imshow("Coords Image", frame_to_cv)
+    #cv2.waitKey(5)
 
 
 # Initialize the node
