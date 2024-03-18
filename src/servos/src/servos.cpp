@@ -865,7 +865,7 @@ public:
         // Sets a timeout for current wheel speeds
         arduino_timout_time = clock() + ARDUINO_TIMEOUT * 1000;
         // If we are not moving already make timeout infinite
-        if(wheel_speeds(0) == 0 && wheel_speeds(0) == 0 && wheel_speeds(0) == 0)
+        if(wheel_speeds(0) == 0 && wheel_speeds(1) == 0 && wheel_speeds(2) == 0)
             arduino_timeout_time = -1;
         
         // Sets flag to write to servos outside of callback
