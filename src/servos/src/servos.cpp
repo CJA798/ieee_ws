@@ -27,6 +27,7 @@ using namespace dynamixel;
 #define TORQUE_ENABLE_ADDR      64
 #define LED_ADDR                65
 #define GOAL_POSITION_ADDR      116
+#define PRESENT_LOAD_ADDR       126
 #define MAX_VEL_ADDR            112
 #define MAX_ACC_ADDR            108
 #define PRESENT_POSITION_ADDR   132
@@ -58,6 +59,7 @@ using namespace dynamixel;
 #define MAX_DOWN_SPEED          50      // Max acc's/vel's for lineal interpolation
 #define RESTART_TIME            10      // Seconds between check/restart torqued out servos
 #define ARDUINO_TIMEOUT         500     // Millisecond safety between arduino signal that pauses wheel movement
+#define MAX_LOAD                100     // Load threshold needed to assume servo has arrived range 0-1000 = 0-100%
 
 // #if macros
 #define DEBUG                   1       // Prints out ros info's
@@ -107,6 +109,7 @@ GroupSyncRead groupSyncRead_armPresPos(portHandler, packetHandler, PRESENT_POSIT
 GroupSyncRead groupSyncRead_miscGoalPos(portHandler, packetHandler, GOAL_POSITION_ADDR, NUM_BYTES_4);
 GroupSyncRead groupSyncRead_miscPresPos(portHandler, packetHandler, PRESENT_POSITION_ADDR, NUM_BYTES_4);
 GroupSyncRead groupSyncRead_torque(portHandler, packetHandler, TORQUE_ENABLE_ADDR, NUM_BYTES_1);
+GroupSyncRead groupSyncRead_miscPresLoad(portHandler, packetHandler, PRESENT_LOAD_ADDR, NUM_BYTES_2)
 
 GroupSyncWrite groupSyncWrite_armGoalPos(portHandler, packetHandler, GOAL_POSITION_ADDR, NUM_BYTES_4);
 GroupSyncWrite groupSyncWrite_armAcc(portHandler, packetHandler, MAX_ACC_ADDR, NUM_BYTES_4);
@@ -200,14 +203,13 @@ public:
         for(int i = 1; i < 9; i++)
             groupSyncRead_armPresPos.addParam(i);
 
-        // Sets up sync read params for misc goal pos
-        for(int i = 12; i < 16; i++)
+        // Sets up sync read params for misc goal pos, present pos, and present load
+        for(int i = 12; i < 16; i++){
             groupSyncRead_miscGoalPos.addParam(i);
-
-        // Sets up sync read params for misc present pos
-        for(int i = 12; i < 16; i++)
             groupSyncRead_miscPresPos.addParam(i);
-
+            groupSyncRead_miscPresLoad.addParam(i);
+        }
+            
         // Publish 8 starting arm angles and speed to Arm_Angles
         int Arm_Start_Angles[10] = { 2009, 2721, 2706, 1635, 2166, 1661, 1886, 1980, 10, 500 };
         for (int i = 0; i < 10; i++) {
@@ -532,11 +534,15 @@ public:
         // Executes sync read of present posistion
         groupSyncRead_miscPresPos.txRxPacket();
 
+        // Executes sync read of present loads
+        groupSyncRead_miscPresLoad.txRxPacket();
+
         // Checks if current posistion and goal posistion are withen acceptable toleracne
         for (int i = 12; i < 16; i++){
             if(abs((int32_t)(groupSyncRead_miscGoalPos.getData((i), GOAL_POSITION_ADDR, NUM_BYTES_4)) - (int32_t)(groupSyncRead_miscPresPos.getData((i), PRESENT_POSITION_ADDR, NUM_BYTES_4))) > MISC_ANGLE_TOLERANCE){ // Used to use uint32_t pos[8]; for storing
-                misc_moving = 1;                 // Joint error is to large que up another check
-                return;                         //  break out of function
+                // If this servo is under heavy load, assume it has arrived and skip return
+                if(groupSyncRead_miscPresLoad.getData((i), PRESENT_LOAD_ADDR, NUM_BYTES_2) < MAX_LOAD)
+                    return; //  break out of function signifing servos still moving
             }
         }
         // Ros Info
