@@ -109,7 +109,7 @@ GroupSyncRead groupSyncRead_armPresPos(portHandler, packetHandler, PRESENT_POSIT
 GroupSyncRead groupSyncRead_miscGoalPos(portHandler, packetHandler, GOAL_POSITION_ADDR, NUM_BYTES_4);
 GroupSyncRead groupSyncRead_miscPresPos(portHandler, packetHandler, PRESENT_POSITION_ADDR, NUM_BYTES_4);
 GroupSyncRead groupSyncRead_torque(portHandler, packetHandler, TORQUE_ENABLE_ADDR, NUM_BYTES_1);
-GroupSyncRead groupSyncRead_miscPresLoad(portHandler, packetHandler, PRESENT_LOAD_ADDR, NUM_BYTES_2)
+GroupSyncRead groupSyncRead_miscPresLoad(portHandler, packetHandler, PRESENT_LOAD_ADDR, NUM_BYTES_2);
 
 GroupSyncWrite groupSyncWrite_armGoalPos(portHandler, packetHandler, GOAL_POSITION_ADDR, NUM_BYTES_4);
 GroupSyncWrite groupSyncWrite_armAcc(portHandler, packetHandler, MAX_ACC_ADDR, NUM_BYTES_4);
