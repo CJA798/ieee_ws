@@ -57,6 +57,7 @@ using namespace dynamixel;
 #define DOWN_WAIT               150     // Milli seconds to wait before moving down for linear interpolation
 #define MAX_DOWN_SPEED          50      // Max acc's/vel's for lineal interpolation
 #define RESTART_TIME            10      // Seconds between check/restart torqued out servos
+#define ARDUINO_TIMEOUT         500     // Millisecond safety between arduino signal that pauses wheel movement
 
 // #if macros
 #define DEBUG                   1       // Prints out ros info's
@@ -122,7 +123,7 @@ public:
         sync_misc_goal_pos = 0, sync_wheel_goal_vel = 0;
 
     // Clock timers
-    clock_t restart_check_time = 10000000;
+    clock_t restart_check_time = 10000000, arduino_timout_time;
 
     // Initiating pubs, subs, and arrays
     ServoClass(ros::NodeHandle* nodehandle){ 
@@ -860,6 +861,12 @@ public:
             data_array[3] = DXL_HIBYTE(DXL_HIWORD(data));
             groupSyncWrite_wheelGoalVel.addParam((i + 8), data_array);  // Adds message to stack arguments(servo ID, data array of bytes)
         }
+
+        // Sets a timeout for current wheel speeds
+        arduino_timout_time = clock() + ARDUINO_TIMEOUT * 1000;
+        // If we are not moving already make timeout infinite
+        if(wheel_speeds(0) == 0 && wheel_speeds(0) == 0 && wheel_speeds(0) == 0)
+            arduino_timeout_time = -1;
         
         // Sets flag to write to servos outside of callback
         sync_wheel_goal_vel = 1;
@@ -1003,6 +1010,10 @@ int main(int argc, char** argv){
         // Every few seconds restart servos if torqued out
         if(ServoObject.restart_check_time < clock())
             ServoObject.readRestart();
+
+        // If no arduino has been received recently, and we are wanting to move turn off wheels
+        if(ServoObject.arduino_timout_time < clock() && ServoObject.arduino_timout_time != -1)
+            ServoOject.wheelSpeeds([0, 0, 0]);
 
         ros::spinOnce();
         //spinner.spin();
