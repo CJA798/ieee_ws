@@ -8,10 +8,6 @@
 * it also accepts a Move function and does the kinematics and PIDs
 */
 
-// Time test
-//clock_t time1 = clock();
-//ROS_WARN("**********Time: %ld", time1);
-
 
 #include <ros/ros.h>
 #include <math.h>
@@ -60,6 +56,7 @@ using namespace dynamixel;
 #define DOWN_SPEED_SCALE        1       // Scale of acc's/vel's for linear interpolation
 #define DOWN_WAIT               150     // Milli seconds to wait before moving down for linear interpolation
 #define MAX_DOWN_SPEED          50      // Max acc's/vel's for lineal interpolation
+#define RESTART_TIME            10      // Seconds between check/restart torqued out servos
 
 // #if macros
 #define DEBUG                   1       // Prints out ros info's
@@ -108,6 +105,7 @@ PacketHandler* packetHandler = PacketHandler::getPacketHandler(PROTOCOL_VERSION)
 GroupSyncRead groupSyncRead_armPresPos(portHandler, packetHandler, PRESENT_POSITION_ADDR, NUM_BYTES_4);
 GroupSyncRead groupSyncRead_miscGoalPos(portHandler, packetHandler, GOAL_POSITION_ADDR, NUM_BYTES_4);
 GroupSyncRead groupSyncRead_miscPresPos(portHandler, packetHandler, PRESENT_POSITION_ADDR, NUM_BYTES_4);
+GroupSyncRead groupSuncRead_torque(portHandler, packetHandler, TORQUE_ENABLE_ADDR, NUM_BYTES_1);
 
 GroupSyncWrite groupSyncWrite_armGoalPos(portHandler, packetHandler, GOAL_POSITION_ADDR, NUM_BYTES_4);
 GroupSyncWrite groupSyncWrite_armAcc(portHandler, packetHandler, MAX_ACC_ADDR, NUM_BYTES_4);
@@ -120,8 +118,11 @@ GroupSyncWrite groupSyncWrite_wheelGoalVel(portHandler, packetHandler, GOAL_VELO
 class ServoClass{
 public:
     // Int flags for main
-        int arm_moving = 0, misc_moving = 0, sync_arm_goal_pos = 0, sync_arm_acc_vel = 0, 
-            sync_misc_goal_pos = 0, sync_wheel_goal_vel = 0;
+    int arm_moving = 0, misc_moving = 0, sync_arm_goal_pos = 0, sync_arm_acc_vel = 0, 
+        sync_misc_goal_pos = 0, sync_wheel_goal_vel = 0;
+
+    // Clock timers
+    clock_t restart_check_time = 10000000;
 
     // Initiating pubs, subs, and arrays
     ServoClass(ros::NodeHandle* nodehandle){ 
@@ -190,15 +191,19 @@ public:
         usleep(10000);
         packetHandler->write2ByteTxOnly(portHandler, 8, GOAL_CURRENT_ADDR, MAX_CURRENT);         // Sets gripper servo current limit
         
-        // Stets up sync read params for arm present pos
+        // Sets up sync read params for all torques
+        for(int i = 1; i < 16; i++)
+            groupSyncRead_torque.addParam(i);
+        
+        // Sets up sync read params for arm present pos
         for(int i = 1; i < 9; i++)
             groupSyncRead_armPresPos.addParam(i);
 
-        // Stets up sync read params for misc goal pos
+        // Sets up sync read params for misc goal pos
         for(int i = 12; i < 16; i++)
             groupSyncRead_miscGoalPos.addParam(i);
 
-        // Stets up sync read params for misc present pos
+        // Sets up sync read params for misc present pos
         for(int i = 12; i < 16; i++)
             groupSyncRead_miscPresPos.addParam(i);
 
@@ -455,6 +460,28 @@ public:
             Feedback.data[i] = groupSyncRead_armPresPos.getData((i + 1), 132, 4);
         }
         Feedback_pub.publish(Feedback); // Publishes 8x array of arm servo posistions
+    }
+
+
+    // Reads and restarts servos that have torqued out
+    void readRestart(){
+        // Set timer for next check
+        restart_check_time = clock() + RESTART_TIME * 1000000;
+        
+        // Executes sync read
+        groupSyncRead_torque.txRxPacket();
+
+        // Variable to hold error(not used)
+        uint8_t dxl_error = 0;
+
+        // Reboots any servo that doesn't have torque enabled
+        for (int i = 1; i < 16; i++){
+            if(!groupSyncRead_torque.getData((i), TORQUE_ENABLE_ADDR, NUM_BYTES_1))
+                packetHandler->reboot(portHandler, i, &dxl_error);
+        }
+
+        // Sets gripper servo current limit
+        packetHandler->write2ByteTxOnly(portHandler, 8, GOAL_CURRENT_ADDR, MAX_CURRENT);
     }
 
 
@@ -973,6 +1000,9 @@ int main(int argc, char** argv){
         if(ServoObject.misc_moving)
             ServoObject.miscMoving();
         
+        // Every few seconds restart servos if torqued out
+        if(restart_check_time < clock())
+            ServoObject.readRestart();
 
         ros::spinOnce();
         //spinner.spin();
