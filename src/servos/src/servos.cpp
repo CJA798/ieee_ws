@@ -123,7 +123,7 @@ public:
         sync_misc_goal_pos = 0, sync_wheel_goal_vel = 0;
 
     // Clock timers
-    clock_t restart_check_time = 10000000, arduino_timout_time;
+    clock_t restart_check_time = 10000000, arduino_timeout_time;
 
     // Initiating pubs, subs, and arrays
     ServoClass(ros::NodeHandle* nodehandle){ 
@@ -863,9 +863,9 @@ public:
         }
 
         // Sets a timeout for current wheel speeds
-        arduino_timout_time = clock() + ARDUINO_TIMEOUT * 1000;
+        arduino_timeout_time = clock() + ARDUINO_TIMEOUT * 1000;
         // If we are not moving already make timeout infinite
-        if(wheel_speeds(0) == 0 && wheel_speeds(1) == 0 && wheel_speeds(2) == 0)
+        if(wheel_speeds[0] == 0 && wheel_speeds[1] == 0 && wheel_speeds[2] == 0)
             arduino_timeout_time = -1;
         
         // Sets flag to write to servos outside of callback
@@ -992,6 +992,9 @@ int main(int argc, char** argv){
     // Starts communication and sets start vaules for servos
     ServoObject.initializeServos();
 
+    // Wheel stopped timeout array
+    double stop_wheels[] = {0, 0, 0};
+
     // Main loop
     while (ros::ok())
     {   
@@ -1012,8 +1015,8 @@ int main(int argc, char** argv){
             ServoObject.readRestart();
 
         // If no arduino has been received recently, and we are wanting to move turn off wheels
-        if(ServoObject.arduino_timout_time < clock() && ServoObject.arduino_timout_time != -1)
-            ServoOject.wheelSpeeds([0, 0, 0]);
+        if(ServoObject.arduino_timeout_time < clock() && ServoObject.arduino_timeout_time != -1)
+            ServoObject.wheelSpeeds(stop_wheels);
 
         ros::spinOnce();
         //spinner.spin();
