@@ -25,6 +25,7 @@ using namespace dynamixel;
 
 // Address table of servos
 #define TORQUE_ENABLE_ADDR      64
+#define ERROR_ADDR              70
 #define LED_ADDR                65
 #define GOAL_POSITION_ADDR      116
 #define PRESENT_LOAD_ADDR       126
@@ -108,7 +109,7 @@ PacketHandler* packetHandler = PacketHandler::getPacketHandler(PROTOCOL_VERSION)
 GroupSyncRead groupSyncRead_armPresPos(portHandler, packetHandler, PRESENT_POSITION_ADDR, NUM_BYTES_4);
 GroupSyncRead groupSyncRead_miscGoalPos(portHandler, packetHandler, GOAL_POSITION_ADDR, NUM_BYTES_4);
 GroupSyncRead groupSyncRead_miscPresPos(portHandler, packetHandler, PRESENT_POSITION_ADDR, NUM_BYTES_4);
-GroupSyncRead groupSyncRead_torque(portHandler, packetHandler, TORQUE_ENABLE_ADDR, NUM_BYTES_1);
+GroupSyncRead groupSyncRead_error(portHandler, packetHandler, ERROR_ADDR, NUM_BYTES_1);
 GroupSyncRead groupSyncRead_miscPresLoad(portHandler, packetHandler, PRESENT_LOAD_ADDR, NUM_BYTES_2);
 
 GroupSyncWrite groupSyncWrite_armGoalPos(portHandler, packetHandler, GOAL_POSITION_ADDR, NUM_BYTES_4);
@@ -126,7 +127,7 @@ public:
         sync_misc_goal_pos = 0, sync_wheel_goal_vel = 0;
 
     // Clock timers
-    clock_t restart_check_time = 10000000, arduino_timeout_time;
+    clock_t restart_check_time = 10000000, arduino_timeout_time = -1;
 
     // Initiating pubs, subs, and arrays
     ServoClass(ros::NodeHandle* nodehandle){ 
@@ -195,9 +196,9 @@ public:
         usleep(10000);
         packetHandler->write2ByteTxOnly(portHandler, 8, GOAL_CURRENT_ADDR, MAX_CURRENT);         // Sets gripper servo current limit
         
-        // Sets up sync read params for all torques
+        // Sets up sync read params for all errors
         for(int i = 1; i < 16; i++)
-            groupSyncRead_torque.addParam(i);
+            groupSyncRead_error.addParam(i);
         
         // Sets up sync read params for arm present pos
         for(int i = 1; i < 9; i++)
@@ -466,21 +467,25 @@ public:
     }
 
 
-    // Reads and restarts servos that have torqued out
+    // Reads and restarts servos that have errors
     void readRestart(){
         // Set timer for next check
         restart_check_time = clock() + RESTART_TIME * 1000000;
         
         // Executes sync read
-        groupSyncRead_torque.txRxPacket();
+        groupSyncRead_error.txRxPacket();
 
         // Variable to hold error(not used)
         uint8_t dxl_error = 0;
 
         // Reboots any servo that doesn't have torque enabled
         for (int i = 1; i < 16; i++){
-            if(!groupSyncRead_torque.getData((i), TORQUE_ENABLE_ADDR, NUM_BYTES_1))
+            if(groupSyncRead_error.getData((i), ERROR_ADDR, NUM_BYTES_1)){
                 packetHandler->reboot(portHandler, i, &dxl_error);
+                #if DEBUG
+                    ROS_WARN("**********Restarted servo: %d", i);
+                #endif
+            }
         }
 
         // Sets gripper servo current limit
@@ -804,9 +809,9 @@ public:
             speed = max_speed;
 
         // Inverse wheel kinematics
-        wheel_speeds[0] = speed * cos(theta) + linear_z;
-        wheel_speeds[1] = speed * cos(theta + (2.0 / 3.0 * 3.1415)) + linear_z;
-        wheel_speeds[2] = speed * cos(theta - (2.0 / 3.0 * 3.1415)) + linear_z;
+        wheel_speeds[0] = speed * cos(theta) + linear_z * max_speed / 500;
+        wheel_speeds[1] = speed * cos(theta + (2.0 / 3.0 * 3.1415)) + linear_z * max_speed / 500;
+        wheel_speeds[2] = speed * cos(theta - (2.0 / 3.0 * 3.1415)) + linear_z * max_speed / 500;
         
         // Find max value of wheels
         double max = abs(wheel_speeds[0]);
