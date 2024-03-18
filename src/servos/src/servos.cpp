@@ -203,7 +203,7 @@ public:
             groupSyncRead_miscPresPos.addParam(i);
 
         // Publish 8 starting arm angles and speed to Arm_Angles
-        int Arm_Start_Angles[10] = { 1586, 2902, 2898, 1471, 2063, 1802, 1041, 1980, 10, 500 };
+        int Arm_Start_Angles[10] = { 2009, 2721, 2706, 1635, 2166, 1661, 1886, 1980, 10, 500 };
         for (int i = 0; i < 10; i++) {
             Arm_Angles.data[i] = Arm_Start_Angles[i];
         }
@@ -934,7 +934,7 @@ private:
     double  desired_x = 0, error_x_prev = 0, error_x_cumulative = 0, linear_x = 0, arrived_x = 0,
             desired_y = 0, error_y_prev = 0, error_y_cumulative = 0, linear_y = 0, arrived_y = 0,
             desired_z = -1, error_z_prev = 0, error_z_cumulative = 0, linear_z = 0, arrived_z = 0,
-            max_speed = 0, bearing_offset = -1, e_stop = 0, imu_wakeup = -30;
+            max_speed = 0, bearing_offset = -1, e_stop = 0, imu_wakeup = -50;
 
     // Local task space 
     float local_task_space[6];

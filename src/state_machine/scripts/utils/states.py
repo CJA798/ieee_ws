@@ -349,6 +349,7 @@ class GoTo_(smach.State):
         if publish_command(self.move_pub, Float32MultiArray, [0, 0, -90, 100]):
             # Wait for the move to complete
             rospy.wait_for_message("Move_Done", Int8, timeout=10)
+            #rospy.sleep(2000)
             return 'arrived'
         else:
             return 'not_arrived'
@@ -360,7 +361,7 @@ class GoTo_(smach.State):
         if publish_command(self.move_pub, Float32MultiArray, [150, 1, -90, 100]): # 1) 145 -> 150
         # Wait for the move to complete
             try:
-                rospy.wait_for_message("Move_Done", Int8, timeout=1.5) #2.5->3
+                rospy.wait_for_message("Move_Done", Int8, timeout=1.75) #2.5->3
             except:
                 pass
             return 'arrived'
@@ -749,7 +750,7 @@ class PickUp(smach.State):
         raise_bulk_offset = globals['fuel_tank_raise_bulk_offset']
         
         # Move forward until before fuel tank area is reached 
-        publish_command(self.move_pub, Float32MultiArray, [155, 0, -90, 100])
+        publish_command(self.move_pub, Float32MultiArray, [155, 300, -90, 100])
         rospy.wait_for_message("Move_Done", Int8, timeout=5)
 
         # Publish the misc angles to set the bulk grabber arms to the init pose
@@ -758,21 +759,25 @@ class PickUp(smach.State):
         rospy.wait_for_message("Misc_Done", Int8, timeout=5)
         
         #Position to grab fuel tanks with bulk grabber
-        publish_command(self.move_pub, Float32MultiArray, [0, 75, -90, 100])
+        publish_command(self.move_pub, Float32MultiArray, [0, 125, -90, 100])
         rospy.wait_for_message("Move_Done", Int8, timeout=10)
         
         # Close the top arm of the bulk grabber
-        publish_command(self.misc_angles_pub, Float32MultiArray, [-1, 1350, 1060, -1]) # 2) 1215->1150->1125->1200 3) 1060 -> 1100
+        bulk_grabber_top = 1000
+        bulk_grabber_bot = 1340
+        offset = 2150
+        publish_command(self.misc_angles_pub, Float32MultiArray, [-1, bulk_grabber_bot, bulk_grabber_top, -1]) # 2) 1215->1150->1125->1200 3) 1060 -> 1100
         try:
             rospy.wait_for_message("Misc_Done", Int8, timeout=2)
         except:
             pass
         # Raise bulk grabber arms
-        if publish_command(self.misc_angles_pub, Float32MultiArray, [-1, 3215, 3060, -1]):
+        if publish_command(self.misc_angles_pub, Float32MultiArray, [-1, 3330, bulk_grabber_top+offset, -1]):
             try:
                 rospy.wait_for_message("Misc_Done", Int8, timeout=2)
             except:
                 pass
+            #rospy.sleep(2000)
             return 'packages_picked_up'
         
         else:
@@ -811,6 +816,27 @@ class DropOff(smach.State):
             return 'packages_not_dropped_off'
     
     def DropOffSmallPackages(self):
+        # Adjust arm
+        publish_and_wait(pub=self.task_space_pub,
+                         wait_for_topic='Arm_Done',
+                         message_type=Float32MultiArray,
+                         message_data=[-220,0,210,3600,2048,20,40],
+                         delay=3,
+                         timeout_function=None)
+        # Lower the arm
+        publish_and_wait(pub=self.task_space_pub,
+                        wait_for_topic='Arm_Done',
+                        message_type=Float32MultiArray,
+                        message_data=[-220,0,210,3600,2048,-70,10],
+                        delay=3,
+                        timeout_function=None)
+        # Open the gripper
+        publish_and_wait(pub=self.task_space_pub,
+                        wait_for_topic='Arm_Done',
+                        message_type=Float32MultiArray,
+                        message_data=[-220,-70,210,3600,1400,100,10],
+                        delay=3,
+                        timeout_function=None)
         # Go over red area
         #jaw = globals['gripper_bulk_hold']
         #speed = 35 #speed updated
@@ -818,7 +844,7 @@ class DropOff(smach.State):
         #publish_command(self.arm_angles_pub, Float32MultiArray, angles, delay=4)
         #rospy.loginfo('Moving arm over red area')
         #rospy.wait_for_message("Arm_Done", Int8, timeout=10) 
-
+        '''
         # Lower the arm
         jaw = globals['gripper_bulk_hold']
         speed = 8
@@ -834,9 +860,11 @@ class DropOff(smach.State):
         publish_command(self.arm_angles_pub, Float32MultiArray, angles, delay=0.7)
         #rospy.wait_for_message("Arm_Done", Int8, timeout=10) 
         rospy.loginfo('Small packages released')
-        
+        '''
         # Raise arm back over red area
-        angles = [495.0, 1669.0, 1664.0, 2507.0, 2087.0, 946.0, 3915.0, jaw, speed, 10]
+        jaw = 1400
+        speed = 50
+        angles = [495.0, 1669.0, 1664.0, 2507.0, 2087.0, 946.0, 3915.0, jaw, speed, 40]
         #publish_command(self.arm_angles_pub, Float32MultiArray, angles, delay=1.75)
         #rospy.wait_for_message("Arm_Done", Int8, timeout=1.75)
         publish_and_wait(pub=self.arm_angles_pub,
@@ -855,6 +883,7 @@ class DropOff(smach.State):
         else:
             rospy.logerr('Error releasing small packages')
             return 'packages_not_dropped_off'
+        
 
     def DropOffBigPackages(self):
         # Set the misc angles
@@ -866,7 +895,7 @@ class DropOff(smach.State):
 
         # TODO: format this method better
         # Publish the misc angles to set the bulk grabber arms to the init pose
-        if publish_command(self.misc_angles_pub, Float32MultiArray, [mid_bridge, bottom_bulk, top_bulk, flag]):
+        if publish_command(self.misc_angles_pub, Float32MultiArray, [mid_bridge, bottom_bulk, top_bulk+100, flag]):
             # Wait for the bulk grabber arms to reach the pose
             try:
                 rospy.wait_for_message("Misc_Done", Int8, timeout=10)
@@ -1023,7 +1052,7 @@ class ScanFuelTankPose(smach.State):
         publish_and_wait(pub=self.arm_angles_pub,
                         wait_for_topic='Arm_Done',
                         message_type=Float32MultiArray,
-                        message_data=[769.0, 2388.0, 2379.0, 2092.0, 2075.0, 644.0, 1800.0, gripper, speed],
+                        message_data=[1081.0, 2488.0, 2474.0, 1959.0, 2045.0, 675.0, 2089.0, gripper, speed],
                         delay=1,
                         timeout_function=rospy.sleep(1))
         return 'pose_reached'
@@ -1353,7 +1382,7 @@ class PickUpFuelTank(smach.State):
         y = target.y
         z = target.z
         # Map wrist based on x-coordinate using polynomial regression
-        wrist = round(-2e-6 * x**4 - 6e-4 * x**3 + 33e-4 * x**2 + 9.3418 * x + 2037.7126, 1)
+        wrist = round(5.189e-7 * x**5 + 1.895e-5 * x**4 - 0.003994 * x**3 - 0.1149 * x**2 + 12.87 * x + 2146, 1)
         gripper = globals['fuel_tank_gripper_open']
         speed = 25 #updated speed
 
@@ -1406,9 +1435,9 @@ class StoreFuelTank(smach.State):
     }
 
     IN_SLOT_COORDS = {
-        1: [-115, -17, -95, 3500, 2640, 25, 10],
-        2: [-30, -17, -90, 3500, 2640, 25, 10],
-        3: [40, -17, -85, 3500, 2640, 25, 10]
+        1: [-115, 50, -95, 3500, 2640, 25, 10],
+        2: [-30, 50, -90, 3500, 2640, 25, 10],
+        3: [40, 50, -85, 3500, 2640, 25, 10]
     }
 
     def __init__(self, task_space_publisher, arm_angles_publisher, slot_number=1):
@@ -1443,13 +1472,16 @@ class StoreFuelTank(smach.State):
 
         # Go back to scan fuel tank pose
         speed = 50 #updated speed
-        angles = [769.0, 2388.0, 2379.0, 2092.0, 2075.0, 644.0, 1800.0, gripper, speed, 10]
+        gripper = 2440
+        rospy.loginfo('Moving to scan pose')
+        # Publish command to set the arm to the scan pose
         publish_and_wait(pub=self.arm_angles_pub,
-                         wait_for_topic='Arm_Done',
-                         message_type=Float32MultiArray,
-                         message_data=angles,
-                         delay=2,
-                         timeout_function=None)
+                        wait_for_topic='Arm_Done',
+                        message_type=Float32MultiArray,
+                        message_data=[1081.0, 2488.0, 2474.0, 1959.0, 2045.0, 675.0, 2089.0, gripper, speed],
+                        delay=1,
+                        timeout_function=None)
+        
         rospy.sleep(1)
         return 'fuel_tank_stored'
 

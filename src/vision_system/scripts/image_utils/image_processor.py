@@ -236,7 +236,7 @@ class ImageProcessor_():
         #print(f"Area Range Factor: {area_range_factor}")
 
         coordinates, coords_image = self.find_contours(gray, pose_, area_range_factor=area_range_factor)
-        sorted_coordinates_list = sorted(coordinates, key=lambda coord: coord.x)
+        sorted_coordinates_list = sorted(coordinates, key=lambda coord: coord.x, reverse=True)
 
         coords_image = np.hstack([coords_image, orange_mask])
         
@@ -386,47 +386,60 @@ class ImageProcessor_():
         
         elif pose == Poses.FUEL_TANK_SCAN:
             KX = -1
-            PX2MM_Y = 180/self.image_height
-            PX2MM_X = 240/self.image_width * KX
+            PX2MM_Y = 160/self.image_height
+            PX2MM_X = 200/self.image_width * KX
 
             # Offset from bottom of image to arm base
-            A = 0
+            A = 15
             KY = 1
 
             # Convert px to mm
-            Zarm_xi_obj = globals['fuel_tank_Z_arm_offset']
+            Zarm_xi_obj = ((self.image_height - y) * PX2MM_Y + A) * KY
             Yarm_xi_obj = globals['fuel_tank_Y_arm_offset']
             Xarm_xi_obj = (x - self.image_width/2) * PX2MM_X
             #print(f"Y: {y}  |   Max_Cam_Height: {self.image_height}     |   Conversion Factior: {PX2MM_Y}")
 
             # Correction offsets
-            Xarm_offset = -20
-            Zarm_offset = -10
+            Xarm_offset = 0
+            Zarm_offset = -30
 
             Xarm_xi_obj = Xarm_xi_obj + Xarm_offset
+            Zarm_xi_obj = Zarm_xi_obj + Zarm_offset
 
             # Mapped offsets using linear regression
             #Xarm_mapped_offset = -0.2674 * Xarm_xi_obj + 0.3101
             # Mapped offsets using polynomial regression
-            Xarm_poly_offset = self.get_fuel_tank_poly_offset(Xarm_xi_obj)
+            #Xarm_poly_offset = self.get_fuel_tank_poly_offset(Xarm_xi_obj)
+            # Mapped offsets using polynomial regression
+            Xarm_poly_offset, Zarm_poly_offset = self.get_fuel_tank_poly_offset(Xarm_xi_obj, Zarm_xi_obj)
 
             # Total mm
             Xarm_xi_obj = Xarm_xi_obj + Xarm_poly_offset
+            #Zarm_xi_obj = Zarm_xi_obj + Zarm_poly_offset
+            Zarm_xi_obj = 70
+            
+
+            # Total mm
+            #Xarm_xi_obj = Xarm_xi_obj + Xarm_poly_offset
 
             return Xarm_xi_obj, Yarm_xi_obj, Zarm_xi_obj
 
         else:
             raise ValueError(f"Arm pose {pose} not recognized.")
     
-    def get_fuel_tank_poly_offset(self, x: float) -> float:
+    def get_fuel_tank_poly_offset(self, x: float, z: float) -> float:
         '''
         Get the offset for the fuel tank polynomial regression.
         Arguments:
             x: float - The x-coordinate in the arm frame.
+            z: float - The z-coordinate in the arm frame.
         Returns:
-            offset: float - The offset for the fuel tank polynomial regression.
+            x_offset: float - The offset for the fuel tank polynomial regression.
+            z_offset: float - The offset for the fuel tank polynomial regression.
         '''
-        return round(1e-7 * x**4 + 4e-6 * x**3 - 12e-4 * x**2 - 0.1354 * x + 5.6302, 1)
+        x_offset = round(5.022e-9 * x**5 - 5.336e-7 * x**4 - 6.161e-5 * x**3 + 0.003115 * x**2 - 0.001814 * x - 0.01657, 1)
+        z_offset = round(-0.6277 * z**2 + 88.91 * z - 3148, 1)
+        return x_offset, z_offset
     
     def get_small_package_poly_offset(self, x: float, z: float) -> float:
         '''
@@ -515,7 +528,7 @@ def main_():
             print("Can't receive frame")
             break
 
-        coords_list, coords_image = ip.get_coords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value)        
+        coords_list, coords_image = ip.get_coords(object_type=BoardObjects.FUEL_TANK.value, pose=Poses.FUEL_TANK_SCAN.value)        
         
         if coords_image is None:
             logwarn("Coords Image is None")

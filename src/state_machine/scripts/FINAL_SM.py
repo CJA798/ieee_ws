@@ -178,7 +178,7 @@ def main():
                                         #transitions={'pose_reached':'FUEL_TANK_SCAN_POSE', 'pose_not_reached':'RELEASE'})
                 #smach.StateMachine.add('FUEL_TANK_SCAN_POSE', SetPose(pose=Poses.FUEL_TANK_SCAN, arm_angles_publisher=arm_angles_pub),
                                         #transitions={'pose_reached':'packages_dropped_off', 'pose_not_reached':'FUEL_TANK_SCAN_POSE'})
-                smach.StateMachine.add('DROP_OFF_PACKAGES', DropOff(BoardObjects.SMALL_PACKAGE, arm_angles_publisher=arm_angles_pub, misc_angles_publisher=misc_angles_pub),
+                smach.StateMachine.add('DROP_OFF_PACKAGES', DropOff(BoardObjects.SMALL_PACKAGE, arm_angles_publisher=arm_angles_pub, misc_angles_publisher=misc_angles_pub, task_space_publisher=task_space_pub),
                                     transitions={'packages_dropped_off':'packages_dropped_off', 'packages_not_dropped_off':'DROP_OFF_PACKAGES'})
 
             big_packages_sm = smach.StateMachine(outcomes=['packages_dropped_off', 'packages_not_dropped_off'])
@@ -215,23 +215,31 @@ def main():
             # State machine for fuel tank sorting       
             fuel_tank_sort_sm = smach.StateMachine(outcomes=['fuel_tanks_stored', 'fuel_tanks_not_stored'])
             with fuel_tank_sort_sm:
-                '''
                 smach.StateMachine.add('SCAN_FUEL_TANK_POSE', ScanFuelTankPose(arm_angles_pub=arm_angles_pub),
                                         transitions={'pose_reached':'GET_FT_COORDS', 'pose_not_reached':'SCAN_FUEL_TANK_POSE'})
                 smach.StateMachine.add('GET_FT_COORDS', GetCoords(object_type=BoardObjects.FUEL_TANK.value, pose=Poses.FUEL_TANK_SCAN.value, timeout=2.0, expected_pairs=3, camera_enable_publisher=camera_enable_pub),
                                         transitions={'coords_received':'PICK_UP_FUEL_TANK', 'coords_not_received':'GET_FT_COORDS'})
                 smach.StateMachine.add('PICK_UP_FUEL_TANK', PickUpFuelTank(task_space_publisher=task_space_pub),
                                         transitions={'fuel_tank_picked_up':'STORE_FUEL_TANK', 'fuel_tank_not_picked_up':'PICK_UP_FUEL_TANK'})
-                smach.StateMachine.add('STORE_FUEL_TANK', StoreFuelTank(task_space_publisher=task_space_pub, arm_angles_publisher=arm_angles_pub, slot_number=1),
+                smach.StateMachine.add('STORE_FUEL_TANK', StoreFuelTank(task_space_publisher=task_space_pub, arm_angles_publisher=arm_angles_pub, slot_number=3),
                                         transitions={'fuel_tank_stored':'GET_FT_COORDS2', 'fuel_tank_not_stored':'STORE_FUEL_TANK'})
+                
                 
                 smach.StateMachine.add('GET_FT_COORDS2', GetCoords(object_type=BoardObjects.FUEL_TANK.value, pose=Poses.FUEL_TANK_SCAN.value, timeout=2.0, expected_pairs=2, camera_enable_publisher=camera_enable_pub),
                                         transitions={'coords_received':'PICK_UP_FUEL_TANK2', 'coords_not_received':'GET_FT_COORDS2'})
                 smach.StateMachine.add('PICK_UP_FUEL_TANK2', PickUpFuelTank(task_space_publisher=task_space_pub),
                                         transitions={'fuel_tank_picked_up':'STORE_FUEL_TANK2', 'fuel_tank_not_picked_up':'PICK_UP_FUEL_TANK2'})
                 smach.StateMachine.add('STORE_FUEL_TANK2', StoreFuelTank(task_space_publisher=task_space_pub, arm_angles_publisher=arm_angles_pub, slot_number=2),
-                                        transitions={'fuel_tank_stored':'fuel_tanks_stored', 'fuel_tank_not_stored':'STORE_FUEL_TANK2'})
-                '''
+                                        transitions={'fuel_tank_stored':'GET_FT_COORDS3', 'fuel_tank_not_stored':'STORE_FUEL_TANK2'})
+
+                
+                smach.StateMachine.add('GET_FT_COORDS3', GetCoords(object_type=BoardObjects.FUEL_TANK.value, pose=Poses.FUEL_TANK_SCAN.value, timeout=2.0, expected_pairs=2, camera_enable_publisher=camera_enable_pub),
+                                        transitions={'coords_received':'PICK_UP_FUEL_TANK3', 'coords_not_received':'GET_FT_COORDS3'})
+                smach.StateMachine.add('PICK_UP_FUEL_TANK3', PickUpFuelTank(task_space_publisher=task_space_pub),
+                                        transitions={'fuel_tank_picked_up':'STORE_FUEL_TANK3', 'fuel_tank_not_picked_up':'PICK_UP_FUEL_TANK3'})
+                smach.StateMachine.add('STORE_FUEL_TANK3', StoreFuelTank(task_space_publisher=task_space_pub, arm_angles_publisher=arm_angles_pub, slot_number=1),
+                                        transitions={'fuel_tank_stored':'fuel_tanks_stored', 'fuel_tank_not_stored':'STORE_FUEL_TANK3'})
+                
                 smach.StateMachine.add('REST_POSE', RestPose(arm_angles_pub=arm_angles_pub),
                                     transitions={'pose_reached':'fuel_tanks_stored', 'pose_not_reached':'REST_POSE'})
             
