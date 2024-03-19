@@ -359,16 +359,38 @@ class GoTo_(smach.State):
 
     def GoToFuelTankArea(self):
         '''State to move the robot to the fuel tank area'''
-        if publish_command(self.move_pub, Float32MultiArray, [150, 1, -90, 100]): # 1) 145 -> 150
-        # Wait for the move to complete
-            try:
-                rospy.wait_for_message("Move_Done", Int8, timeout=1.75) #2.5->3
-            except:
-                pass
-            return 'arrived'
-        else:
-            return 'not arrived'
+        # Go past the dropoff area
+        publish_and_wait(pub=self.move_pub,
+                        wait_for_topic="Move_Done",
+                        message_type=Float32MultiArray,
+                        message_data=[0, 1, -90, 100],
+                        delay=0.5,
+                        timeout_function=None)
+        rospy.loginfo('Drove past the big packages')
 
+        # Go to about halfway to the fuel tank area, keeping a proper right distance
+        publish_and_wait(pub=self.move_pub,
+                        wait_for_topic="Move_Done",
+                        message_type=Float32MultiArray,
+                        message_data=[155, 1, -90, 100],
+                        delay=1,
+                        timeout_function=None)
+        rospy.loginfo('Bot is about halfway to the fuel tank area')
+
+        # Publish the misc angles to set the bulk grabber arms to the init pose
+        publish_command(self.misc_angles_pub, Float32MultiArray, [-1, 1200, 1400, -1]) # 2) 1050 -> 1150 -> 1125->1200 3) 1225->1400
+        rospy.loginfo('Bulk grabber arms set to init pose')
+
+        # Drive forward until the fuel tank area is reached
+        publish_and_wait(pub=self.move_pub,
+                        wait_for_topic="Move_Done",
+                        message_type=Float32MultiArray,
+                        message_data=[0, 125, -90, 100],
+                        delay=2,
+                        timeout_function=None)
+        rospy.loginfo('Arrived to fuel tank area')
+        
+        return 'arrived'
 
         
     def GoToCraterArea(self):
@@ -491,7 +513,7 @@ class GoTo_(smach.State):
         #publish_command(self.move_pub, Float32MultiArray, [0, 0, 0, 0])
         #rospy.wait_for_message("Move_Done", Int8, timeout=10)
 
-        publish_command(self.move_pub, Float32MultiArray, [100, 250, 90, 100])
+        publish_command(self.move_pub, Float32MultiArray, [120, 180, 90, 100])
         rospy.wait_for_message("Move_Done", Int8, timeout=10)
 
         if publish_command(self.move_pub, Float32MultiArray, [0, 0, 0, 0]):
@@ -750,19 +772,6 @@ class PickUp(smach.State):
         flag = globals['lowered_flag']
         raise_bulk_offset = globals['fuel_tank_raise_bulk_offset']
         
-        # Move forward until before fuel tank area is reached 
-        publish_command(self.move_pub, Float32MultiArray, [155, 300, -90, 100])
-        rospy.wait_for_message("Move_Done", Int8, timeout=5)
-
-        # Publish the misc angles to set the bulk grabber arms to the init pose
-        publish_command(self.misc_angles_pub, Float32MultiArray, [-1, 1200, 1400, -1]) # 2) 1050 -> 1150 -> 1125->1200 3) 1225->1400
-        # Wait for the bulk grabber arms to reach the pose
-        rospy.wait_for_message("Misc_Done", Int8, timeout=5)
-        
-        #Position to grab fuel tanks with bulk grabber
-        publish_command(self.move_pub, Float32MultiArray, [0, 125, -90, 100])
-        rospy.wait_for_message("Move_Done", Int8, timeout=10)
-        
         # Close the top arm of the bulk grabber
         bulk_grabber_top = 1000
         bulk_grabber_bot = 1340
@@ -773,7 +782,7 @@ class PickUp(smach.State):
         except:
             pass
         # Raise bulk grabber arms
-        if publish_command(self.misc_angles_pub, Float32MultiArray, [-1, 3400, bulk_grabber_top+offset, -1]):
+        if publish_command(self.misc_angles_pub, Float32MultiArray, [-1, 3430, bulk_grabber_top+offset, -1]):
             try:
                 rospy.wait_for_message("Misc_Done", Int8, timeout=2)
             except:
@@ -1529,3 +1538,89 @@ class PackageStateResolver(smach.State):
             return 'move_after_big_packages'
         else:
             return 'packages_picked_up'
+
+
+class FuelTankPlacer(smach.State):
+    def __init__(self,task_space_publisher):
+        smach.State.__init__(self,
+                              outcomes=['fuel_tanks_placed','fuel_tanks_not_placed'])
+        self.task_space_pub = task_space_publisher
+
+    def execute(self, userdata):
+                
+        #hover over the fuel tank holder
+        publish_and_wait(pub=self.task_space_pub,
+                    wait_for_topic='Arm_Done',
+                    message_type=Float32MultiArray,
+                    message_data=[-40, 100, -133, 2230, 1980, 10, 10],
+                    delay=2,
+                    timeout_function=None)
+
+        #get lower to grab the device
+        publish_and_wait(pub=self.task_space_pub,
+                wait_for_topic='Arm_Done',
+                message_type=Float32MultiArray,
+                message_data=[-40, -10, -133, 2230, 1980, 10, 10],
+                delay=2,
+                timeout_function=None)    
+
+        #close gripper
+        publish_and_wait(pub=self.task_space_pub,
+                wait_for_topic='Arm_Done',
+                message_type=Float32MultiArray,
+                message_data=[-40, -10, -133, 2230, 2700, 10, 10],
+                delay=2,
+                timeout_function=None)    
+        
+        #position the arm just above the thruster assembly zone
+        publish_and_wait(pub=self.task_space_pub,
+                wait_for_topic='Arm_Done',
+                message_type=Float32MultiArray,
+                message_data=[150, 100, 70, 2230, 2700, 10, 10],
+                delay=2,
+                timeout_function=None)
+
+        #twist the wrist
+        publish_and_wait(pub=self.task_space_pub,
+                wait_for_topic='Arm_Done',
+                message_type=Float32MultiArray,
+                message_data=[150, 100, 70, 3700, 2700, 10, 10],
+                delay=2,
+                timeout_function=None)
+        
+        #place the device
+        publish_and_wait(pub=self.task_space_pub,
+                wait_for_topic='Arm_Done',
+                message_type=Float32MultiArray,
+                message_data=[150, 100, 70, 3700, 2700, -120, 10],
+                delay=2,
+                timeout_function=None)
+        
+        #release
+        publish_and_wait(pub=self.task_space_pub,
+                wait_for_topic='Arm_Done',
+                message_type=Float32MultiArray,
+                message_data=[150, -20, 70, 3700, 1400, 100, 10],
+                delay=2,
+                timeout_function=None)
+        
+        #get to a better position to press the button
+        publish_and_wait(pub=self.task_space_pub,
+                wait_for_topic='Arm_Done',
+                message_type=Float32MultiArray,
+                message_data=[150, 100, 70, 3700, 1400, 10, 10],
+                delay=2,
+                timeout_function=None)
+        
+        publish_and_wait(pub=self.task_space_pub,
+                wait_for_topic='Arm_Done',
+                message_type=Float32MultiArray,
+                message_data=[100, 100, 100, 2048, 2700, 10, 10],
+                delay=2,
+                timeout_function=None)
+        
+        return 'fuel_tanks_placed'
+        
+
+        
+

@@ -196,7 +196,7 @@ def main():
                                             'packages_not_dropped_off':'PACKAGE_DROP_OFF'})
 
         # Go to fuel tank area
-        smach.StateMachine.add('GO_TO_FUEL_TANK_AREA', GoTo_(Areas.FUEL_TANK, move_publisher=move_pub, grav_enable_publisher=grav_enable_pub), 
+        smach.StateMachine.add('GO_TO_FUEL_TANK_AREA', GoTo_(Areas.FUEL_TANK, move_publisher=move_pub, misc_angles_publisher=misc_angles_pub, grav_enable_publisher=grav_enable_pub), 
                                        transitions={'arrived':'PICK_UP_FUEL_TANKS', 'not_arrived':'GO_TO_FUEL_TANK_AREA'})
 
         # Pick up fuel tanks
@@ -260,8 +260,11 @@ def main():
 
         
         smach.StateMachine.add('FUEL_TANK_SORT_AND_FINAL_AREA', fuel_tank_sort_and_final_area_sm,
-                                transitions={'succeeded':'SPIRIT_CELEBRATION', 'aborted':'FUEL_TANK_SORT_AND_FINAL_AREA'})
+                                transitions={'succeeded':'FUEL_TANKS_PLACING', 'aborted':'FUEL_TANK_SORT_AND_FINAL_AREA'})
         
+
+        smach.StateMachine.add('FUEL_TANKS_PLACING', FuelTankPlacer(task_space_publisher=task_space_pub),
+                               transitions = {'fuel_tanks_placed':'SPIRIT_CELEBRATION', 'fuel_tanks_not_placed':'FUEL_TANKS_PLACING'})
         
         
         smach.StateMachine.add('SPIRIT_CELEBRATION', SpiritCelebration(misc_angles_publisher = misc_angles_pub, arm_angles_publisher=arm_angles_pub),
