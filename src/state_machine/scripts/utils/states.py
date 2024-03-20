@@ -109,7 +109,7 @@ class Initialize(smach.State):
 
             # Check if the heartbeat is received, i.e. the Arduino is connected
             if not globals['heartbeat_on']:
-                rospy.logerr('Heartbeat not received')
+                rospy.logerr_once('Heartbeat not received')
                 rospy.sleep(1)
                 return 'aborted'
             
@@ -1010,15 +1010,22 @@ class ScanPose(smach.State):
     def execute(self, userdata):
         speed = 100 #updated speed
         jaw = globals['gripper_bulk_hold']
-        rospy.loginfo('Moving to scan pose')
-        # Publish command to set the arm to the scan pose
-        if publish_command(self.arm_angles_pub, Float32MultiArray, [2041.0, 2023.0, 2015.0, 2660.0, 2083.0, 500.0, 2039.0, jaw, speed, 10]):
-            # Wait for the arm to reach the pose
-            #rospy.wait_for_message("Arm_Done", Int8, timeout=15)
-            rospy.sleep(1)
+        tolerance = 10
+        angles = [2041.0, 2023.0, 2015.0, 2660.0, 2083.0, 500.0, 2039.0, jaw, speed, tolerance]
+        if publish_and_wait(pub=self.arm_angles_pub,
+                            wait_for_topic='Arm_Done',
+                            message_type=Float32MultiArray,
+                            message_data=angles,
+                            delay=1,
+                            timeout_function=None):
+            # Wait 2 seconds for the arm to stabilize
+            rospy.sleep(2)
+            rospy.loginfo('Arm set to scan pose')
             return 'pose_reached'
         else:
+            rospy.logerr('Error setting arm to scan pose')
             return 'pose_not_reached'
+        
 
 
 class ScanFuelTankPose(smach.State):

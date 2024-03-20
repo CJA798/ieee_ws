@@ -13,7 +13,7 @@ globals: Dict[str, Union[bool, int, None]] = {
     'arm_done': False,
 
     # Vision Macros
-    'publish_raw_image': False,
+    'publish_raw_image': True,
     'img_resize_factor': 2,
     'max_cam_res': (1920, 1080),
     'current_cam_res': None,
