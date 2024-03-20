@@ -227,7 +227,7 @@ class GoTo_(smach.State):
         publish_and_wait(pub=self.move_pub,
                         wait_for_topic="Move_Done",
                         message_type=Float32MultiArray,
-                        message_data=[-500, 0, 0, 25],
+                        message_data=[-78, 0, 0, 100],
                         delay=2,
                         timeout_function=lambda: stop_move(self.move_pub))
         return 'arrived'
@@ -586,12 +586,15 @@ class SetPose(smach.State):
         bottom_bulk = globals['set_bulk_bottom']
         flag = -1
 
-        # Publish the misc angles to set the bulk grabber arms to the init pose
-        if publish_command(self.misc_angles_pub, Float32MultiArray, [bridge, bottom_bulk, 1270, flag]):
-            # Waitfor the bulk grabber arms to reach the pose
-            rospy.wait_for_message("Misc_Done", Int8, timeout=10)
-            publish_command(self.misc_angles_pub, Float32MultiArray, [-1, -1, -3, -1], delay=0.1)
-
+        publish_and_wait(pub=self.misc_angles_pub,
+                         wait_for_topic="Misc_Done",
+                        message_type=Float32MultiArray,
+                        message_data=[bridge, bottom_bulk, 1270, flag],
+                        delay=2,
+                        timeout_function=None)
+        rospy.loginfo('Bulk grabber arms in set pose')
+        if publish_command(self.misc_angles_pub, Float32MultiArray, [-1, -1, -3, -1]):
+            rospy.loginfo("Top bulk grabber arm's torque disabled")
             return 'pose_reached'
         else:
             return 'pose_not_reached'
@@ -603,12 +606,12 @@ class SetPose(smach.State):
         bottom_bulk = globals['set_bulk_bottom']
         flag = -1
 
-        # Enable top arm of bulk grabber's torque
-        publish_command(self.misc_angles_pub, Float32MultiArray, [-1, -1, -2, -1], delay=0.05)
-        # Publish the misc angles to close the top bulk grabber arm
-        if publish_command(self.misc_angles_pub, Float32MultiArray, [bridge, bottom_bulk, top_bulk, flag], delay=1):
-            # Waitfor the bulk grabber arms to reach the pose
-            #rospy.wait_for_message("Misc_Done", Int8, timeout=10)
+        if publish_and_wait(pub=self.misc_angles_pub,
+                        wait_for_topic="Misc_Done",
+                        message_type=Float32MultiArray,
+                        message_data=[bridge, bottom_bulk, 1050, flag],
+                        delay=1,
+                        timeout_function=None):
             return 'pose_reached'
         else:
             return 'pose_not_reached'

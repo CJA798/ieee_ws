@@ -68,7 +68,7 @@ def main():
                                                 'no_coordinates_received': 'HOME_POSE'})
             
             smach.StateMachine.add('HOME_POSE', RestPose(arm_angles_pub=arm_angles_pub),
-                                    transitions={'pose_reached':'packages_picked_up', 'pose_not_reached':'HOME_POSE'})
+                                    transitions={'pose_reached':'SET_BULK_GRABBER_ARMS', 'pose_not_reached':'HOME_POSE'})
             
             # Sweep if necessary
             # After a sweep, a new scan is necessary to update the coordinates list
@@ -76,7 +76,7 @@ def main():
                                     transitions={'succeeded':'SCAN_POSE', 'aborted':'SWEEP_SMALL_PACKAGES'})
             smach.StateMachine.add('SOFT_SWEEP', Sweep(task_space_pub=task_space_pub, soft=True),
                                     transitions={'succeeded':'SCAN_POSE', 'aborted':'SOFT_SWEEP'})
-            '''
+            
 
             #################################################################################################################################
             # Pickup big packages
@@ -85,11 +85,12 @@ def main():
             smach.StateMachine.add('MOVE_TO_BIG_PACKAGE_WALL', GoTo_(Areas.BIG_PACKAGE_WALL, move_publisher=move_pub, grav_enable_publisher=grav_enable_pub, misc_angles_publisher=misc_angles_pub),
                                     transitions={'arrived':'CLOSE_TOP_BULK_GRABBER_ARM', 'not_arrived':'MOVE_TO_BIG_PACKAGE_WALL'})
             smach.StateMachine.add('CLOSE_TOP_BULK_GRABBER_ARM', SetPose(pose=Poses.CLOSE_TOP_BULK_GRABBER_ARM, misc_angles_publisher=misc_angles_pub),
-                                    transitions={'pose_reached':'RAISE_BULK_GRABBER', 'pose_not_reached':'CLOSE_TOP_BULK_GRABBER_ARM'})
+                                    transitions={'pose_reached':'packages_picked_up', 'pose_not_reached':'CLOSE_TOP_BULK_GRABBER_ARM'})
+            '''
             smach.StateMachine.add('RAISE_BULK_GRABBER', SetPose(pose=Poses.RAISE_BULK_GRABBER, move_publisher=move_pub, misc_angles_publisher=misc_angles_pub),
-                                    transitions={'pose_reached':'PACKAGE_STATE_RESOLVER', 'pose_not_reached':'RAISE_BULK_GRABBER'})
+                                    transitions={'pose_reached':'packages_picked_up', 'pose_not_reached':'RAISE_BULK_GRABBER'})
             
-
+            
             #################################################################################################################################
             # Determine the next state based on the userdata.
             # This state determines whether to pick up, move to re-scan, or do both after the big block pickup
