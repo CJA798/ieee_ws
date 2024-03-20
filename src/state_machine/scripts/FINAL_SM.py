@@ -172,19 +172,12 @@ def main():
             small_packages_sm = smach.StateMachine(outcomes=['packages_dropped_off', 'packages_not_dropped_off'])
             
             with small_packages_sm:
-                #smach.StateMachine.add('DROP_OFF_SMALL_PACKAGES_POSE', SetPose(pose=Poses.DROP_OFF_SMALL_PACKAGES, arm_angles_publisher=arm_angles_pub),
-                                        #transitions={'pose_reached':'RELEASE', 'pose_not_reached':'DROP_OFF_SMALL_PACKAGES_POSE'})
-                #smach.StateMachine.add('RELEASE', SetPose(pose=Poses.RELEASE_SMALL_PACKAGES, arm_angles_publisher=arm_angles_pub),
-                                        #transitions={'pose_reached':'FUEL_TANK_SCAN_POSE', 'pose_not_reached':'RELEASE'})
-                #smach.StateMachine.add('FUEL_TANK_SCAN_POSE', SetPose(pose=Poses.FUEL_TANK_SCAN, arm_angles_publisher=arm_angles_pub),
-                                        #transitions={'pose_reached':'packages_dropped_off', 'pose_not_reached':'FUEL_TANK_SCAN_POSE'})
                 smach.StateMachine.add('DROP_OFF_PACKAGES', DropOff(BoardObjects.SMALL_PACKAGE, arm_angles_publisher=arm_angles_pub, misc_angles_publisher=misc_angles_pub, task_space_publisher=task_space_pub),
                                     transitions={'packages_dropped_off':'packages_dropped_off', 'packages_not_dropped_off':'DROP_OFF_PACKAGES'})
 
             big_packages_sm = smach.StateMachine(outcomes=['packages_dropped_off', 'packages_not_dropped_off'])
 
             with big_packages_sm:
-                # TODO: Add dropoff state to fix bulk grabber arm positions, so that it doesn't cover TOF_Right
                 smach.StateMachine.add('DROP_OFF_PACKAGES', DropOff(BoardObjects.BIG_PACKAGE, arm_angles_publisher=arm_angles_pub, misc_angles_publisher=misc_angles_pub),
                                     transitions={'packages_dropped_off':'packages_dropped_off', 'packages_not_dropped_off':'DROP_OFF_PACKAGES'})
 
@@ -260,7 +253,13 @@ def main():
 
         
         smach.StateMachine.add('FUEL_TANK_SORT_AND_FINAL_AREA', fuel_tank_sort_and_final_area_sm,
-                                transitions={'succeeded':'FUEL_TANKS_PLACING', 'aborted':'FUEL_TANK_SORT_AND_FINAL_AREA'})
+                                transitions={'succeeded':'SET_BULK_GRABBER_ARMS_DOWN', 'aborted':'FUEL_TANK_SORT_AND_FINAL_AREA'})
+        
+
+        smach.StateMachine.add('SET_BULK_GRABBER_ARMS_DOWN', DropOff(BoardObjects.BIG_PACKAGE, misc_angles_publisher=misc_angles_pub),
+                                transitions={'packages_dropped_off':'FUEL_TANKS_PLACING', 'packages_not_dropped_off':'SET_BULK_GRABBER_ARMS_DOWN'})
+        
+        
         
 
         smach.StateMachine.add('FUEL_TANKS_PLACING', FuelTankPlacer(task_space_publisher=task_space_pub),

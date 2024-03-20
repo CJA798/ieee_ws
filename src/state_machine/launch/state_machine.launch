@@ -43,7 +43,7 @@
 
     <!-- STATE MACHINE -->
     <node pkg="state_machine" 
-    type="FINAL_SM.py" 
+    type="COMP_SM.py" 
     name="STATE" 
     output="screen">
     </node>

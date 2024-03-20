@@ -106,17 +106,18 @@ class Initialize(smach.State):
             Exception: Any exception that occurs during the state execution'''
         try:
             rospy.loginfo('Executing state Initialize')
-            rospy.sleep(5)
 
             # Check if the heartbeat is received, i.e. the Arduino is connected
             if not globals['heartbeat_on']:
                 rospy.logerr('Heartbeat not received')
+                rospy.sleep(1)
                 return 'aborted'
             
             # Publish the init message to the Arduino
             init_msg = Bool()
             init_msg.data = True
             self.init_state_pub.publish(init_msg)
+            rospy.loginfo('Init message published')
             return 'succeeded'
 
         # Handle any exceptions that occur during the state execution
@@ -143,17 +144,12 @@ class ReadingStartLED(smach.State):
                 
         Raises:
             Exception: Any exception that occurs during the state execution'''
-        
-        rate = rospy.Rate(20)  # 10 Hz
-        # Wait for the green LED to be detected
         try:
-            while not globals['green_detected'] and not rospy.is_shutdown():
-                rate.sleep()
+            rospy.wait_for_message("LED_State", Bool, timeout=None)
+            rospy.loginfo('Green LED detected')
             return 'green_led_detected'
-        
-        # Handle any exceptions that occur during the state execution
-        except Exception as e:
-            rospy.logerr("Error in ReadingStartLED: {}".format(e))
+        except:
+            rospy.logerr_once('Green LED not detected')
             return 'green_led_not_detected'
               
 
@@ -217,7 +213,7 @@ class GoTo_(smach.State):
             # Handle any exceptions that occur during the state execution
             except Exception as e:
                 rospy.logerr(f"Error in GoTo{self.area}: {e}")
-                return 'not_arrived'
+                return 'not_arrived'        
             
             return outcome
         else:
@@ -227,15 +223,14 @@ class GoTo_(smach.State):
     
     def GoToBigPackageWall(self):
         '''State to move the robot to the big package wall'''
-        # Disable bulk grabber's top arm torque
-        # No delays
-        #Use the left TOF instead of timers
-        
-        # Publish move to the big package wall
-        y_offset = globals['big_package_Y_offset']
-        #try TOF left values
-        publish_command(self.move_pub, Float32MultiArray, [1, 0, 0, 30], delay=1)
-
+        rospy.loginfo('Moving to big package wall')
+        publish_and_wait(pub=self.move_pub,
+                        wait_for_topic="Move_Done",
+                        message_type=Float32MultiArray,
+                        message_data=[-500, 0, 0, 25],
+                        delay=2,
+                        timeout_function=lambda: stop_move(self.move_pub))
+        return 'arrived'
         '''
         This is the sensor-based version
         
@@ -251,30 +246,6 @@ class GoTo_(smach.State):
         rospy.logerror('Move to big package wall failed')
         return 'not_arrived'
         '''
-
-        # Wait for the move_done message
-        #rospy.wait_for_message("Move_Done", Int8, timeout=5)
-        if stop_move(self.move_pub):
-            return 'arrived'
-        # TODO: implement timeout routine
-        rospy.logerror('Move to big package wall failed')
-        return 'not_arrived'
-
-    def GoToPushBigPackages(self):
-        '''State to move the robot to the push big packages area'''
-        # Publish command to push the big packages forward
-        y_offset = globals['big_package_Y_offset']
-        publish_command(self.move_pub, Float32MultiArray, [y_offset, 1, 0, 20])
-
-        # Wait for the move to complete
-        # This one is an exception bc we don't have a rear TOF
-        rospy.sleep(1)
-
-        # Stop
-        if stop_move(self.move_pub):
-            return 'arrived'
-        else:
-            return 'not_arrived'
         
     def GoToReScan(self):
         '''State to move the robot to the re-scan area'''
@@ -283,8 +254,8 @@ class GoTo_(smach.State):
         publish_and_wait(self.move_pub,
                         "Move_Done",
                         Float32MultiArray,
-                        [0, 0.2, 0, 50],
-                        delay=1,
+                        [0, 1, 0, 50],
+                        delay=0.8,
                         timeout_function=lambda: stop_move(self.move_pub))
         return 'arrived'
  
@@ -372,13 +343,13 @@ class GoTo_(smach.State):
         publish_and_wait(pub=self.move_pub,
                         wait_for_topic="Move_Done",
                         message_type=Float32MultiArray,
-                        message_data=[155, 1, -90, 100],
+                        message_data=[155, 1, -90, 100], #This X value makes me suspect the PID is not working well, hada run of 145 work perfect
                         delay=1,
                         timeout_function=None)
         rospy.loginfo('Bot is about halfway to the fuel tank area')
 
         # Publish the misc angles to set the bulk grabber arms to the init pose
-        publish_command(self.misc_angles_pub, Float32MultiArray, [-1, 1200, 1400, -1]) # 2) 1050 -> 1150 -> 1125->1200 3) 1225->1400
+        publish_command(self.misc_angles_pub, Float32MultiArray, [-1, 1300, 1400, -1]) # bottom :2)1200->1300  top:3) 
         rospy.loginfo('Bulk grabber arms set to init pose')
 
         # Drive forward until the fuel tank area is reached
@@ -394,7 +365,7 @@ class GoTo_(smach.State):
 
         
     def GoToCraterArea(self):
-        rate = rospy.Rate(30)
+        rate = rospy.Rate(2000)
         record_tof_back = 0
         
         # Publish command to rotate
@@ -616,9 +587,11 @@ class SetPose(smach.State):
         flag = -1
 
         # Publish the misc angles to set the bulk grabber arms to the init pose
-        if publish_command(self.misc_angles_pub, Float32MultiArray, [bridge, bottom_bulk, top_bulk, flag]):
+        if publish_command(self.misc_angles_pub, Float32MultiArray, [bridge, bottom_bulk, 1270, flag]):
             # Waitfor the bulk grabber arms to reach the pose
             rospy.wait_for_message("Misc_Done", Int8, timeout=10)
+            publish_command(self.misc_angles_pub, Float32MultiArray, [-1, -1, -3, -1], delay=0.1)
+
             return 'pose_reached'
         else:
             return 'pose_not_reached'
@@ -631,7 +604,7 @@ class SetPose(smach.State):
         flag = -1
 
         # Enable top arm of bulk grabber's torque
-        publish_command(self.misc_angles_pub, Float32MultiArray, [-1, -1, -2, -1], delay=0.1)
+        publish_command(self.misc_angles_pub, Float32MultiArray, [-1, -1, -2, -1], delay=0.05)
         # Publish the misc angles to close the top bulk grabber arm
         if publish_command(self.misc_angles_pub, Float32MultiArray, [bridge, bottom_bulk, top_bulk, flag], delay=1):
             # Waitfor the bulk grabber arms to reach the pose
@@ -647,10 +620,8 @@ class SetPose(smach.State):
         bottom_bulk = globals['raise_bulk_bottom']
         flag = -1
 
-        #use record tof left?
-
         # Move back to beginning
-        publish_command(self.move_pub, Float32MultiArray, [-170, 0, 0, 20], delay=1)
+        publish_command(self.move_pub, Float32MultiArray, [-170, 0, 0, 50], delay=2)
        
         # Publish the misc angles to raise the bulk grabber arms
         if publish_command(self.misc_angles_pub, Float32MultiArray, [bridge, bottom_bulk, top_bulk, flag]):
@@ -771,11 +742,13 @@ class PickUp(smach.State):
         bottom_bulk = globals['set_bulk_bottom']
         flag = globals['lowered_flag']
         raise_bulk_offset = globals['fuel_tank_raise_bulk_offset']
-        
+
+
+        #rospy.sleep(30)
         # Close the top arm of the bulk grabber
-        bulk_grabber_top = 1000
-        bulk_grabber_bot = 1340
-        offset = 2150
+        bulk_grabber_top = 1110 #1000                     *I made it 20 tighter to try and survive the ramp
+        bulk_grabber_bot = 1310 #1340
+        offset = 1900  # 2150
         publish_command(self.misc_angles_pub, Float32MultiArray, [-1, bulk_grabber_bot, bulk_grabber_top, -1]) # 2) 1215->1150->1125->1200 3) 1060 -> 1100
         try:
             rospy.wait_for_message("Misc_Done", Int8, timeout=2)
@@ -830,21 +803,21 @@ class DropOff(smach.State):
         publish_and_wait(pub=self.task_space_pub,
                          wait_for_topic='Arm_Done',
                          message_type=Float32MultiArray,
-                         message_data=[-220,0,210,3600,2048,20,40],
+                         message_data=[-220,0,210,3600,2048,20,100],
                          delay=3,
                          timeout_function=None)
         # Lower the arm
         publish_and_wait(pub=self.task_space_pub,
                         wait_for_topic='Arm_Done',
                         message_type=Float32MultiArray,
-                        message_data=[-220,0,210,3600,2048,-70,10],
+                        message_data=[-220,0,210,3600,2048,-70,100],
                         delay=3,
                         timeout_function=None)
         # Open the gripper
         publish_and_wait(pub=self.task_space_pub,
                         wait_for_topic='Arm_Done',
                         message_type=Float32MultiArray,
-                        message_data=[-220,-70,210,3600,1400,100,10],
+                        message_data=[-220,-70,210,3600,1400,100,100],
                         delay=3,
                         timeout_function=None)
         # Go over red area
@@ -874,7 +847,7 @@ class DropOff(smach.State):
         # Raise arm back over red area
         jaw = 1400
         speed = 50
-        angles = [495.0, 1669.0, 1664.0, 2507.0, 2087.0, 946.0, 3915.0, jaw, speed, 40]
+        angles = [495.0, 1669.0, 1664.0, 2507.0, 2087.0, 946.0, 3915.0, jaw, speed, 100]
         #publish_command(self.arm_angles_pub, Float32MultiArray, angles, delay=1.75)
         #rospy.wait_for_message("Arm_Done", Int8, timeout=1.75)
         publish_and_wait(pub=self.arm_angles_pub,
@@ -905,7 +878,7 @@ class DropOff(smach.State):
 
         # TODO: format this method better
         # Publish the misc angles to set the bulk grabber arms to the init pose
-        if publish_command(self.misc_angles_pub, Float32MultiArray, [mid_bridge, bottom_bulk, top_bulk+100, flag]):
+        if publish_command(self.misc_angles_pub, Float32MultiArray, [mid_bridge, bottom_bulk, top_bulk-200, flag]):
             # Wait for the bulk grabber arms to reach the pose
             try:
                 rospy.wait_for_message("Misc_Done", Int8, timeout=10)
@@ -1553,7 +1526,7 @@ class FuelTankPlacer(smach.State):
                     wait_for_topic='Arm_Done',
                     message_type=Float32MultiArray,
                     message_data=[-40, 100, -133, 2230, 1980, 10, 10],
-                    delay=2,
+                    delay=10,
                     timeout_function=None)
 
         #get lower to grab the device
@@ -1561,7 +1534,7 @@ class FuelTankPlacer(smach.State):
                 wait_for_topic='Arm_Done',
                 message_type=Float32MultiArray,
                 message_data=[-40, -10, -133, 2230, 1980, 10, 10],
-                delay=2,
+                delay=10,
                 timeout_function=None)    
 
         #close gripper
@@ -1569,38 +1542,38 @@ class FuelTankPlacer(smach.State):
                 wait_for_topic='Arm_Done',
                 message_type=Float32MultiArray,
                 message_data=[-40, -10, -133, 2230, 2700, 10, 10],
-                delay=2,
+                delay=10,
                 timeout_function=None)    
         
         #position the arm just above the thruster assembly zone
         publish_and_wait(pub=self.task_space_pub,
                 wait_for_topic='Arm_Done',
                 message_type=Float32MultiArray,
-                message_data=[150, 100, 70, 2230, 2700, 10, 10],
-                delay=2,
+                message_data=[145, 100, 70, 2230, 2700, 10, 10],
+                delay=10,
                 timeout_function=None)
 
         #twist the wrist
         publish_and_wait(pub=self.task_space_pub,
                 wait_for_topic='Arm_Done',
                 message_type=Float32MultiArray,
-                message_data=[150, 100, 70, 3700, 2700, 10, 10],
-                delay=2,
+                message_data=[145, 100, 70, 3700, 2700, 10, 10],
+                delay=10,
                 timeout_function=None)
         
         #place the device
         publish_and_wait(pub=self.task_space_pub,
                 wait_for_topic='Arm_Done',
                 message_type=Float32MultiArray,
-                message_data=[150, 100, 70, 3700, 2700, -120, 10],
-                delay=2,
+                message_data=[145, 100, 70, 3700, 2700, -200, 10],
+                delay=10,
                 timeout_function=None)
         
         #release
         publish_and_wait(pub=self.task_space_pub,
                 wait_for_topic='Arm_Done',
                 message_type=Float32MultiArray,
-                message_data=[150, -20, 70, 3700, 1400, 100, 10],
+                message_data=[145, -100, 70, 3700, 1400, 100, 10],
                 delay=2,
                 timeout_function=None)
         
@@ -1608,7 +1581,7 @@ class FuelTankPlacer(smach.State):
         publish_and_wait(pub=self.task_space_pub,
                 wait_for_topic='Arm_Done',
                 message_type=Float32MultiArray,
-                message_data=[150, 100, 70, 3700, 1400, 10, 10],
+                message_data=[145, 100, 70, 3700, 1400, 10, 10],
                 delay=2,
                 timeout_function=None)
         
