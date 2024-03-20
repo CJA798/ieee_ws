@@ -34,7 +34,7 @@ def check_heartbeat_cb(arm_angles_pub, move_pub, misc_angles_pub):
     last_heartbeat_time = globals['last_heartbeat_time']
     current_time = rospy.get_time()
     #print(f'Last heartbeat time: {last_heartbeat_time} | Current time: {current_time} | Difference: {int(current_time - last_heartbeat_time)}')
-    if last_heartbeat_time is not None and int(current_time - last_heartbeat_time) > 5:
+    if last_heartbeat_time is not None and int(current_time - last_heartbeat_time) > 2:
         stop_all(arm_angles_pub, move_pub, misc_angles_pub)
         rospy.logerr("Arduino heartbeat lost, restarting rosserial node...")
         run(["rosnode", "kill", "/serial_node_1"])

@@ -110,7 +110,7 @@ class Initialize(smach.State):
             # Check if the heartbeat is received, i.e. the Arduino is connected
             if not globals['heartbeat_on']:
                 rospy.logerr_once('Heartbeat not received')
-                rospy.sleep(1)
+                rospy.sleep(2)
                 return 'aborted'
             
             # Publish the init message to the Arduino
@@ -1075,7 +1075,7 @@ class RestPose(smach.State):
 # Define state GetCoords
 # Define state GetCoords
 class GetCoords(smach.State):
-    def __init__(self, object_type, pose, timeout=2.0, expected_pairs=3, camera_enable_publisher=None):
+    def __init__(self, object_type, pose, timeout=2.0, expected_pairs=3, camera_enable_publisher=None, disable_camera_when_done=False):
         smach.State.__init__(self, outcomes=['coords_received','coords_not_received'],
                              input_keys=['coordinates_list'],
                              output_keys=['coordinates_list'])
@@ -1084,11 +1084,7 @@ class GetCoords(smach.State):
         self.timeout = timeout
         self.expected_pairs = expected_pairs
         self.camera_enable_pub = camera_enable_publisher
-        #TODO for some reason, removing this sleep brings back the fucking
-        # raise ValueError(f"Object type {object_type} not recognized.")
-        # ValueError: Object type SMALL_PACKAGE not recognized.
-
-        #rospy.sleep(5)
+        self.disable_camera_when_done = disable_camera_when_done
 
     def execute(self, userdata):
         # If userdata coord exist, reset them
@@ -1131,7 +1127,7 @@ class GetCoords(smach.State):
                 #userdata.coordinates_list = []
                 userdata.coordinates_list = result.coordinates
                 # Disable camera
-                if self.camera_enable_pub:
+                if self.camera_enable_pub and self.disable_camera_when_done:
                     enable_msg = Bool()
                     enable_msg.data = False
                     self.camera_enable_pub.publish(enable_msg)
@@ -1139,7 +1135,7 @@ class GetCoords(smach.State):
         
         # Handle any exceptions that occur during the state execution
         except Exception as e:
-            rospy.logerr(f"Error in GetCoords: {e}")
+            rospy.logerr(f"Error in GetCoords: {e}\nRetrying...")
             return 'coords_not_received'
         
 class PickUpSmallPackage(smach.State):

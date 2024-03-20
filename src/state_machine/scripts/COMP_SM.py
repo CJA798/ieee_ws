@@ -56,10 +56,11 @@ def main():
         with package_pickup_sm:
             # Pickup small packages
             smach.StateMachine.add('SCAN_POSE', ScanPose(arm_angles_pub=arm_angles_pub),
-                                    transitions={'pose_reached':'packages_picked_up', 'pose_not_reached':'SCAN_POSE'})
+                                    transitions={'pose_reached':'GET_SP_COORDS', 'pose_not_reached':'SCAN_POSE'})
+            
+            smach.StateMachine.add('GET_SP_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value, timeout=2, expected_pairs=3, camera_enable_publisher=camera_enable_pub),
+                                    transitions={'coords_received':'packages_picked_up', 'coords_not_received':'GET_SP_COORDS'})
             '''
-            smach.StateMachine.add('GET_SP_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value, timeout=5, expected_pairs=3, camera_enable_publisher=camera_enable_pub),
-                                    transitions={'coords_received':'PICK_UP_SP', 'coords_not_received':'GET_SP_COORDS'})
             smach.StateMachine.add('PICK_UP_SP', PickUpSmallPackage(task_space_pub=task_space_pub),
                                    transitions={'packages_picked_up':'HOME_POSE',
                                                 'sweep_needed': 'SWEEP_SMALL_PACKAGES',
