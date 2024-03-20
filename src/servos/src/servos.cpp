@@ -65,6 +65,7 @@ using namespace dynamixel;
 // #if macros
 #define DEBUG                   1       // Prints out ros info's
 #define CUSTOM_PIDS             0       // Set to 1 for custom variable pids, or 0 for preset
+#define UPPER_SENSOR            1       // Set to 1 for use of the new upper TOF or 0 for the old left one
 
 // PID's and Move constants x = left/right, y = forward/backwards, z = rotation
 #if CUSTOM_PIDS// Custom PIDs for use with publishing
@@ -220,7 +221,7 @@ public:
 
 
         // Create and write misc servos to custom starting pos
-        int Misc_Start_Angles[4] = { 2048, 1050, 1400, 2048 };  //3) 1050 -> 1400
+        int Misc_Start_Angles[4] = { 2048, 1050, 1300, 2048 };  //3) 1050 -> 1400
 
         // Creates and assigns array with each byte of message
         uint8_t data_array[4];
@@ -652,6 +653,45 @@ public:
     }
 
 
+    // If 1 run code for sensor in upper right side
+    #if UPPER_SENSOR
+    // Triggers on /TOF_Left post sets linear x speed based on pids
+    void tofLeft(int tof_left){
+        // If desired_x = 0 stop x movement, ingore x sensor, declare arrived
+        if(desired_x == 0){
+            linear_x = 0;
+            arrived_x = SEQUENTIAL_READS;
+        } 
+
+        // If desired x is negative use sensor data to calculate pid for x velocity from left sensor
+        else if(desired_x < 0){
+            double error_x = desired_x + tof_left;
+            error_x_cumulative += error_x;
+
+            // Constrain error to plus or minus CUMLATIVE_CAP
+            if(error_x_cumulative > CUMULATIVE_CAP)
+                error_x_cumulative = CUMULATIVE_CAP;
+            if(error_x_cumulative < -CUMULATIVE_CAP)    
+                error_x_cumulative = -CUMULATIVE_CAP;
+
+            // Calculate pid error based on K's and error 
+            linear_x = (KP_X * error_x) + (KI_X * error_x_cumulative / TS) + (KD_X * TS * (error_x - error_x_prev));
+            error_x_prev = error_x;
+
+            // If we are close enough to desired value tally up how long we are here
+            if(abs(error_x) <= ALLOWABLE_ERROR){
+                if(arrived_x < SEQUENTIAL_READS)    // prevent overflow in counting
+                    arrived_x++;
+            }
+            else// If we have moved to far or overshoot, reset tally
+                arrived_x = 0;
+        }
+        // Call kinematics with updated linear_x value
+        //botKinematics();
+    }
+
+    // If 0 run code for sensor in lower left side
+    #else 
     // Triggers on /TOF_Left post sets linear x speed based on pids
     void tofLeft(int tof_left){
         // If desired_x = 0 stop x movement, ingore x sensor, declare arrived
@@ -686,7 +726,7 @@ public:
         // Call kinematics with updated linear_x value
         //botKinematics();
     }
-
+    #endif
 
     // Triggers on /TOF_Right post sets linear x speed based on pids
     void tofRight(int tof_right){
