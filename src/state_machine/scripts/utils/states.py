@@ -1135,11 +1135,11 @@ class GetCoords(smach.State):
         
         # Handle any exceptions that occur during the state execution
         except Exception as e:
-            rospy.logerr(f"Error in GetCoords: {e}\nRetrying...")
+            rospy.logerr(f"Error in GetCoords: {e}")
             return 'coords_not_received'
         
 class PickUpSmallPackage(smach.State):
-    def __init__(self, task_space_pub, in_re_scan=False, after_big_packages=False):
+    def __init__(self, task_space_pub, in_re_scan=False, after_big_packages=False, safe_mode=False):
         smach.State.__init__(self,
                              input_keys=['coordinates_list'],
                              output_keys=['sweep_coordinates_list', 'pick_after_big_packages', 'move_after_big_packages'],
@@ -1147,6 +1147,7 @@ class PickUpSmallPackage(smach.State):
         self.task_space_pub = task_space_pub
         self.in_re_scan = in_re_scan
         self.after_big_packages = after_big_packages
+        self.in_safe_mode = safe_mode
 
     def execute(self, userdata):
         # Reset userdata values
@@ -1187,11 +1188,11 @@ class PickUpSmallPackage(smach.State):
             ##                     THE LINE BELOW IGNORES ANY PURPLE BOXES NOT IN FRONT OF THE ROBOT                    ##
             ##############################################################################################################
             # The safe mode is to ignore any purple boxes not in front of the robot path to the dropoff area.
-            '''
-            if not self.safe_mode(x,z):
+            
+            if self.in_safe_mode and not self.within_safe_mode_range(x,z):
                 rospy.logwarn(f'Coordinate {target} is outside of safe mode range. Ignoring...')
                 continue
-            '''
+            
             ##############################################################################################################
             ##                     THE LINE ABOVE IGNORES ANY PURPLE BOXES NOT IN FRONT OF THE ROBOT                    ##
             ##############################################################################################################
@@ -1258,7 +1259,7 @@ class PickUpSmallPackage(smach.State):
             rospy.loginfo(f'Successfully picked up small package {target}')
         return 'packages_picked_up'
     
-    def safe_mode(self, x, z):
+    def within_safe_mode_range(self, x, z):
         return (120 <= x <= 250) and (-170 <= z <= 170)
 
     def x_coord_within_range(self, x, z):

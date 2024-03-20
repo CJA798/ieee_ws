@@ -59,15 +59,16 @@ def main():
                                     transitions={'pose_reached':'GET_SP_COORDS', 'pose_not_reached':'SCAN_POSE'})
             
             smach.StateMachine.add('GET_SP_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value, timeout=2, expected_pairs=3, camera_enable_publisher=camera_enable_pub),
-                                    transitions={'coords_received':'packages_picked_up', 'coords_not_received':'GET_SP_COORDS'})
-            '''
-            smach.StateMachine.add('PICK_UP_SP', PickUpSmallPackage(task_space_pub=task_space_pub),
+                                    transitions={'coords_received':'PICK_UP_SP', 'coords_not_received':'GET_SP_COORDS'})
+            
+            smach.StateMachine.add('PICK_UP_SP', PickUpSmallPackage(task_space_pub=task_space_pub, safe_mode=True),
                                    transitions={'packages_picked_up':'HOME_POSE',
                                                 'sweep_needed': 'SWEEP_SMALL_PACKAGES',
                                                 'soft_sweep_needed': 'SOFT_SWEEP',
                                                 'no_coordinates_received': 'HOME_POSE'})
+            
             smach.StateMachine.add('HOME_POSE', RestPose(arm_angles_pub=arm_angles_pub),
-                                    transitions={'pose_reached':'SET_BULK_GRABBER_ARMS', 'pose_not_reached':'HOME_POSE'})
+                                    transitions={'pose_reached':'packages_picked_up', 'pose_not_reached':'HOME_POSE'})
             
             # Sweep if necessary
             # After a sweep, a new scan is necessary to update the coordinates list
@@ -75,7 +76,7 @@ def main():
                                     transitions={'succeeded':'SCAN_POSE', 'aborted':'SWEEP_SMALL_PACKAGES'})
             smach.StateMachine.add('SOFT_SWEEP', Sweep(task_space_pub=task_space_pub, soft=True),
                                     transitions={'succeeded':'SCAN_POSE', 'aborted':'SOFT_SWEEP'})
-            
+            '''
 
             #################################################################################################################################
             # Pickup big packages
