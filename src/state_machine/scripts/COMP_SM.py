@@ -99,6 +99,8 @@ def main():
             small_packages_sm = smach.StateMachine(outcomes=['packages_dropped_off', 'packages_not_dropped_off'])
             
             with small_packages_sm:
+                smach.StateMachine.add('ADJUST_TO_RED_CORNER', GoTo_(Areas.RED_CORNER, move_publisher=move_pub, grav_enable_publisher=grav_enable_pub, misc_angles_publisher=misc_angles_pub),
+                                    transitions={'arrived':'DROP_OFF_PACKAGES', 'not_arrived':'ADJUST_TO_RED_CORNER'})
                 smach.StateMachine.add('DROP_OFF_PACKAGES', DropOff(BoardObjects.SMALL_PACKAGE, arm_angles_publisher=arm_angles_pub, misc_angles_publisher=misc_angles_pub, task_space_publisher=task_space_pub),
                                     transitions={'packages_dropped_off':'packages_dropped_off', 'packages_not_dropped_off':'DROP_OFF_PACKAGES'})
 
@@ -154,11 +156,43 @@ def main():
             smach.Concurrence.add('STORE_FUEL_TANKS', fuel_tank_sort_sm)
             smach.Concurrence.add('GO_TO_FINAL', go_to_final_sm)
 
-        
+        # Movement to final area and fuel tank sorting
         smach.StateMachine.add('FUEL_TANK_SORT_AND_FINAL_AREA', fuel_tank_sort_and_final_area_sm,
-                                transitions={'succeeded':'END', 'aborted':'FUEL_TANK_SORT_AND_FINAL_AREA'})
+                                transitions={'succeeded':'SET_BULK_GRABBER_ARMS_DOWN', 'aborted':'FUEL_TANK_SORT_AND_FINAL_AREA'})
         
 
+        smach.StateMachine.add('SET_BULK_GRABBER_ARMS_DOWN', DropOff(BoardObjects.BIG_PACKAGE, misc_angles_publisher=misc_angles_pub),
+                                transitions={'packages_dropped_off':'FUEL_TANKS_PLACING', 'packages_not_dropped_off':'SET_BULK_GRABBER_ARMS_DOWN'})
+
+        smach.StateMachine.add('FUEL_TANKS_PLACING', FuelTankPlacer(task_space_publisher=task_space_pub),
+                               transitions = {'fuel_tanks_placed':'SPIRIT_CELEBRATION_AND_BUTTON_PRESS', 'fuel_tanks_not_placed':'FUEL_TANKS_PLACING'})
+        
+        # Spirit celebration and button press setup
+        spirit_celebration_and_button_press_sm = smach.Concurrence(outcomes=['succeeded','aborted'],
+                                    default_outcome='aborted',
+                                    outcome_map={'succeeded':{
+                                        'SPIRIT_CELEBRATION':'succeeded',
+                                        'BUTTON_PRESS':'succeeded'
+                                    }})
+        
+        with spirit_celebration_and_button_press_sm:
+
+            spirit_celebration_sm = smach.StateMachine(outcomes=['succeeded','aborted'])
+            with spirit_celebration_sm:
+                smach.StateMachine.add('SPIRIT_CELEBRATION', SpiritCelebration(misc_angles_publisher = misc_angles_pub, arm_angles_publisher=arm_angles_pub),
+                                    transitions = {'flag_raised':'succeeded', 'flag_not_raised':'SPIRIT_CELEBRATION'})
+
+            button_press_sm = smach.StateMachine(outcomes=['succeeded','aborted'])
+            with button_press_sm:
+                smach.StateMachine.add('BUTTON_PRESS', ButtonPress(move_publisher=move_pub), 
+                                    transitions={'button_pressed':'succeeded', 'button_not_pressed':'BUTTON_PRESS'})
+
+            smach.Concurrence.add('SPIRIT_CELEBRATION', spirit_celebration_sm)
+            smach.Concurrence.add('BUTTON_PRESS', button_press_sm)
+        # Spirit celebration and button press
+        smach.StateMachine.add('SPIRIT_CELEBRATION_AND_BUTTON_PRESS', spirit_celebration_and_button_press_sm,
+                                transitions={'succeeded':'END', 'aborted':'SPIRIT_CELEBRATION_AND_BUTTON_PRESS'})
+        
     # Create and start the introspection server
     sis = smach_ros.IntrospectionServer('server_name', sm, '/START')
     sis.start()

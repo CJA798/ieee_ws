@@ -162,6 +162,7 @@ class GoTo_(smach.State):
         Areas.PUSH_BIG_PACKAGES: "GoToPushBigPackages",
         Areas.RE_SCAN: "GoToReScan",
         Areas.DROP_OFF: "GoToDropOffArea",
+        Areas.RED_CORNER: "GoToRedCorner",
         Areas.FUEL_TANK: "GoToFuelTankArea",
         Areas.CRATER: "GoToCraterArea",
         Areas.BUTTON: "GoToButtonArea"
@@ -342,10 +343,30 @@ class GoTo_(smach.State):
         else:
             return 'not_arrived'
 
-
+    def GoToRedCorner(self):
+        '''State to move the robot to the red corner'''
+        # Move until the red corner is reached
+        if publish_and_wait(pub=self.move_pub,
+                            wait_for_topic="Move_Done",
+                            message_type=Float32MultiArray,
+                            message_data=[0, -1, -90, 20],
+                            delay=0.2,
+                            timeout_function=lambda: stop_move(self.move_pub)):
+            rospy.loginfo('Reached red corner')
+            return 'arrived'
+        else:
+            rospy.logerror('Move to red corner failed')
+            return 'not_arrived'
 
     def GoToFuelTankArea(self):
         '''State to move the robot to the fuel tank area'''
+        # Raise the bridge
+        publish_and_wait(pub=self.misc_angles_pub,
+                        wait_for_topic="Misc_Done",
+                        message_type=Float32MultiArray,
+                        message_data=[globals['raised_bridge'], -1, -1, -1],
+                        delay=1,
+                        timeout_function=None)
         # Go forward using the rear right TOF until fuel tank area is reached
         if publish_and_wait(pub=self.move_pub,
                             wait_for_topic="Move_Done",
@@ -368,7 +389,7 @@ class GoTo_(smach.State):
         publish_and_wait(pub=self.move_pub,
                          wait_for_topic="Move_Done",
                         message_type=Float32MultiArray,
-                        message_data=[0, 200, -90, 100],
+                        message_data=[0, 150, -90, 100],
                         delay=2,
                         timeout_function=None)
         rospy.loginfo('Backed up a bit')
@@ -377,7 +398,7 @@ class GoTo_(smach.State):
         publish_and_wait(pub=self.move_pub,
                         wait_for_topic="Move_Done",
                         message_type=Float32MultiArray,
-                        message_data=[0, 0, -180, 20],
+                        message_data=[0, 0, -180, 100],
                         delay=5,
                         timeout_function=None)
 
@@ -924,7 +945,7 @@ class DropOff(smach.State):
 
 class SpiritCelebration(smach.State):
     def __init__(self, misc_angles_publisher = None, arm_angles_publisher = None):
-        smach.State.__init__(self, outcomes = ['succeeded','aborted'])
+        smach.State.__init__(self, outcomes = ['flag_raised','flag_not_raised'])
         self.misc_angles_pub = misc_angles_publisher
         self.arm_angles_pub = arm_angles_publisher
 
@@ -958,9 +979,9 @@ class SpiritCelebration(smach.State):
             if publish_command(self.misc_angles_pub, Float32MultiArray, [bridge, bottom_bulk, top_bulk, flag]):
                 # Waitfor the bulk grabber arms to reach the pose
                 rospy.wait_for_message("Misc_Done", Int8, timeout=10)
-                return 'succeeded'
+                return 'flag_raised'
             else:
-                return 'aborted'
+                return 'flag_not_raised'
             
         # Handle any exceptions that occur during the state execution
         except Exception as e:
@@ -969,10 +990,9 @@ class SpiritCelebration(smach.State):
 
 
 # define state ButtonPress
-# TODO: update this state with the new functions
 class ButtonPress(smach.State):
     def __init__(self, move_publisher):
-        smach.State.__init__(self, outcomes=['succeeded','aborted'])
+        smach.State.__init__(self, outcomes=['button_pressed','button_not_pressed'])
         self.move_pub = move_publisher
 
     def execute(self, userdata):
@@ -986,39 +1006,17 @@ class ButtonPress(smach.State):
             
         Raises:
             Exception: Any exception that occurs during the state execution'''
-        # Press the button
-        try:
-            rate = rospy.Rate(3)
-            #rate = rospy.Rate(1)
-
-            
-            # Reset the move_done global variable
-            globals['move_done'] = False
-
-            # Move to the button
-            message = Float32MultiArray()
-            message.data = [0, -1, 90, 50]
-            self.move_pub.publish(message)
-
-            rate.sleep()
-
-            # Wait for the move to complete
-            globals['move_done'] = False
-
-            # Stop
-            message.data = [0, 0, 0, 0]
-            self.move_pub.publish(message)
-
-            # Reset the move_done global variable
-            globals['move_done'] = False
-
-            # finished
-            return 'succeeded'
-
-        # Handle any exceptions that occur during the state execution
-        except Exception as e:
-            rospy.logerr(f"Error in ButtonPress: {e}")
-            return 'aborted'
+        if publish_and_wait(pub=self.move_pub,
+                            wait_for_topic="Move_Done",
+                            message_type=Float32MultiArray,
+                            message_data=[0, -1, 90, 100],
+                            delay=1,
+                            timeout_function=None):
+            rospy.loginfo('Button Pressed')
+            stop_move(self.move_pub)
+            return 'button_pressed'
+        else:
+            return 'button_not_pressed'
         
     
 # define state SetPose
@@ -1596,7 +1594,7 @@ class FuelTankPlacer(smach.State):
         publish_and_wait(pub=self.task_space_pub,
                 wait_for_topic='Arm_Done',
                 message_type=Float32MultiArray,
-                message_data=[135, 100, 76, 2230, 2700, 10, 10],
+                message_data=[135, 100, 76, 2230, 2700, 10, 100],
                 delay=8,
                 timeout_function=None)
 
@@ -1628,19 +1626,15 @@ class FuelTankPlacer(smach.State):
         publish_and_wait(pub=self.task_space_pub,
                 wait_for_topic='Arm_Done',
                 message_type=Float32MultiArray,
-                message_data=[135, 100, 76, 3700, 1400, 10, 10],
+                message_data=[135, 100, 76, 3700, 1400, 50, 100],
                 delay=2,
                 timeout_function=None)
         
         publish_and_wait(pub=self.task_space_pub,
                 wait_for_topic='Arm_Done',
                 message_type=Float32MultiArray,
-                message_data=[100, 100, 100, 2048, 2700, 10, 10],
+                message_data=[100, 100, 100, 2048, 2700, 50, 100],
                 delay=2,
                 timeout_function=None)
         
         return 'fuel_tanks_placed'
-        
-
-        
-
