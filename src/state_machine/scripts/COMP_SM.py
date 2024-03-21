@@ -85,9 +85,79 @@ def main():
                                                             task_space_publisher=task_space_pub,
                                                             misc_angles_publisher=misc_angles_pub,
                                                             grav_enable_publisher=grav_enable_pub), 
-                               transitions={'arrived':'END', 'not_arrived':'GO_TO_DROP_OFF_AREA'})
+                               transitions={'arrived':'PACKAGE_DROP_OFF', 'not_arrived':'GO_TO_DROP_OFF_AREA'})
 
+        # Create a concurrent state machine for package drop off
+        package_dropoff_sm = smach.Concurrence(outcomes=['packages_dropped_off','packages_not_dropped_off'],
+                                    default_outcome='packages_not_dropped_off',
+                                    outcome_map={'packages_dropped_off':{
+                                        'DROP_BIG_PACKAGES':'packages_dropped_off',
+                                        'DROP_SMALL_PACKAGES':'packages_dropped_off'
+                                    }})
+        
+        with package_dropoff_sm:
+            small_packages_sm = smach.StateMachine(outcomes=['packages_dropped_off', 'packages_not_dropped_off'])
+            
+            with small_packages_sm:
+                smach.StateMachine.add('DROP_OFF_PACKAGES', DropOff(BoardObjects.SMALL_PACKAGE, arm_angles_publisher=arm_angles_pub, misc_angles_publisher=misc_angles_pub, task_space_publisher=task_space_pub),
+                                    transitions={'packages_dropped_off':'packages_dropped_off', 'packages_not_dropped_off':'DROP_OFF_PACKAGES'})
 
+            big_packages_sm = smach.StateMachine(outcomes=['packages_dropped_off', 'packages_not_dropped_off'])
+
+            with big_packages_sm:
+                smach.StateMachine.add('DROP_OFF_PACKAGES', DropOff(BoardObjects.BIG_PACKAGE, arm_angles_publisher=arm_angles_pub, misc_angles_publisher=misc_angles_pub),
+                                    transitions={'packages_dropped_off':'packages_dropped_off', 'packages_not_dropped_off':'DROP_OFF_PACKAGES'})
+
+            smach.Concurrence.add('DROP_BIG_PACKAGES', big_packages_sm)
+            smach.Concurrence.add('DROP_SMALL_PACKAGES', small_packages_sm)
+
+        # Dropoff packages
+        smach.StateMachine.add('PACKAGE_DROP_OFF', package_dropoff_sm,
+                                transitions={'packages_dropped_off':'GO_TO_FUEL_TANK_AREA',
+                                            'packages_not_dropped_off':'PACKAGE_DROP_OFF'})
+
+        # Go to fuel tank area
+        smach.StateMachine.add('GO_TO_FUEL_TANK_AREA', GoTo_(Areas.FUEL_TANK, move_publisher=move_pub, grav_enable_publisher=grav_enable_pub, misc_angles_publisher=misc_angles_pub), 
+                                       transitions={'arrived':'PICK_UP_FUEL_TANKS', 'not_arrived':'GO_TO_FUEL_TANK_AREA'})
+
+        # Pick up fuel tanks
+        smach.StateMachine.add('PICK_UP_FUEL_TANKS', PickUp(board_object=BoardObjects.FUEL_TANK, arm_angles_publisher=arm_angles_pub, misc_angles_publisher=misc_angles_pub, move_publisher=move_pub),
+                                      transitions={'packages_picked_up':'FUEL_TANK_SORT_AND_FINAL_AREA', 'packages_not_picked_up':'PICK_UP_FUEL_TANKS'})
+          
+        # Create a concurrent state machine for movement to final area and fuel tank sorting
+        fuel_tank_sort_and_final_area_sm = smach.Concurrence(outcomes=['succeeded','aborted'],
+                                    default_outcome='aborted',
+                                    outcome_map={'succeeded':{
+                                        'STORE_FUEL_TANKS':'fuel_tanks_stored',
+                                        'GO_TO_FINAL':'arrived'
+                                    }})
+        
+        with fuel_tank_sort_and_final_area_sm:
+            # State machine for fuel tank sorting       
+            fuel_tank_sort_sm = smach.StateMachine(outcomes=['fuel_tanks_stored', 'fuel_tanks_not_stored'])
+            with fuel_tank_sort_sm:
+                smach.StateMachine.add('REST_POSE', RestPose(arm_angles_pub=arm_angles_pub),
+                                    transitions={'pose_reached':'fuel_tanks_stored', 'pose_not_reached':'REST_POSE'})
+            
+    
+
+            # State machine for movement to final area
+            go_to_final_sm = smach.StateMachine(outcomes=['arrived', 'not_arrived'])
+            with go_to_final_sm:
+                # Go to crater and deploy bridge
+                smach.StateMachine.add('GO_TO_CRATER_AREA', GoTo_(Areas.CRATER, move_publisher=move_pub, misc_angles_publisher=misc_angles_pub, grav_enable_publisher=grav_enable_pub), 
+                                        transitions={'arrived':'GO_TO_FINAL', 'not_arrived':'GO_TO_CRATER_AREA'})
+                # Cross bridge and go to final area
+                smach.StateMachine.add('GO_TO_FINAL', GoTo_(Areas.BUTTON, move_publisher=move_pub, grav_enable_publisher=grav_enable_pub), 
+                                    transitions={'arrived':'arrived', 'not_arrived':'GO_TO_FINAL'})
+                
+            smach.Concurrence.add('STORE_FUEL_TANKS', fuel_tank_sort_sm)
+            smach.Concurrence.add('GO_TO_FINAL', go_to_final_sm)
+
+        
+        smach.StateMachine.add('FUEL_TANK_SORT_AND_FINAL_AREA', fuel_tank_sort_and_final_area_sm,
+                                transitions={'succeeded':'END', 'aborted':'FUEL_TANK_SORT_AND_FINAL_AREA'})
+        
 
     # Create and start the introspection server
     sis = smach_ros.IntrospectionServer('server_name', sm, '/START')
