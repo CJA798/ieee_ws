@@ -55,6 +55,7 @@ def main():
         smach.StateMachine.add('SET_INITIAL_ARMS', SetPose(pose=Poses.SET_INITIAL_ARMS, misc_angles_publisher=misc_angles_pub, arm_angles_publisher=arm_angles_pub),
                                transitions={'pose_reached':'PACKAGE_PICK_UP', 'pose_not_reached':'SET_INITIAL_ARMS'})
         
+        # Package pickup state machine
         package_pickup_sm = smach.StateMachine(outcomes=['packages_picked_up', 'packages_not_picked_up'])
 
         with package_pickup_sm:
@@ -64,17 +65,29 @@ def main():
             smach.StateMachine.add('MOVE_TO_BIG_PACKAGE_WALL', GoTo_(Areas.BIG_PACKAGE_WALL, move_publisher=move_pub, grav_enable_publisher=grav_enable_pub, misc_angles_publisher=misc_angles_pub),
                                     transitions={'arrived':'CLOSE_TOP_BULK_GRABBER_ARM', 'not_arrived':'MOVE_TO_BIG_PACKAGE_WALL'})
             smach.StateMachine.add('CLOSE_TOP_BULK_GRABBER_ARM', SetPose(pose=Poses.CLOSE_TOP_BULK_GRABBER_ARM, misc_angles_publisher=misc_angles_pub),
-                                    transitions={'pose_reached':'packages_picked_up', 'pose_not_reached':'CLOSE_TOP_BULK_GRABBER_ARM'})
-            
+                                    transitions={'pose_reached':'BACK_TO_INITIAL_AREA', 'pose_not_reached':'CLOSE_TOP_BULK_GRABBER_ARM'})
+            smach.StateMachine.add('BACK_TO_INITIAL_AREA', GoTo_(Areas.INITIAL_AREA, move_publisher=move_pub, grav_enable_publisher=grav_enable_pub, misc_angles_publisher=misc_angles_pub),
+                                    transitions={'arrived':'RAISE_BULK_GRABBER', 'not_arrived':'MOVE_TO_BIG_PACKAGE_WALL'})
             smach.StateMachine.add('RAISE_BULK_GRABBER', SetPose(pose=Poses.RAISE_BULK_GRABBER, move_publisher=move_pub, misc_angles_publisher=misc_angles_pub),
                                     transitions={'pose_reached':'packages_picked_up', 'pose_not_reached':'RAISE_BULK_GRABBER'})
             
     
-
+        # Pickup small packages
         smach.StateMachine.add('PACKAGE_PICK_UP', package_pickup_sm,
-                                transitions={'packages_picked_up': 'END',
+                                transitions={'packages_picked_up': 'GO_TO_DROP_OFF_AREA',
                                             'packages_not_picked_up':'PACKAGE_PICK_UP'})
         
+
+        # Go to drop off area
+        smach.StateMachine.add('GO_TO_DROP_OFF_AREA', GoTo_(Areas.DROP_OFF,
+                                                            move_publisher=move_pub,
+                                                            arm_angles_publisher=arm_angles_pub,
+                                                            task_space_publisher=task_space_pub,
+                                                            misc_angles_publisher=misc_angles_pub,
+                                                            grav_enable_publisher=grav_enable_pub), 
+                               transitions={'arrived':'END', 'not_arrived':'GO_TO_DROP_OFF_AREA'})
+
+
 
     # Create and start the introspection server
     sis = smach_ros.IntrospectionServer('server_name', sm, '/START')

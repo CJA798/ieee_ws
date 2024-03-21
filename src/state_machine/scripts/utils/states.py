@@ -114,6 +114,7 @@ class Initialize(smach.State):
                 return 'aborted'
             
             # Publish the init message to the Arduino
+            rospy.wait_for_message("Heartbeat", Bool, timeout=5)
             init_msg = Bool()
             init_msg.data = True
             self.init_state_pub.publish(init_msg)
@@ -156,6 +157,7 @@ class ReadingStartLED(smach.State):
 class GoTo_(smach.State):
     # Dictionary mapping areas to method names
     AREA_METHODS = {
+        Areas.INITIAL_AREA: "GoToInitialArea",
         Areas.BIG_PACKAGE_WALL: "GoToBigPackageWall",
         Areas.PUSH_BIG_PACKAGES: "GoToPushBigPackages",
         Areas.RE_SCAN: "GoToReScan",
@@ -220,7 +222,23 @@ class GoTo_(smach.State):
             # Log that the area is invalid
             rospy.loginfo('Invalid area')
             return 'not_arrived'
-    
+
+    def GoToInitialArea(self):
+        '''State to move the robot to the initial area'''
+        # Publish command to move the robot to the initial area
+        rospy.loginfo('Moving to initial area')
+        if publish_and_wait(pub=self.move_pub,
+                            wait_for_topic="Move_Done",
+                            message_type=Float32MultiArray,
+                            message_data=[-180, 0, 0, 100],
+                            delay=2,
+                            timeout_function=lambda: stop_move(self.move_pub)):
+            rospy.loginfo('Arrived to initial area')
+            return 'arrived'
+        else:
+            rospy.logerror('Move to initial area failed')
+            return 'not_arrived'
+
     def GoToBigPackageWall(self):
         '''State to move the robot to the big package wall'''
         rospy.loginfo('Moving to big package wall')
@@ -294,13 +312,11 @@ class GoTo_(smach.State):
         while globals['gravity_vector'] > -25  and not rospy.is_shutdown():
             rate.sleep()
 
-        rospy.loginfo('Second slope reached')
-
         # Keep moving until the robot crosses the second slope
         while globals['gravity_vector'] < -10  and not rospy.is_shutdown():
             rate.sleep()
 
-        rospy.loginfo('Crossed first ramps')
+        rospy.loginfo('Crossed ramp')
 
         # Lower the bridge a bit
         bridge = globals['mid_bridge']
@@ -312,7 +328,7 @@ class GoTo_(smach.State):
         publish_command(self.arm_angles_pub, Float32MultiArray, angles)
 
         # Publish command to reach to the drop off area
-        publish_command(self.move_pub, Float32MultiArray, [170, 180, 0, 100])
+        publish_command(self.move_pub, Float32MultiArray, [180, 180, 0, 100])
         
         # Wait for the move to complete
         rospy.wait_for_message("Move_Done", Int8, timeout=10)
@@ -652,6 +668,7 @@ class SetPose(smach.State):
                         message_data=[bridge, bottom_bulk, 1050, flag],
                         delay=1,
                         timeout_function=None):
+            rospy.loginfo('Top arm of bulk grabber closed')
             return 'pose_reached'
         else:
             return 'pose_not_reached'
@@ -663,21 +680,17 @@ class SetPose(smach.State):
         bottom_bulk = globals['raise_bulk_bottom']
         flag = -1
 
-        # Move back to beginning
-        publish_command(self.move_pub, Float32MultiArray, [-170, 0, 0, 50], delay=2)
-       
-        # Publish the misc angles to raise the bulk grabber arms
-        if publish_command(self.misc_angles_pub, Float32MultiArray, [bridge, bottom_bulk, top_bulk, flag]):
-            # Waitfor the bulk grabber arms to reach the pose
-            try:
-                rospy.wait_for_message("Move_Done", Int8, timeout=4)
-            except:
-                rospy.logerr('Timeout going back to initial position')
-            stop_move(self.move_pub)
+        if publish_and_wait(pub=self.misc_angles_pub,
+                            wait_for_topic="Misc_Done",
+                            message_type=Float32MultiArray,
+                            message_data=[bridge, bottom_bulk, top_bulk, flag],
+                            delay=1,
+                            timeout_function=None):
+            rospy.loginfo('Bulk grabber arms raised')
             globals['big_packages_picked_up'] = True
             return 'pose_reached'
         else:
-            stop_move(self.move_pub)
+            rospy.logerr('Error raising bulk grabber arms')
             globals['big_packages_picked_up'] = True
             return 'pose_not_reached'
 
