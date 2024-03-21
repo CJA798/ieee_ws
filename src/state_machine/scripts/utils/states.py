@@ -407,7 +407,7 @@ class GoTo_(smach.State):
         record_tof_back = globals['tof_back']
 
         # Publish command to go forward
-        publish_command(self.move_pub, Float32MultiArray, [200, 1, -180, 100])
+        publish_command(self.move_pub, Float32MultiArray, [200, 1, -180, 50])
         while globals['gravity_vector'] < 28  and not rospy.is_shutdown():
             rate.sleep()
         rospy.loginfo('Half second ramp reached')
@@ -484,7 +484,7 @@ class GoTo_(smach.State):
         rate = rospy.Rate(20)
 
         #Back until finding the flat area        
-        publish_command(self.move_pub, Float32MultiArray, [200, -1, 0, 100])
+        publish_command(self.move_pub, Float32MultiArray, [200, -1, 0, 50])
 
         #wait until we cross bridge
         while globals['gravity_vector'] < 10  and not rospy.is_shutdown():
@@ -1063,7 +1063,7 @@ class ScanFuelTankPose(smach.State):
                         message_type=Float32MultiArray,
                         message_data=globals['FT_SCAN_POSE'],
                         delay=1,
-                        timeout_function=rospy.sleep(1))
+                        timeout_function=rospy.sleep(2))
         return 'pose_reached'
     
 
@@ -1414,12 +1414,12 @@ class PickUpFuelTank(smach.State):
         rospy.loginfo(f'Target: {target}')
 
         x = target.x
-        y = target.y
+        y = 50
         z = target.z
         # Map wrist based on x-coordinate using polynomial regression
         wrist = round(0.01261 * x**2 + 5.251 * x + 1780, 1)
         gripper = globals['fuel_tank_gripper_open']
-        speed = 25 #updated speed
+        speed = 100 #updated speed
 
         #publish_command(self.task_space_pub, Float32MultiArray, [x, y, z, wrist, gripper, speed])
         #rospy.wait_for_message("Arm_Done", Int8, timeout=10)
@@ -1427,7 +1427,7 @@ class PickUpFuelTank(smach.State):
         publish_and_wait(pub=self.task_space_pub,
                          wait_for_topic='Arm_Done',
                          message_type=Float32MultiArray,
-                         message_data=[x, y, z, wrist, gripper, speed, 10],
+                         message_data=[x, y, z, wrist, gripper, speed, 50],
                          delay=1,
                          timeout_function=None)
         
@@ -1436,7 +1436,7 @@ class PickUpFuelTank(smach.State):
         publish_and_wait(pub=self.task_space_pub,
                          wait_for_topic='Arm_Done',
                          message_type=Float32MultiArray,
-                         message_data=[x, y, z, wrist, gripper, speed, 10],
+                         message_data=[x, y, z, wrist, gripper, -15, 10],
                          delay=1,
                          timeout_function=None)
         
@@ -1464,15 +1464,15 @@ class PickUpFuelTank(smach.State):
 class StoreFuelTank(smach.State):
     # Dictionary to map the slot number to the corresponding coordinates
     OVER_SLOT_COORDS = {
-        1: [-120, 80, -86.2, 2700, 2640, 25, 100],      
-        2: [-35, 80, -84.2, 2400, 2640, 25, 100],   #updated speeds
-        3: [30, 80, -82.2, 1700, 2640, 25, 100]
+        1: [-120, 75, -86.2, 2700, 2640, 100, 100],      
+        2: [-35, 75, -84.2, 2400, 2640, 100, 100],   #updated speeds
+        3: [30, 75, -82.2, 1700, 2640, 100, 100]
     }
 
     IN_SLOT_COORDS = {
-        1: [-120, 80, -86.2, 2700, 2640, -80, 100],      
-        2: [-35, 80, -84.2, 2400, 2640, -80, 100],   #updated speeds
-        3: [30, 80, -82.2, 1700, 2640, -80, 100]
+        1: [-120, 75, -86.2, 2700, 2640, -60, 100],      
+        2: [-35, 75, -84.2, 2400, 2640, -60, 100],   #updated speeds
+        3: [30, 75, -82.2, 1700, 2640, -60, 100]
     }
 
 
@@ -1555,15 +1555,15 @@ class FuelTankPlacer(smach.State):
         publish_and_wait(pub=self.task_space_pub,
                     wait_for_topic='Arm_Done',
                     message_type=Float32MultiArray,
-                    message_data=[-40, 100, -133, 2230, 1980, 10, 10],
-                    delay=5,
+                    message_data=[-40, 100, -133, 2230, 1980, 100, 100],
+                    delay=2,
                     timeout_function=None)
 
         #get lower to grab the device
         publish_and_wait(pub=self.task_space_pub,
                 wait_for_topic='Arm_Done',
                 message_type=Float32MultiArray,
-                message_data=[-40, -10, -133, 2230, 1980, 10, 10],
+                message_data=[-40, -10, -133, 2230, 1980, 50, 10],
                 delay=4,
                 timeout_function=None)    
 
@@ -1571,24 +1571,24 @@ class FuelTankPlacer(smach.State):
         publish_and_wait(pub=self.task_space_pub,
                 wait_for_topic='Arm_Done',
                 message_type=Float32MultiArray,
-                message_data=[-40, -10, -133, 2230, 2700, 10, 10],
-                delay=5,
+                message_data=[-40, -10, -133, 2230, 2700, 100, 100],
+                delay=1,
                 timeout_function=None)    
         
         #position the arm just above the thruster assembly zone
         publish_and_wait(pub=self.task_space_pub,
                 wait_for_topic='Arm_Done',
                 message_type=Float32MultiArray,
-                message_data=[135, 100, 76, 2230, 2700, 10, 100],
-                delay=8,
+                message_data=[135, 100, 76, 2230, 2700, 50, 100],
+                delay=3,
                 timeout_function=None)
 
         #twist the wrist
         publish_and_wait(pub=self.task_space_pub,
                 wait_for_topic='Arm_Done',
                 message_type=Float32MultiArray,
-                message_data=[135, 100, 76, 3700, 2700, 10, 10],
-                delay=8,
+                message_data=[135, 100, 76, 3700, 2700, 50, 10],
+                delay=3,
                 timeout_function=None)
         
         #place the device
@@ -1596,7 +1596,7 @@ class FuelTankPlacer(smach.State):
                 wait_for_topic='Arm_Done',
                 message_type=Float32MultiArray,
                 message_data=[135, 100, 81, 3700, 2700, -200, 5], #changed tolerance to 5, and positive z by 5
-                delay=6,
+                delay=3,
                 timeout_function=None)
         
         #release
