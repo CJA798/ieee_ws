@@ -58,6 +58,7 @@ globals: Dict[str, Union[bool, int, None]] = {
     # Fuel Tank Macros
     'fuel_tank_close_top': 1020,
     'fuel_tank_raise_bulk_offset': 2000,
+    'FT_SCAN_POSE': [656, 2341, 2332, 2020, 2048, 705, 1677, 2440, 50, 10],
 
 
     # Bridge Macros

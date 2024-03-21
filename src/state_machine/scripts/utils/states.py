@@ -1061,7 +1061,7 @@ class ScanFuelTankPose(smach.State):
         publish_and_wait(pub=self.arm_angles_pub,
                         wait_for_topic='Arm_Done',
                         message_type=Float32MultiArray,
-                        message_data=[1081.0, 2488.0, 2474.0, 1959.0, 2045.0, 675.0, 2089.0, gripper, speed],
+                        message_data=globals['FT_SCAN_POSE'],
                         delay=1,
                         timeout_function=rospy.sleep(1))
         return 'pose_reached'
@@ -1417,7 +1417,7 @@ class PickUpFuelTank(smach.State):
         y = target.y
         z = target.z
         # Map wrist based on x-coordinate using polynomial regression
-        wrist = round(5.189e-7 * x**5 + 1.895e-5 * x**4 - 0.003994 * x**3 - 0.1149 * x**2 + 12.87 * x + 2146, 1)
+        wrist = round(0.01261 * x**2 + 5.251 * x + 1780, 1)
         gripper = globals['fuel_tank_gripper_open']
         speed = 25 #updated speed
 
@@ -1463,31 +1463,16 @@ class PickUpFuelTank(smach.State):
 
 class StoreFuelTank(smach.State):
     # Dictionary to map the slot number to the corresponding coordinates
-    '''
-        OVER_SLOT_COORDS = {
-        1: [-115, 100, -95, 3500, 2640, 25, 10],      
-        2: [-30, 100, -90, 3500, 2640, 25, 10],   #updated speeds
-        3: [40, 100, -85, 3500, 2640, 25, 10]
-    }
-
-        IN_SLOT_COORDS = {
-        1: [-115, 50, -95, 3500, 2640, 25, 10],
-        2: [-30, 50, -90, 3500, 2640, 25, 10],
-        3: [40, 50, -85, 3500, 2640, 25, 10]
-    }
-
-    '''
-
     OVER_SLOT_COORDS = {
-        1: [-127, 100, -80.2, 3500, 2640, 25, 10],      
-        2: [-40.2, 100, -85.2, 3500, 2640, 25, 10],   #updated speeds
-        3: [40, 100, -85.2, 3500, 2640, 25, 10]
+        1: [-120, 80, -86.2, 2700, 2640, 25, 100],      
+        2: [-35, 80, -84.2, 2400, 2640, 25, 100],   #updated speeds
+        3: [30, 80, -82.2, 1700, 2640, 25, 100]
     }
 
     IN_SLOT_COORDS = {
-        1: [-127, 30, -80.2, 3500, 2640, 25, 10],
-        2: [-40.2, 30, -85.2, 3500, 2640, 25, 10],
-        3: [40, 30, -85.2, 3500, 2640, 25, 10]
+        1: [-120, 80, -86.2, 2700, 2640, -80, 100],      
+        2: [-35, 80, -84.2, 2400, 2640, -80, 100],   #updated speeds
+        3: [30, 80, -82.2, 1700, 2640, -80, 100]
     }
 
 
@@ -1530,7 +1515,7 @@ class StoreFuelTank(smach.State):
         publish_and_wait(pub=self.arm_angles_pub,
                         wait_for_topic='Arm_Done',
                         message_type=Float32MultiArray,
-                        message_data=[1081.0, 2488.0, 2474.0, 1959.0, 2045.0, 675.0, 2089.0, gripper, speed],
+                        message_data=globals['FT_SCAN_POSE'],
                         delay=1,
                         timeout_function=None)
         

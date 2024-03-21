@@ -415,9 +415,7 @@ class ImageProcessor_():
 
             # Total mm
             Xarm_xi_obj = Xarm_xi_obj + Xarm_poly_offset
-            #Zarm_xi_obj = Zarm_xi_obj + Zarm_poly_offset
-            Zarm_xi_obj = 70
-            
+            Zarm_xi_obj = 77.5 + Zarm_poly_offset
 
             # Total mm
             #Xarm_xi_obj = Xarm_xi_obj + Xarm_poly_offset
@@ -437,8 +435,8 @@ class ImageProcessor_():
             x_offset: float - The offset for the fuel tank polynomial regression.
             z_offset: float - The offset for the fuel tank polynomial regression.
         '''
-        x_offset = round(5.022e-9 * x**5 - 5.336e-7 * x**4 - 6.161e-5 * x**3 + 0.003115 * x**2 - 0.001814 * x - 0.01657, 1)
-        z_offset = round(-0.6277 * z**2 + 88.91 * z - 3148, 1)
+        x_offset = round(-1.257e-9 * x**5 + 1.242e-7 * x**4 + 1.182e-5 * x**3 - 0.001137 * x**2 - 0.2175 * x - 29.66, 1)
+        z_offset = round(0.0001796 * z**2 - 0.02262 * z - 0.5523, 1)
         return x_offset, z_offset
     
     def get_small_package_poly_offset(self, x: float, z: float) -> float:
@@ -528,7 +526,7 @@ def main_():
             print("Can't receive frame")
             break
 
-        coords_list, coords_image = ip.get_coords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value)        
+        coords_list, coords_image = ip.get_coords(object_type=BoardObjects.FUEL_TANK.value, pose=Poses.FUEL_TANK_SCAN.value)        
         
         if coords_image is None:
             logwarn("Coords Image is None")
