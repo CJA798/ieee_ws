@@ -20,7 +20,7 @@ def stop_all(arm_angles_pub, move_pub, misc_angles_pub) -> bool:
         move_pub.publish(stop_msg)
         # Stop Arm
         # TODO: FIX POSE
-        stop_msg.data = [2009, 2721, 2706, 1635, 2166, 1661, 1886, 1980, 10, 10]
+        stop_msg.data = [1470, 2833, 2820, 1439, 2150, 1339, 1998, 1980, 10, 500]
         arm_angles_pub.publish(stop_msg)
         # Stop Misc
         stop_msg.data = [-1, -1, -1, -1]

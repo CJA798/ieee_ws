@@ -331,20 +331,26 @@ class GoTo_(smach.State):
     def GoToFuelTankArea(self):
         '''State to move the robot to the fuel tank area'''
         # Go past the dropoff area
-        publish_and_wait(pub=self.move_pub,
+        
+        '''
+                publish_and_wait(pub=self.move_pub,
                         wait_for_topic="Move_Done",
                         message_type=Float32MultiArray,
                         message_data=[0, 1, -90, 100],
                         delay=0.5,
-                        timeout_function=None)
+                        timeout_function=None)'''
+
+                        
+
         rospy.loginfo('Drove past the big packages')
 
         # Go to about halfway to the fuel tank area, keeping a proper right distance
         publish_and_wait(pub=self.move_pub,
                         wait_for_topic="Move_Done",
                         message_type=Float32MultiArray,
-                        message_data=[155, 1, -90, 100], #This X value makes me suspect the PID is not working well, hada run of 145 work perfect
-                        delay=1,
+                      #  message_data=[155, 1, -90, 100], #This X value makes me suspect the PID is not working well, hada run of 145 work perfect
+                        message_data=[-150, 125, -90, 100],
+                        delay=8,
                         timeout_function=None)
         rospy.loginfo('Bot is about halfway to the fuel tank area')
 
@@ -353,19 +359,23 @@ class GoTo_(smach.State):
         rospy.loginfo('Bulk grabber arms set to init pose')
 
         # Drive forward until the fuel tank area is reached
-        publish_and_wait(pub=self.move_pub,
+        '''        publish_and_wait(pub=self.move_pub,
                         wait_for_topic="Move_Done",
                         message_type=Float32MultiArray,
                         message_data=[0, 125, -90, 100],
                         delay=2,
                         timeout_function=None)
+                        '''
+
         rospy.loginfo('Arrived to fuel tank area')
+        #rospy.sleep(5) #this is weird
         
         return 'arrived'
 
         
     def GoToCraterArea(self):
-        rate = rospy.Rate(2000)
+        #rospy.sleep(2000)
+        rate = rospy.Rate(30)
         record_tof_back = 0
         
         # Publish command to rotate
@@ -533,6 +543,7 @@ class GoTo_(smach.State):
 
 class SetPose(smach.State):
     POSES = {
+        Poses.SET_INITIAL_ARMS: "SetInitialArms",
         Poses.SET_BULK_GRABBER_ARMS: "SetBulkGrabberArms",
         Poses.CLOSE_TOP_BULK_GRABBER_ARM: "CloseTopBulkGrabberArm",
         Poses.RAISE_BULK_GRABBER: "RaiseBulkGrabberArms",
@@ -577,6 +588,35 @@ class SetPose(smach.State):
             # Log that the pose is invalid
             rospy.logwarn('Invalid pose')
             rospy.logwarn(f'Is {self.pose} in POSES, {Poses}, and a method of the class {self.__class__.__name__}?')
+            return 'pose_not_reached'
+    
+    def SetInitialArms(self):
+        # Set the bulk grabber arms
+        publish_and_wait(pub=self.misc_angles_pub,
+                         wait_for_topic="Misc_Done",
+                         message_type=Float32MultiArray,
+                         message_data=[-1, -1, 1270, -1],
+                         delay=0.1,
+                         timeout_function=None)
+        rospy.loginfo('Bulk grabber arms in set pose')
+
+        # Set the main arm to scan pose
+        speed = 100 #updated speed
+        jaw = globals['gripper_bulk_hold']
+        tolerance = 10
+        angles = [2041.0, 2023.0, 2015.0, 2660.0, 2083.0, 500.0, 2039.0, jaw, speed, tolerance]
+        if publish_and_wait(pub=self.arm_angles_pub,
+                            wait_for_topic='Arm_Done',
+                            message_type=Float32MultiArray,
+                            message_data=angles,
+                            delay=1,
+                            timeout_function=None):
+            # Wait 2 seconds for the arm to stabilize
+            rospy.sleep(2)
+            rospy.loginfo('Arm set to scan pose')
+            return 'pose_reached'
+        else:
+            rospy.logerr('Error setting arm to scan pose')
             return 'pose_not_reached'
     
     def SetBulkGrabberArms(self):
@@ -749,7 +789,7 @@ class PickUp(smach.State):
 
         #rospy.sleep(30)
         # Close the top arm of the bulk grabber
-        bulk_grabber_top = 1110 #1000                     *I made it 20 tighter to try and survive the ramp
+        bulk_grabber_top = 1140 #1000                     *I made it 20 tighter to try and survive the ramp
         bulk_grabber_bot = 1310 #1340
         offset = 1900  # 2150
         publish_command(self.misc_angles_pub, Float32MultiArray, [-1, bulk_grabber_bot, bulk_grabber_top, -1]) # 2) 1215->1150->1125->1200 3) 1060 -> 1100
@@ -971,7 +1011,8 @@ class ButtonPress(smach.State):
             Exception: Any exception that occurs during the state execution'''
         # Press the button
         try:
-            rate = rospy.Rate(1)
+            rate = rospy.Rate(3)
+            #rate = rospy.Rate(1)
 
             
             # Reset the move_done global variable
@@ -1145,7 +1186,7 @@ class PickUpSmallPackage(smach.State):
     def __init__(self, task_space_pub, in_re_scan=False, after_big_packages=False, safe_mode=False):
         smach.State.__init__(self,
                              input_keys=['coordinates_list'],
-                             output_keys=['sweep_coordinates_list', 'pick_after_big_packages', 'move_after_big_packages'],
+                             output_keys=['sweep_coordinates_list', 'left_wall_zone', 'right_wall_zone', 'pick_after_big_packages', 'move_after_big_packages'],
                              outcomes=['packages_picked_up', 'sweep_needed', 'soft_sweep_needed', 'no_coordinates_received'])
         self.task_space_pub = task_space_pub
         self.in_re_scan = in_re_scan
@@ -1193,25 +1234,22 @@ class PickUpSmallPackage(smach.State):
             # The safe mode is to ignore any purple boxes not in front of the robot path to the dropoff area.
             
             if self.in_safe_mode and not self.within_safe_mode_range(x,z):
-                rospy.logwarn(f'Coordinate {target} is outside of safe mode range. Ignoring...')
+                rospy.logwarn(f'Coordinate {target} is outside of safe mode range')
+                # Determine the area where the out-of-safe-mode-range package is
+                if self.in_left_wall_zone(x, z):
+                    rospy.logwarn(f'Left wall pickup needed')
+                    userdata.left_wall_zone = True
+                    return 'left_wall_zone'
+                elif self.in_right_wall_zone(x, z):
+                    rospy.logwarn(f'Right wall pickup needed')
+                    userdata.right_wall_zone = True
+                    return 'right_wall_zone'
                 continue
             
             ##############################################################################################################
             ##                     THE LINE ABOVE IGNORES ANY PURPLE BOXES NOT IN FRONT OF THE ROBOT                    ##
             ##############################################################################################################
-            
-            # Check if it's too close to the big packages, but ignore if in re-scan
-            if self.in_big_package_area(x, z) and not self.in_re_scan:
-                # Soft hardcoded sweep
-                rospy.logwarn(f'Coordinate {target} is too close to the big packages. Soft sweep needed')
-                return 'soft_sweep_needed'
-            
-            # Check if big package pickup is needed first
-            if self.pick_after_big_packages(x,z) and not self.after_big_packages:
-                rospy.loginfo(f'Coordinate {target} is too close to the big packages. Big package pickup needed first')
-                userdata.pick_after_big_packages = True
-                continue
-
+    
             # Check the area of the contour to verify it's a single box
             if not self.area_within_range(area):
                 rospy.logwarn(f'Coordinate {target} has an area of {area}, which is bigger than the max area for a single package')
@@ -1223,15 +1261,11 @@ class PickUpSmallPackage(smach.State):
                 rospy.logwarn('Picking up abnormally large package anyways')
                 # else, try to pick it up. It could just be a greater contour than normal 
             
-            # Check if it's within Z-axis range
-            if not self.z_coord_within_range(z):
-                rospy.logwarn(f'Coordinate {target} is too close to a side wall. Wrist angle adjustment needed')
-                # Adjust wrist
-                wrist = self.get_wrist_angle(z)
-                # Adjust x and z with respect to new wrist value
-                x, z = self.adjust_xz_to_wrist(x, z, wrist)
-                rospy.loginfo(f'Adjusted x: {x}, z: {z}, wrist: {wrist}')
-
+            # Check distance with respect to other packages to make sure it's not too close
+            if self.too_close_to_other_package(x, z, coordinates):
+                rospy.logwarn(f'Coordinate {target} is too close to another package. Sweep needed')
+                return 'sweep_needed'
+            
             # Move over target small package to pick up
             rospy.loginfo(f'Moving over small package {target} to pick it up')
             publish_and_wait(pub=self.task_space_pub,
@@ -1264,6 +1298,15 @@ class PickUpSmallPackage(smach.State):
     
     def within_safe_mode_range(self, x, z):
         return (120 <= x <= 250) and (-170 <= z <= 170)
+    
+    def needs_pickup_after_big_packages(self, z):
+        return z >= 170
+    
+    def in_left_wall_zone(self, x, z):
+        return (70 <= x <= 100) and (-200 <= z <= 200)
+    
+    def in_right_wall_zone(self, x, z):
+        return (250 <= x <= 280) and (-200 <= z <= 200)
 
     def x_coord_within_range(self, x, z):
         return (70 < x < 250)
@@ -1273,6 +1316,9 @@ class PickUpSmallPackage(smach.State):
     
     def area_within_range(self, area):
         return area < globals['max_small_package_area']
+    
+    def too_close_to_other_package(self, x, z, coordinates):
+        pass
     
     def in_big_package_area(self, x, z):
         return (100 < x < 160) and (170 < z < 200)
@@ -1442,17 +1488,34 @@ class PickUpFuelTank(smach.State):
 
 class StoreFuelTank(smach.State):
     # Dictionary to map the slot number to the corresponding coordinates
-    OVER_SLOT_COORDS = {
+    '''
+        OVER_SLOT_COORDS = {
         1: [-115, 100, -95, 3500, 2640, 25, 10],      
         2: [-30, 100, -90, 3500, 2640, 25, 10],   #updated speeds
         3: [40, 100, -85, 3500, 2640, 25, 10]
     }
 
-    IN_SLOT_COORDS = {
+        IN_SLOT_COORDS = {
         1: [-115, 50, -95, 3500, 2640, 25, 10],
         2: [-30, 50, -90, 3500, 2640, 25, 10],
         3: [40, 50, -85, 3500, 2640, 25, 10]
     }
+
+    '''
+
+    OVER_SLOT_COORDS = {
+        1: [-127, 100, -80.2, 3500, 2640, 25, 10],      
+        2: [-40.2, 100, -85.2, 3500, 2640, 25, 10],   #updated speeds
+        3: [40, 100, -85.2, 3500, 2640, 25, 10]
+    }
+
+    IN_SLOT_COORDS = {
+        1: [-127, 30, -80.2, 3500, 2640, 25, 10],
+        2: [-40.2, 30, -85.2, 3500, 2640, 25, 10],
+        3: [40, 30, -85.2, 3500, 2640, 25, 10]
+    }
+
+
 
     def __init__(self, task_space_publisher, arm_angles_publisher, slot_number=1):
         smach.State.__init__(self, outcomes=['fuel_tank_stored','fuel_tank_not_stored'])
@@ -1533,7 +1596,7 @@ class FuelTankPlacer(smach.State):
                     wait_for_topic='Arm_Done',
                     message_type=Float32MultiArray,
                     message_data=[-40, 100, -133, 2230, 1980, 10, 10],
-                    delay=10,
+                    delay=5,
                     timeout_function=None)
 
         #get lower to grab the device
@@ -1541,7 +1604,7 @@ class FuelTankPlacer(smach.State):
                 wait_for_topic='Arm_Done',
                 message_type=Float32MultiArray,
                 message_data=[-40, -10, -133, 2230, 1980, 10, 10],
-                delay=10,
+                delay=4,
                 timeout_function=None)    
 
         #close gripper
@@ -1549,38 +1612,38 @@ class FuelTankPlacer(smach.State):
                 wait_for_topic='Arm_Done',
                 message_type=Float32MultiArray,
                 message_data=[-40, -10, -133, 2230, 2700, 10, 10],
-                delay=10,
+                delay=5,
                 timeout_function=None)    
         
         #position the arm just above the thruster assembly zone
         publish_and_wait(pub=self.task_space_pub,
                 wait_for_topic='Arm_Done',
                 message_type=Float32MultiArray,
-                message_data=[145, 100, 70, 2230, 2700, 10, 10],
-                delay=10,
+                message_data=[135, 100, 76, 2230, 2700, 10, 10],
+                delay=8,
                 timeout_function=None)
 
         #twist the wrist
         publish_and_wait(pub=self.task_space_pub,
                 wait_for_topic='Arm_Done',
                 message_type=Float32MultiArray,
-                message_data=[145, 100, 70, 3700, 2700, 10, 10],
-                delay=10,
+                message_data=[135, 100, 76, 3700, 2700, 10, 10],
+                delay=8,
                 timeout_function=None)
         
         #place the device
         publish_and_wait(pub=self.task_space_pub,
                 wait_for_topic='Arm_Done',
                 message_type=Float32MultiArray,
-                message_data=[145, 100, 70, 3700, 2700, -200, 10],
-                delay=10,
+                message_data=[135, 100, 81, 3700, 2700, -200, 5], #changed tolerance to 5, and positive z by 5
+                delay=6,
                 timeout_function=None)
         
         #release
         publish_and_wait(pub=self.task_space_pub,
                 wait_for_topic='Arm_Done',
                 message_type=Float32MultiArray,
-                message_data=[145, -100, 70, 3700, 1400, 100, 10],
+                message_data=[135, -100, 76, 3700, 1400, 100, 10],
                 delay=2,
                 timeout_function=None)
         
@@ -1588,7 +1651,7 @@ class FuelTankPlacer(smach.State):
         publish_and_wait(pub=self.task_space_pub,
                 wait_for_topic='Arm_Done',
                 message_type=Float32MultiArray,
-                message_data=[145, 100, 70, 3700, 1400, 10, 10],
+                message_data=[135, 100, 76, 3700, 1400, 10, 10],
                 delay=2,
                 timeout_function=None)
         

@@ -213,7 +213,7 @@ public:
         }
             
         // Publish 8 starting arm angles and speed to Arm_Angles
-        int Arm_Start_Angles[10] = { 2009, 2721, 2706, 1635, 2166, 1661, 1886, 1980, 10, 500 };
+        int Arm_Start_Angles[10] = { 1470, 2833, 2820, 1439, 2150, 1339, 1998, 1980, 10, 500 };
         for (int i = 0; i < 10; i++) {
             Arm_Angles.data[i] = Arm_Start_Angles[i];
         }
@@ -221,7 +221,7 @@ public:
 
 
         // Create and write misc servos to custom starting pos
-        int Misc_Start_Angles[4] = { 2048, 1050, 1300, 2048 };  //3) 1050 -> 1400
+        int Misc_Start_Angles[4] = { 2048, 1050, 2500, 2048 };  //3) 1050 -> 1400->2700
 
         // Creates and assigns array with each byte of message
         uint8_t data_array[4];
