@@ -172,6 +172,7 @@ catkin_install_python(PROGRAMS
   scripts/board_objects.py
   scripts/FINAL_SM.py 
   scripts/COMP_SM.py
+  scripts/FT_PLACER_SM.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
