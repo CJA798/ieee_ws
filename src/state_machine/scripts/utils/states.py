@@ -1611,14 +1611,14 @@ class FuelTankPlacer(smach.State):
         publish_and_wait(pub=self.task_space_pub,
                 wait_for_topic='Arm_Done',
                 message_type=Float32MultiArray,
-                message_data=[135, 100, 76, 3700, 1400, 50, 100],
+                message_data=[135, 100, 76, 3700, 1400, 100, 100],
                 delay=2,
                 timeout_function=None)
         
         publish_and_wait(pub=self.task_space_pub,
                 wait_for_topic='Arm_Done',
                 message_type=Float32MultiArray,
-                message_data=[100, 100, 100, 2048, 2700, 50, 100],
+                message_data=[100, 100, 100, 2048, 2700, 100, 100],
                 delay=2,
                 timeout_function=None)
         
