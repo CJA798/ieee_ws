@@ -14,7 +14,11 @@ rostopic pub /Arm_Angles std_msgs/Float32MultiArray "layout:
     size: 0
     stride: 0
   data_offset: 0
-data: [933, 2337, 2328, 2094, 2080, 606, 2000, 2440, 50, 10]"
+data: [626, 2502, 2487, 1772, 2055, 851, 1663, 2440, 50, 10]"
+layout: 
+  dim: []
+  data_offset: 0
+data: [626.0, 2502.0, 2487.0, 1772.0, 2055.0, 851.0, 1663.0, 1980.0]
 
 TASK SPACE TESTER:.
 rostopic pub /Task_Space std_msgs/Float32MultiArray "layout:

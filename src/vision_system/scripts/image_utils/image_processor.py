@@ -56,7 +56,7 @@ class ImageProcessor_():
 
         # Calculate the color bounds
         self.color_data = {
-        "orange": self.get_color_bounds([0, 85, 255], hue_offset=30, value=(100, 255), saturation=(200, 255)),
+        "orange": self.get_color_bounds([0, 85, 255], hue_offset=30, value=(100, 255), saturation=(250, 255)),
         "copper": self.get_color_bounds([75, 112, 255]),
         "yellow": self.get_color_bounds([0, 255, 255]),
         "magenta": self.get_color_bounds([255, 0, 255], hue_offset=40, value=(100, 255), saturation=(100, 255)),
@@ -231,11 +231,12 @@ class ImageProcessor_():
         gray = cv2.cvtColor(orange_mask, cv2.COLOR_BGR2GRAY)
         
         # TODO: Apply morphological operations if necessary
+        morph = cv2.morphologyEx(gray, cv2.MORPH_OPEN, np.ones((1, 1), np.uint8))
         
         area_range_factor = self.get_area_range_factor(pose_)
         #print(f"Area Range Factor: {area_range_factor}")
 
-        coordinates, coords_image = self.find_contours(gray, pose_, area_range_factor=area_range_factor)
+        coordinates, coords_image = self.find_contours(morph, pose_, area_range_factor=area_range_factor)
         sorted_coordinates_list = sorted(coordinates, key=lambda coord: coord.x, reverse=True)
 
         coords_image = np.hstack([coords_image, orange_mask])
@@ -269,8 +270,8 @@ class ImageProcessor_():
         height, _, _ = image.shape
 
         # Define the region to keep
-        y_start = int(height * 2 / 5)
-        y_end = int(height * 3 / 5)
+        y_start = int(height * (2 / 5 - 1/8))
+        y_end = int(height * (3 / 5))
 
         # Create a mask with the same dimensions as the image
         mask = np.zeros_like(image)
@@ -319,15 +320,15 @@ class ImageProcessor_():
 
                 cv2.drawContours(coords_image, [cv2.convexHull(contour)], -1, (0, 255, 0), 2)
                 cv2.circle(coords_image, (cX, cY), 2, (0, 255, 0), -1)
-                x_arm, contour_area, z_arm = self.coordinate_frame_conversion(cX, cY, area, pose)
+                x_arm, _, z_arm = self.coordinate_frame_conversion(cX, cY, area, pose)
                 coords = Point()
                 coords.x = x_arm    # Z-img = X-arm
                 coords.z = z_arm    # X-img = Z-arm
-                coords.y = contour_area     # Y is hardcoded, so we provide the contour area instead to know if it's a single box or a group of boxes too close to each other
+                coords.y = area     # Y is hardcoded, so we provide the contour area instead to know if it's a single box or a group of boxes too close to each other
                 coords_list.append(coords)
                 coords_text = "(%.1f, %.1f)"  % (z_arm, x_arm) 
                 cv2.putText(coords_image, coords_text, (cX - 15, cY - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-                print(contour_area)    
+                print(area)    
                 #coords_image = np.hstack([coords_image, cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)])
         return (coords_list, coords_image)
     
@@ -478,22 +479,18 @@ class ImageProcessor_():
             #print(f"Y: {y}  |   Max_Cam_Height: {self.image_height}     |   Conversion Factior: {PX2MM_Y}")
 
             # Correction offsets
-            Xarm_offset = 15
-            Zarm_offset = 5
+            Xarm_offset = 0
+            Zarm_offset = 0
 
             Xarm_xi_obj = Xarm_xi_obj + Xarm_offset
             Zarm_xi_obj = Zarm_xi_obj + Zarm_offset
 
             # Mapped offsets using linear regression
-            #Xarm_mapped_offset = -0.2674 * Xarm_xi_obj + 0.3101
-            # Mapped offsets using polynomial regression
-            #Xarm_poly_offset = self.get_fuel_tank_poly_offset(Xarm_xi_obj)
-            # Mapped offsets using polynomial regression
             Xarm_poly_offset, Zarm_poly_offset = self.get_fuel_tank_poly_offset(Xarm_xi_obj, Zarm_xi_obj)
 
             # Total mm
-            Xarm_xi_obj = Xarm_xi_obj + Xarm_poly_offset
-            Zarm_xi_obj = Zarm_xi_obj - 11.5 # + Zarm_poly_offset
+            Xarm_xi_obj = Xarm_xi_obj# + Xarm_poly_offset
+            Zarm_xi_obj = Zarm_xi_obj# - 11.5 # + Zarm_poly_offset
             
             # Total mm
             #Xarm_xi_obj = Xarm_xi_obj + Xarm_poly_offset
@@ -605,7 +602,7 @@ def main_():
             print("Can't receive frame")
             break
 
-        coords_list, coords_image = ip.get_coords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value)        
+        coords_list, coords_image = ip.get_coords(object_type=BoardObjects.FUEL_TANK.value, pose=Poses.FUEL_TANK_SCAN.value)        
         
         if coords_image is None:
             logwarn("Coords Image is None")
