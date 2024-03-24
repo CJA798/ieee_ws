@@ -25,7 +25,7 @@ globals: Dict[str, Union[bool, int, None]] = {
     'fuel_tank_Y_lower_arm_offset': 20,
     'fuel_tank_Y_higher_arm_offset': 140,
     'fuel_tank_Z_arm_offset': 80,
-    'fuel_tank_gripper_open': 2440,
+    'fuel_tank_gripper_open': 2420,
     'fuel_tank_gripper_close': 2640,
 
     'scan_after_big_package_pickup': False,
@@ -58,8 +58,7 @@ globals: Dict[str, Union[bool, int, None]] = {
     # Fuel Tank Macros
     'fuel_tank_close_top': 1020,
     'fuel_tank_raise_bulk_offset': 2000,
-    'FT_SCAN_POSE': [656, 2341, 2332, 2020, 2048, 705, 1677, 2440, 100, 10],
-
+    'FT_SCAN_POSE': [933, 2337, 2328, 2094, 2080, 606, 2000, 2440, 50, 10],
 
     # Bridge Macros
     'raised_bridge': 2048,

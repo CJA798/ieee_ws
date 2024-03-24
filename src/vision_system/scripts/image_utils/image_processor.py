@@ -33,7 +33,7 @@ class ImageProcessor_():
     }
 
     POSE_AREA_RANGES = {
-        Poses.SMALL_PACKAGE_SCAN: (0.0015, 0.015),
+        Poses.SMALL_PACKAGE_SCAN: (0.0005, 0.015),
         Poses.FUEL_TANK_SCAN: (0.005, 0.075)
     }
 
@@ -345,7 +345,7 @@ class ImageProcessor_():
             z: float - The z-coordinate in the arm frame.
         '''
         if pose == Poses.SMALL_PACKAGE_SCAN:
-            #print("image_height: ", self.image_height)
+            '''#print("image_height: ", self.image_height)
             #print("image_width: ", self.image_width)
             KX = 59/60
             PX2MM_Y = 470/self.image_height
@@ -382,15 +382,93 @@ class ImageProcessor_():
                 Xarm_targeted_offset = -10
                 Xarm_xi_obj = Xarm_xi_obj + Xarm_targeted_offset
 
+            return Xarm_xi_obj, contour_area, Zarm_xi_obj'''
+            KX = 1
+            PX2MM_Y = 480/self.image_height
+            PX2MM_X = 660/self.image_width * KX
+
+            # Offset from bottom of image to arm base
+            A = -75
+            KY = 1
+
+            # Convert px to mm
+            Xarm_xi_obj = ((self.image_height - y) * PX2MM_Y + A) * KY
+            contour_area = area # Y is hardcoded, so we provide the contour area instead to know if it's a single box or a group of boxes too close to each other
+            Zarm_xi_obj = (x - self.image_width/2) * PX2MM_X * KX
+            #print(f"Y: {y}  |   Max_Cam_Height: {self.image_height}     |   Conversion Factior: {PX2MM_Y}")
+
+            # Correction offsets
+            Xarm_offset = 0
+            Zarm_offset = -28
+
+            Xarm_xi_obj = Xarm_xi_obj + Xarm_offset
+            Zarm_xi_obj = Zarm_xi_obj + Zarm_offset
+
+            # Mapped offsets using polynomial regression
+            Xarm_poly_offset, Zarm_poly_offset = self.get_small_package_poly_offset(Xarm_xi_obj, Zarm_xi_obj)
+
+            # Total mm
+            Xarm_xi_obj = Xarm_xi_obj + Xarm_poly_offset
+            Zarm_xi_obj = Zarm_xi_obj + Zarm_poly_offset
+
+            Xarm_target_offset =0
+            Zarm_target_offset = 0
+            # Targeted offsets
+            if 100 <= x < 175:
+                Zarm_target_offset = 18
+            elif 175 <= x < 215:
+                Zarm_target_offset = 23
+            elif 215 <= x < 280:
+                Zarm_target_offset = 28
+            elif -5 <= x <15:
+                Zarm_target_offset = 17
+            Zarm_xi_obj = Zarm_xi_obj + Zarm_target_offset
+
+            Xarm_target_offset =0
+            if -10 <= y < 10:
+                Xarm_target_offset = 9
+            elif 10 <= y < 16:
+                Xarm_target_offset = -18
+            Xarm_xi_obj = Xarm_xi_obj + Xarm_target_offset
+            '''
+
+            # Targeted offsets in X
+            if 140 <= x < 138:
+                Xarm_targeted_offset = -4
+                Xarm_xi_obj = Xarm_xi_obj + Xarm_targeted_offset
+            elif 138 <= x <= 145:
+                Xarm_targeted_offset = 5
+                Xarm_xi_obj = Xarm_xi_obj + Xarm_targeted_offset
+            elif 188 <= x < 192:
+                Xarm_targeted_offset = -2.5
+                Xarm_xi_obj = Xarm_xi_obj + Xarm_targeted_offset
+            elif 192 <= x <= 193:
+                Xarm_targeted_offset = -5
+                Xarm_xi_obj = Xarm_xi_obj + Xarm_targeted_offset
+            elif 203 <= x <= 210:
+                Xarm_targeted_offset = 8
+                Xarm_xi_obj = Xarm_xi_obj + Xarm_targeted_offset
+            
+            # Targeted offsets in Z
+            if -250 <= y < -60:
+                Zarm_targeted_offset = 40
+                Zarm_xi_obj = Zarm_xi_obj + Zarm_targeted_offset
+            if 100 <= y < 140:
+                Zarm_targeted_offset = 20
+                Zarm_xi_obj = Zarm_xi_obj + Zarm_targeted_offset
+            if -20 <= y < 0:
+                Zarm_targeted_offset = 10
+                Zarm_xi_obj = Zarm_xi_obj + Zarm_targeted_offset     
+            '''
             return Xarm_xi_obj, contour_area, Zarm_xi_obj
         
         elif pose == Poses.FUEL_TANK_SCAN:
             KX = -1
-            PX2MM_Y = 160/self.image_height
-            PX2MM_X = 200/self.image_width * KX
+            PX2MM_Y = 165/self.image_height
+            PX2MM_X = 222/self.image_width * KX
 
             # Offset from bottom of image to arm base
-            A = 15
+            A = 0
             KY = 1
 
             # Convert px to mm
@@ -400,8 +478,8 @@ class ImageProcessor_():
             #print(f"Y: {y}  |   Max_Cam_Height: {self.image_height}     |   Conversion Factior: {PX2MM_Y}")
 
             # Correction offsets
-            Xarm_offset = 0
-            Zarm_offset = -30
+            Xarm_offset = 15
+            Zarm_offset = 5
 
             Xarm_xi_obj = Xarm_xi_obj + Xarm_offset
             Zarm_xi_obj = Zarm_xi_obj + Zarm_offset
@@ -415,8 +493,8 @@ class ImageProcessor_():
 
             # Total mm
             Xarm_xi_obj = Xarm_xi_obj + Xarm_poly_offset
-            Zarm_xi_obj = 77.5 + Zarm_poly_offset
-
+            Zarm_xi_obj = Zarm_xi_obj - 11.5 # + Zarm_poly_offset
+            
             # Total mm
             #Xarm_xi_obj = Xarm_xi_obj + Xarm_poly_offset
 
@@ -435,8 +513,8 @@ class ImageProcessor_():
             x_offset: float - The offset for the fuel tank polynomial regression.
             z_offset: float - The offset for the fuel tank polynomial regression.
         '''
-        x_offset = round(-1.257e-9 * x**5 + 1.242e-7 * x**4 + 1.182e-5 * x**3 - 0.001137 * x**2 - 0.2175 * x - 29.66, 1)
-        z_offset = round(0.0001796 * z**2 - 0.02262 * z - 0.5523, 1)
+        x_offset = round(-0.2296 * x - 2.788, 1)
+        z_offset = round(0.489 * z**2 - 86.56 * z +3817, 1)
         return x_offset, z_offset
     
     def get_small_package_poly_offset(self, x: float, z: float) -> float:
@@ -461,8 +539,9 @@ class ImageProcessor_():
         #z_offset = round(-2e-7 * z**4 - 2e-5 * z**3 + 2e-3 * z**2 + 0.1143 * z + 4.3528, 1)
         z_offset = -0.0597 * z + 6.8607
         '''
-        x_offset = round(7.383e-11 * x**6 - 4.695e-8 * x**5 + 5.566e-6 * x**4 + 0.002374 * x**3 - 0.7866 * x**2 + 85.46 * x - 3225, 1)
-        z_offset = round(-2.919e-15 * z**7 - 6.998e-14 * z**6 + 2.578e-10 * z**5 - 1.572e-9 * z**4 - 7.515e-6 * z**3 + 0.0001577 * z**2 + 0.02068 * z + 0.8277, 1)
+        x_offset = round(0.002168 * x**2 - 0.8667 * x + 92.14, 1)
+        z_offset = round(-0.0001164 * x**2-0.07977 * x - 6.218, 1)
+        
         return x_offset, z_offset
     
 
@@ -526,7 +605,7 @@ def main_():
             print("Can't receive frame")
             break
 
-        coords_list, coords_image = ip.get_coords(object_type=BoardObjects.FUEL_TANK.value, pose=Poses.FUEL_TANK_SCAN.value)        
+        coords_list, coords_image = ip.get_coords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value)        
         
         if coords_image is None:
             logwarn("Coords Image is None")

@@ -1,0 +1,36 @@
+FT BULK GRABBER:
+rostopic pub /Misc_Angles std_msgs/Float32MultiArray "layout:
+  dim:
+  - label: ''
+    size: 0
+    stride: 0
+  data_offset: 0
+data: [-1,3200,3000,-1]" 
+
+FT SCAN POSE:
+rostopic pub /Arm_Angles std_msgs/Float32MultiArray "layout:
+  dim:
+  - label: ''
+    size: 0
+    stride: 0
+  data_offset: 0
+data: [933, 2337, 2328, 2094, 2080, 606, 2000, 2440, 50, 10]"
+
+TASK SPACE TESTER:.
+rostopic pub /Task_Space std_msgs/Float32MultiArray "layout:
+  dim:
+  - label: ''
+    size: 0
+    stride: 0
+  data_offset: 0
+data: [100,100,100,2048,2440,10,10]"
+
+PB SCAN POSE:
+rostopic pub /Arm_Angles std_msgs/Float32MultiArray "layout:
+  dim:
+  - label: ''
+    size: 0
+    stride: 0
+  data_offset: 0
+data: [1971.0, 2114.0, 2108.0, 2674.0, 2088.0, 449.0, 1983.0, 1980, 100, 10]"
+
