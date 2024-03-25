@@ -1099,7 +1099,30 @@ class ScanFuelTankPose(smach.State):
                         timeout_function=None)
         rospy.sleep(1)
         return 'pose_reached'
-    
+
+
+class PickupScanPose(smach.State):
+    def __init__(self, arm_angles_pub):
+        smach.State.__init__(self, outcomes=['pose_reached','pose_not_reached'])
+        rospy.loginfo(f'Executing state PickupScanPose')
+        self.arm_angles_pub = arm_angles_pub
+
+    def execute(self, userdata):
+        angles = globals['PICKUP_SP_SCAN_POSE']
+        if publish_and_wait(pub=self.arm_angles_pub,
+                            wait_for_topic='Arm_Done',
+                            message_type=Float32MultiArray,
+                            message_data=angles,
+                            delay=1,
+                            timeout_function=None):
+            # Wait 2 seconds for the arm to stabilize
+            rospy.sleep(2)
+            rospy.loginfo('Arm set to pickup scan pose')
+            return 'pose_reached'
+        else:
+            rospy.logerr('Error setting arm to pickup scan pose')
+            return 'pose_not_reached' 
+
 
 # define state SetPose
 class RestPose(smach.State):
@@ -1347,7 +1370,7 @@ class PickUpSmallPackage(smach.State):
         smach.State.__init__(self,
                              input_keys=['coordinates_list'],
                              output_keys=['sweep_coordinates_list', 'left_wall_zone', 'right_wall_zone', 'pick_after_big_packages', 'move_after_big_packages'],
-                             outcomes=['packages_picked_up', 'sweep_needed', 'soft_sweep_needed', 'no_coordinates_received'])
+                             outcomes=['packages_picked_up', 'no_coordinates_received'])
         self.task_space_pub = task_space_pub
         self.in_re_scan = in_re_scan
         self.after_big_packages = after_big_packages
@@ -1380,51 +1403,6 @@ class PickUpSmallPackage(smach.State):
             # Set the jaw value to hold the small package grabber
             jaw = globals['small_package_jaw_closed']
             wrist = globals['regular_wrist_angle']
-
-            # Check if it's within X-axis range
-            if not self.x_coord_within_range(x, z) and not self.in_re_scan:
-                globals['scan_after_big_package_pickup'] = True
-                userdata.move_after_big_packages = True
-                rospy.logwarn(f'Coordinate {target} is not within X-axis range. Scan after big package pickup needed')
-                continue
-
-            ##############################################################################################################
-            ##                     THE LINE BELOW IGNORES ANY PURPLE BOXES NOT IN FRONT OF THE ROBOT                    ##
-            ##############################################################################################################
-            # The safe mode is to ignore any purple boxes not in front of the robot path to the dropoff area.
-            
-            if self.in_safe_mode and not self.within_safe_mode_range(x,z):
-                rospy.logwarn(f'Coordinate {target} is outside of safe mode range')
-                # Determine the area where the out-of-safe-mode-range package is
-                if self.in_left_wall_zone(x, z):
-                    rospy.logwarn(f'Left wall pickup needed')
-                    userdata.left_wall_zone = True
-                    return 'left_wall_zone'
-                elif self.in_right_wall_zone(x, z):
-                    rospy.logwarn(f'Right wall pickup needed')
-                    userdata.right_wall_zone = True
-                    return 'right_wall_zone'
-                continue
-            
-            ##############################################################################################################
-            ##                     THE LINE ABOVE IGNORES ANY PURPLE BOXES NOT IN FRONT OF THE ROBOT                    ##
-            ##############################################################################################################
-    
-            # Check the area of the contour to verify it's a single box
-            if not self.area_within_range(area):
-                rospy.logwarn(f'Coordinate {target} has an area of {area}, which is bigger than the max area for a single package')
-                # Double-check with the number of coordinates
-                if num_coordinates < 3:
-                    # Sweep
-                    rospy.logwarn(f'Potential cluster of small packages detected. Sweep needed')
-                    return 'sweep_needed'
-                rospy.logwarn('Picking up abnormally large package anyways')
-                # else, try to pick it up. It could just be a greater contour than normal 
-            
-            # Check distance with respect to other packages to make sure it's not too close
-            if self.too_close_to_other_package(x, z, coordinates):
-                rospy.logwarn(f'Coordinate {target} is too close to another package. Sweep needed')
-                return 'sweep_needed'
             
             # Move over target small package to pick up
             rospy.loginfo(f'Moving over small package {target} to pick it up')
@@ -1462,42 +1440,6 @@ class PickUpSmallPackage(smach.State):
             rospy.loginfo(f'Successfully picked up small package {target}')
         return 'packages_picked_up'
     
-    def within_safe_mode_range(self, x, z):
-        return (120 <= x <= 240) and (-140 <= z <= 140)
-    
-    def needs_pickup_after_big_packages(self, z):
-        return z >= 170
-    
-    def in_left_wall_zone(self, x, z):
-        return (70 <= x <= 100) and (-200 <= z <= 200)
-    
-    def in_right_wall_zone(self, x, z):
-        return (250 <= x <= 280) and (-200 <= z <= 200)
-
-    def x_coord_within_range(self, x, z):
-        return (70 < x < 250)
-    
-    def z_coord_within_range(self, z):
-        return (-200 < z < 200)
-    
-    def area_within_range(self, area):
-        return area < globals['max_small_package_area']
-    
-    def too_close_to_other_package(self, x, z, coordinates):
-        pass
-    
-    def in_big_package_area(self, x, z):
-        return (100 < x < 160) and (170 < z < 200)
-    
-    def pick_after_big_packages(self, x, z):
-        return (100 < x < 160) and (200 <= z)
-    
-    def get_wrist_angle(self, z):
-        return 400 if z > 0 else 3600
-
-    def adjust_xz_to_wrist(self, x, z, wrist):
-        return (x, z) if wrist < 2048 else (x, z) # less than 2048 for the wrist means the arm is going towards the right wall
-
 
 class Sweep(smach.State):
     def __init__(self, task_space_pub, soft=False):
@@ -1668,9 +1610,9 @@ class StoreFuelTank(smach.State):
     }
 
     IN_SLOT_OPEN = {
-        1: [-120, 15, -86.2, 2700, 2540, 100, 100],      
-        2: [-35, 15, -84.2, 2400, 2540, 100, 100],   #updated speeds
-        3: [30, 15, -82.2, 1700, 2540, 100, 100]
+        1: [-120, 15, -86.2, 2700, 2540, 100, 10],      
+        2: [-35, 15, -84.2, 2400, 2540, 100, 10],   #updated speeds
+        3: [30, 15, -82.2, 1700, 2540, 100, 10]
     }
 
 
@@ -1704,7 +1646,7 @@ class StoreFuelTank(smach.State):
                          wait_for_topic='Arm_Done',
                          message_type=Float32MultiArray,
                          message_data=self.IN_SLOT_OPEN[self.slot_number],
-                         delay=0.75,
+                         delay=1,
                          timeout_function=None)
         rospy.loginfo("Releasing fuel tank into slot {self.slot_number}")
         

@@ -80,11 +80,19 @@ def main():
             smach.StateMachine.add('MINI_RAISE_BULK_GRABBER', SetPose(pose=Poses.MINI_RAISE_BULK_GRABBER, move_publisher=move_pub, misc_angles_publisher=misc_angles_pub),
                                     transitions={'pose_reached':'GO_TO_NEXT_AREA', 'pose_not_reached':'MINI_RAISE_BULK_GRABBER'})
             
-            
-            # Pickup small packages
             smach.StateMachine.add('GO_TO_NEXT_AREA', PathResolver(move_publisher=move_pub),
-                                   transitions={'area_reached':'GO_TO_NEXT_AREA',
+                                   transitions={'area_reached':'SP_SCAN',
                                                 'go_to_dropoff':'BACK_TO_INITIAL_AREA'})
+            # Pickup small packages
+            # Set the arm in small package scan pose
+            smach.StateMachine.add('SP_SCAN', PickupScanPose(arm_angles_pub=arm_angles_pub),
+                                    transitions={'pose_reached':'SP_GET_COORDS', 'pose_not_reached':'SP_SCAN'})
+            smach.StateMachine.add('SP_GET_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value, timeout=0.5, expected_pairs=3, camera_enable_publisher=camera_enable_pub),
+                                    transitions={'coords_received':'GO_TO_NEXT_AREA', 'coords_not_received':'SP_GET_COORDS'})
+            #smach.StateMachine.add('PICK_UP_SMALL_PACKAGES', PickUpSmallPackage(task_space_pub=task_space_pub),
+                                    #transitions={'packages_picked_up':'GO_TO_NEXT_AREA', 'no_coordinates_received':'GO_TO_NEXT_AREA'})
+            
+            
             
             #smach.StateMachine.add('SCAN_SMALL_PACKAGES', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value, timeout=0.5, expected_pairs=3, camera_enable_publisher=camera_enable_pub),
             #                        transitions={'coords_received':'PICK_UP_SMALL_PACKAGES', 'coords_not_received':'SCAN_SMALL_PACKAGES'})
@@ -102,7 +110,7 @@ def main():
     
         # Pickup small packages
         smach.StateMachine.add('PACKAGE_PICK_UP', package_pickup_sm,
-                                transitions={'packages_picked_up': 'END',#'GO_TO_DROP_OFF_AREA',
+                                transitions={'packages_picked_up': 'GO_TO_DROP_OFF_AREA',#'GO_TO_DROP_OFF_AREA',
                                             'packages_not_picked_up':'PACKAGE_PICK_UP'})
         
 

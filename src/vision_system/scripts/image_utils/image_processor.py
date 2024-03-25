@@ -352,50 +352,12 @@ class ImageProcessor_():
             return self.image_height - y, area, x 
         
         elif pose == Poses.SMALL_PACKAGE_SCAN:
-            '''#print("image_height: ", self.image_height)
-            #print("image_width: ", self.image_width)
-            KX = 59/60
-            PX2MM_Y = 470/self.image_height
-            PX2MM_X = 610/self.image_width * KX
-
-            # Offset from bottom of image to arm base
-            A = -60
-            KY = 384/360
-
-            # Convert px to mm
-            Xarm_xi_obj = ((self.image_height - y) * PX2MM_Y + A) * KY
-            contour_area = area # Y is hardcoded, so we provide the contour area instead to know if it's a single box or a group of boxes too close to each other
-            Zarm_xi_obj = (x - self.image_width/2) * PX2MM_X * KX
-            #print(f"Y: {y}  |   Max_Cam_Height: {self.image_height}     |   Conversion Factior: {PX2MM_Y}")
-
-            # Correction offsets
-            Xarm_offset = -30
-            Zarm_offset = -17
-
-            Xarm_xi_obj = Xarm_xi_obj + Xarm_offset
-            Zarm_xi_obj = Zarm_xi_obj + Zarm_offset
-
-            # Mapped offsets using polynomial regression
-            Xarm_poly_offset, Zarm_poly_offset = self.get_small_package_poly_offset(Xarm_xi_obj, Zarm_xi_obj)
-
-            # Total mm
-            Xarm_xi_obj = Xarm_xi_obj + Xarm_poly_offset
-            Zarm_xi_obj = Zarm_xi_obj + Zarm_poly_offset
-            
-            if 220 <= x < 230:
-                Xarm_targeted_offset = 6
-                Xarm_xi_obj = Xarm_xi_obj + Xarm_targeted_offset
-            elif 230 <= x <= 245:
-                Xarm_targeted_offset = -10
-                Xarm_xi_obj = Xarm_xi_obj + Xarm_targeted_offset
-
-            return Xarm_xi_obj, contour_area, Zarm_xi_obj'''
             KX = 1
-            PX2MM_Y = 480/self.image_height
-            PX2MM_X = 660/self.image_width * KX
+            PX2MM_Y = 300/self.image_height
+            PX2MM_X = 350/self.image_width
 
             # Offset from bottom of image to arm base
-            A = -75
+            A = 0
             KY = 1
 
             # Convert px to mm
@@ -405,8 +367,8 @@ class ImageProcessor_():
             #print(f"Y: {y}  |   Max_Cam_Height: {self.image_height}     |   Conversion Factior: {PX2MM_Y}")
 
             # Correction offsets
-            Xarm_offset = 0
-            Zarm_offset = -28
+            Xarm_offset = 20
+            Zarm_offset = -6
 
             Xarm_xi_obj = Xarm_xi_obj + Xarm_offset
             Zarm_xi_obj = Zarm_xi_obj + Zarm_offset
@@ -418,55 +380,9 @@ class ImageProcessor_():
             Xarm_xi_obj = Xarm_xi_obj + Xarm_poly_offset
             Zarm_xi_obj = Zarm_xi_obj + Zarm_poly_offset
 
-            Xarm_target_offset =0
-            Zarm_target_offset = 0
-            # Targeted offsets
-            if 100 <= x < 175:
-                Zarm_target_offset = 18
-            elif 175 <= x < 215:
-                Zarm_target_offset = 23
-            elif 215 <= x < 280:
-                Zarm_target_offset = 28
-            elif -5 <= x <15:
-                Zarm_target_offset = 17
-            Zarm_xi_obj = Zarm_xi_obj + Zarm_target_offset
-
-            Xarm_target_offset =0
-            if -10 <= y < 10:
-                Xarm_target_offset = 9
-            elif 10 <= y < 16:
-                Xarm_target_offset = -18
-            Xarm_xi_obj = Xarm_xi_obj + Xarm_target_offset
-            '''
-
-            # Targeted offsets in X
-            if 140 <= x < 138:
-                Xarm_targeted_offset = -4
-                Xarm_xi_obj = Xarm_xi_obj + Xarm_targeted_offset
-            elif 138 <= x <= 145:
-                Xarm_targeted_offset = 5
-                Xarm_xi_obj = Xarm_xi_obj + Xarm_targeted_offset
-            elif 188 <= x < 192:
-                Xarm_targeted_offset = -2.5
-                Xarm_xi_obj = Xarm_xi_obj + Xarm_targeted_offset
-            elif 192 <= x <= 193:
-                Xarm_targeted_offset = -5
-                Xarm_xi_obj = Xarm_xi_obj + Xarm_targeted_offset
-            elif 203 <= x <= 210:
-                Xarm_targeted_offset = 8
-                Xarm_xi_obj = Xarm_xi_obj + Xarm_targeted_offset
-            
-            # Targeted offsets in Z
-            if -250 <= y < -60:
-                Zarm_targeted_offset = 40
-                Zarm_xi_obj = Zarm_xi_obj + Zarm_targeted_offset
-            if 100 <= y < 140:
-                Zarm_targeted_offset = 20
-                Zarm_xi_obj = Zarm_xi_obj + Zarm_targeted_offset
-            if -20 <= y < 0:
-                Zarm_targeted_offset = 10
-                Zarm_xi_obj = Zarm_xi_obj + Zarm_targeted_offset     
-            '''
+            Xarm_targeted_offset = 0
+            Zarm_targeted_offset = 0
+    
             return Xarm_xi_obj, contour_area, Zarm_xi_obj
         
         elif pose == Poses.FUEL_TANK_SCAN:
@@ -549,8 +465,8 @@ class ImageProcessor_():
         #z_offset = round(-2e-7 * z**4 - 2e-5 * z**3 + 2e-3 * z**2 + 0.1143 * z + 4.3528, 1)
         z_offset = -0.0597 * z + 6.8607
         '''
-        x_offset = round(0.002168 * x**2 - 0.8667 * x + 92.14, 1)
-        z_offset = round(-0.0001164 * x**2-0.07977 * x - 6.218, 1)
+        x_offset = round(-0.001006 * x**2 + 0.3398 * x - 42.96, 1)
+        z_offset = round(-0.001045 * x**2 + 0.03433 * x -8.47, 1)
         
         return x_offset, z_offset
     
@@ -615,7 +531,7 @@ def main_():
             print("Can't receive frame")
             break
 
-        coords_list, coords_image = ip.get_coords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.MAIN_SCAN.value)        
+        coords_list, coords_image = ip.get_coords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value)        
         
         if coords_image is None:
             logwarn("Coords Image is None")

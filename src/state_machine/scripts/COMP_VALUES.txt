@@ -25,12 +25,21 @@ rostopic pub -1 /Task_Space std_msgs/Float32MultiArray "layout:
   data_offset: 0
 data: [100,100,100,2048,2440,10,10]"
 
-PB SCAN POSE:
+MAIN SCAN POSE:
 rostopic pub /Arm_Angles std_msgs/Float32MultiArray "layout:
   dim:
   - label: ''
     size: 0
     stride: 0
   data_offset: 0
-data: [1971.0, 2114.0, 2108.0, 2674.0, 2088.0, 449.0, 1983.0, 1980, 100, 10]"
+data: [2024, 2370, 2359, 2507, 2066, 513, 2025, 1980, 100, 10]"
 
+PB SCAN:
+rostopic pub /Arm_Angles std_msgs/Float32MultiArray "layout: 
+  dim:
+  - label: ''
+    size: 0
+    stride: 0
+  data_offset: 0
+data: [2017, 2179, 2174, 1861, 2063, 1047, 2016, 1980, 100, 10]"
+---
