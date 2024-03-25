@@ -59,6 +59,17 @@ def main():
         package_pickup_sm = smach.StateMachine(outcomes=['packages_picked_up', 'packages_not_picked_up'])
 
         with package_pickup_sm:
+            # Scan initial area before path planning
+            smach.StateMachine.add('MAIN_SCAN', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value,
+                                                          pose=Poses.MAIN_SCAN.value,
+                                                          timeout=1,
+                                                          expected_pairs=3,
+                                                          camera_enable_publisher=camera_enable_pub),
+                                    transitions={'coords_received':'PATH_PLANNING', 'coords_not_received':'MAIN_SCAN'})
+            # Figure out the path planning for the robot
+            smach.StateMachine.add('PATH_PLANNING', PathPlanning(),
+                                    transitions={'path_found':'SET_BULK_GRABBER_ARMS', 'path_not_found':'PATH_PLANNING'})
+            
             # Pickup big packages
             smach.StateMachine.add('SET_BULK_GRABBER_ARMS', SetPose(pose=Poses.SET_BULK_GRABBER_ARMS, misc_angles_publisher=misc_angles_pub),
                                     transitions={'pose_reached':'MOVE_TO_BIG_PACKAGE_WALL', 'pose_not_reached':'SET_BULK_GRABBER_ARMS'})
@@ -67,15 +78,31 @@ def main():
             smach.StateMachine.add('CLOSE_TOP_BULK_GRABBER_ARM', SetPose(pose=Poses.CLOSE_TOP_BULK_GRABBER_ARM, misc_angles_publisher=misc_angles_pub),
                                     transitions={'pose_reached':'MINI_RAISE_BULK_GRABBER', 'pose_not_reached':'CLOSE_TOP_BULK_GRABBER_ARM'})
             smach.StateMachine.add('MINI_RAISE_BULK_GRABBER', SetPose(pose=Poses.MINI_RAISE_BULK_GRABBER, move_publisher=move_pub, misc_angles_publisher=misc_angles_pub),
-                                    transitions={'pose_reached':'BACK_TO_INITIAL_AREA', 'pose_not_reached':'MINI_RAISE_BULK_GRABBER'})
+                                    transitions={'pose_reached':'GO_TO_NEXT_AREA', 'pose_not_reached':'MINI_RAISE_BULK_GRABBER'})
+            
+            
+            # Pickup small packages
+            smach.StateMachine.add('GO_TO_NEXT_AREA', PathResolver(move_publisher=move_pub),
+                                   transitions={'area_reached':'GO_TO_NEXT_AREA',
+                                                'go_to_dropoff':'BACK_TO_INITIAL_AREA'})
+            
+            #smach.StateMachine.add('SCAN_SMALL_PACKAGES', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value, timeout=0.5, expected_pairs=3, camera_enable_publisher=camera_enable_pub),
+            #                        transitions={'coords_received':'PICK_UP_SMALL_PACKAGES', 'coords_not_received':'SCAN_SMALL_PACKAGES'})
+            #smach.StateMachine.add('PICK_UP_SMALL_PACKAGES', PickUp(board_object=BoardObjects.SMALL_PACKAGE, arm_angles_publisher=arm_angles_pub, misc_angles_publisher=misc_angles_pub, move_publisher=move_pub),
+            #                        transitions={'packages_picked_up':'GO_TO_NEXT_AREA', 'packages_not_picked_up':'PICK_UP_SMALL_PACKAGES'})
+
+
+            
+            
             smach.StateMachine.add('BACK_TO_INITIAL_AREA', GoTo_(Areas.INITIAL_AREA, move_publisher=move_pub, grav_enable_publisher=grav_enable_pub, misc_angles_publisher=misc_angles_pub),
                                     transitions={'arrived':'RAISE_BULK_GRABBER', 'not_arrived':'MOVE_TO_BIG_PACKAGE_WALL'})
             smach.StateMachine.add('RAISE_BULK_GRABBER', SetPose(pose=Poses.RAISE_BULK_GRABBER, move_publisher=move_pub, misc_angles_publisher=misc_angles_pub),
                                     transitions={'pose_reached':'packages_picked_up', 'pose_not_reached':'RAISE_BULK_GRABBER'})
+            
     
         # Pickup small packages
         smach.StateMachine.add('PACKAGE_PICK_UP', package_pickup_sm,
-                                transitions={'packages_picked_up': 'GO_TO_DROP_OFF_AREA',
+                                transitions={'packages_picked_up': 'END',#'GO_TO_DROP_OFF_AREA',
                                             'packages_not_picked_up':'PACKAGE_PICK_UP'})
         
 

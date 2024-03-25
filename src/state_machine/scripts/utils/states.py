@@ -637,7 +637,7 @@ class SetPose(smach.State):
         speed = 100 #updated speed
         jaw = globals['gripper_bulk_hold']
         tolerance = 10
-        angles = [2041.0, 2023.0, 2015.0, 2660.0, 2083.0, 500.0, 2039.0, jaw, speed, tolerance]
+        angles = globals['SP_SCAN_POSE']
         if publish_and_wait(pub=self.arm_angles_pub,
                             wait_for_topic='Arm_Done',
                             message_type=Float32MultiArray,
@@ -645,7 +645,7 @@ class SetPose(smach.State):
                             delay=1,
                             timeout_function=None):
             # Wait 2 seconds for the arm to stabilize
-            rospy.sleep(2)
+            rospy.sleep(1)
             rospy.loginfo('Arm set to scan pose')
             return 'pose_reached'
         else:
@@ -1063,10 +1063,7 @@ class ScanPose(smach.State):
         self.arm_angles_pub = arm_angles_pub
 
     def execute(self, userdata):
-        speed = 100 #updated speed
-        jaw = globals['gripper_bulk_hold']
-        tolerance = 10
-        angles = [1971.0, 2114.0, 2108.0, 2674.0, 2088.0, 449.0, 1983.0, jaw, speed, tolerance]
+        angles = globals['SP_SCAN_POSE']
         if publish_and_wait(pub=self.arm_angles_pub,
                             wait_for_topic='Arm_Done',
                             message_type=Float32MultiArray,
@@ -1194,6 +1191,157 @@ class GetCoords(smach.State):
             rospy.logerr(f"Error in GetCoords: {e}")
             return 'coords_not_received'
         
+
+class PathPlanning(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['path_found','path_not_found'],
+                             input_keys=['coordinates_list', 'current_path_state'],
+                             output_keys=['current_path_state', 'close_right', 'close_left', 'far_right', 'far_left'])
+    
+    def execute(self, userdata):
+        # Get the coordinates list
+        coordinates = userdata.coordinates_list.coordinates
+        
+        # Reset the userdata values
+        try:
+            userdata.current_path_state = 'no_path'
+        except:
+            pass
+        userdata.close_right = False
+        userdata.close_left = False
+        userdata.far_right = False
+        userdata.far_left = False
+        
+        # Check if the coordinates list is empty
+        if not coordinates:
+            return 'path_not_found'
+        
+        for coordinate in coordinates:
+            # Get the X and Z coordinates
+            x = coordinate.x
+            z = coordinate.z
+            # Check if the X and Z coordinates are within the range
+            if self.in_close_right(x, z):
+                rospy.loginfo(f'Coordinate {coordinate} is in the close right zone')
+                userdata.close_right = True
+                userdata.current_path_state = 'close_right'
+                continue
+            elif self.in_close_left(x, z):
+                rospy.loginfo(f'Coordinate {coordinate} is in the close left zone')
+                userdata.close_left = True
+                if userdata.current_path_state != 'close_right':
+                    userdata.current_path_state = 'close_left'
+                continue
+            elif self.in_far_right(x, z):
+                rospy.loginfo(f'Coordinate {coordinate} is in the far right zone')
+                userdata.far_right = True
+                if userdata.current_path_state != 'close_right' and userdata.current_path_state != 'close_left':
+                    userdata.current_path_state = 'far_right'
+                continue
+            elif self.in_far_left(x, z):
+                rospy.loginfo(f'Coordinate {coordinate} is in the far left zone')
+                userdata.far_left = True
+                if userdata.current_path_state != 'close_right' and userdata.current_path_state != 'close_left' and userdata.current_path_state != 'far_right':
+                    userdata.current_path_state = 'far_left'
+                continue
+            else:
+                rospy.logwarn(f'Coordinate {coordinate} is not in any zone')
+        
+        return 'path_found'
+    
+    def in_close_right(self, x, z):
+        return z > 250 and x < 280
+    
+    def in_close_left(self, x, z):
+        return z < 350 and x < 280
+    
+    def in_far_right(self, x, z):
+        return z > 250 and x >= 280
+    
+    def in_far_left(self, x, z):
+        return z < 350 and x >= 280
+    
+
+class PathResolver(smach.State):
+    def __init__(self, move_publisher):
+        smach.State.__init__(self,
+                             input_keys=['current_path_state', 'close_right', 'close_left', 'far_right', 'far_left'],
+                             output_keys=['current_path_state', 'close_right', 'close_left', 'far_right', 'far_left'],
+                             outcomes=['area_reached', 'go_to_dropoff'])
+        self.move_pub = move_publisher
+    
+    def execute(self, userdata):
+        rospy.sleep(2)
+        if userdata.close_right:
+            if userdata.current_path_state != 'close_right':    
+                rospy.loginfo('Moving to close right zone')
+                publish_and_wait(pub=self.move_pub,
+                                wait_for_topic='Move_Done',
+                                message_type=Float32MultiArray,
+                                message_data=[-78, 0, 0, 100],
+                                delay=1,
+                                timeout_function=lambda: stop_move(self.move_pub))
+            userdata.close_right = False
+            userdata.current_path_state = 'close_right'
+            return 'area_reached'
+        elif userdata.close_left:
+            rospy.loginfo('Moving to close left zone')
+            publish_and_wait(pub=self.move_pub,
+                            wait_for_topic='Move_Done',
+                            message_type=Float32MultiArray,
+                            message_data=[300, 0, 0, 100],
+                            delay=1,
+                            timeout_function=lambda: stop_move(self.move_pub))
+            userdata.close_left = False
+            userdata.current_path_state = 'close_left'
+            return 'area_reached'
+        elif userdata.far_right:
+            rospy.loginfo('Moving to far right zone')
+            if userdata.current_path_state == 'close_right' or userdata.current_path_state == 'close_left':
+                publish_and_wait(pub=self.move_pub,
+                                wait_for_topic='Move_Done',
+                                message_type=Float32MultiArray,
+                                message_data=[0, 1, 0, 100],
+                                delay=0.5,
+                                timeout_function=lambda: stop_move(self.move_pub))
+            
+            if userdata.current_path_state == 'far_left' or userdata.current_path_state == 'close_left':
+                publish_and_wait(pub=self.move_pub,
+                                wait_for_topic='Move_Done',
+                                message_type=Float32MultiArray,
+                                message_data=[-78, 0, 0, 100],
+                                delay=1,
+                                timeout_function=lambda: stop_move(self.move_pub))
+            userdata.far_right = False
+            userdata.current_path_state = 'far_right'
+            return 'area_reached'
+        elif userdata.far_left:
+            rospy.loginfo('Moving to far left zone')
+            if userdata.current_path_state == 'close_right' or userdata.current_path_state == 'close_left':
+                publish_and_wait(pub=self.move_pub,
+                                wait_for_topic='Move_Done',
+                                message_type=Float32MultiArray,
+                                message_data=[0, 1, 0, 100],
+                                delay=0.5,
+                                timeout_function=lambda: stop_move(self.move_pub))
+            
+            if userdata.current_path_state == 'far_right' or userdata.current_path_state == 'close_right':
+                publish_and_wait(pub=self.move_pub,
+                                wait_for_topic='Move_Done',
+                                message_type=Float32MultiArray,
+                                message_data=[-300, 0, 0, 100],
+                                delay=1,
+                                timeout_function=lambda: stop_move(self.move_pub))
+            userdata.far_left = False
+            userdata.current_path_state = 'far_left'
+            return 'area_reached'
+        else:
+            rospy.loginfo('Pickup path done. Moving to dropoff zone.')
+            userdata.current_path_state = 'dropoff'
+            return 'go_to_dropoff'
+
+
+
 class PickUpSmallPackage(smach.State):
     def __init__(self, task_space_pub, in_re_scan=False, after_big_packages=False, safe_mode=False):
         smach.State.__init__(self,
@@ -1481,6 +1629,7 @@ class PickUpFuelTank(smach.State):
                          message_data=[x, y, z, wrist, gripper, -40, 10],
                          delay=1,
                          timeout_function=None)
+        rospy.loginfo('Lowering arm')
         
         # Close the gripper
         gripper = 2800
@@ -1490,14 +1639,15 @@ class PickUpFuelTank(smach.State):
                          message_data=[x, y-40, z, wrist, gripper, speed, 10],
                          delay=1,
                          timeout_function=None)
+        rospy.loginfo("Closing gripper")
         # Go up
-        y = globals['fuel_tank_Y_higher_arm_offset']
         publish_and_wait(pub=self.task_space_pub,
                          wait_for_topic='Arm_Done',
                          message_type=Float32MultiArray,
                          message_data=[x, y, z, wrist, gripper, speed, 100, 10],
                          delay=1,
                          timeout_function=None)
+        rospy.loginfo("Raising arm")
         
 
         return 'fuel_tank_picked_up'
@@ -1506,15 +1656,15 @@ class PickUpFuelTank(smach.State):
 class StoreFuelTank(smach.State):
     # Dictionary to map the slot number to the corresponding coordinates
     OVER_SLOT_COORDS = {
-        1: [-120, 75, -86.2, 2700, 2640, 100, 100],      
-        2: [-35, 75, -84.2, 2400, 2640, 100, 100],   #updated speeds
-        3: [30, 75, -82.2, 1700, 2640, 100, 100]
+        1: [-120, 70, -86.2, 2700, 2640, 100, 100],      
+        2: [-35, 70, -84.2, 2400, 2640, 100, 100],   #updated speeds
+        3: [30, 70, -82.2, 1700, 2640, 100, 100]
     }
 
     IN_SLOT_COORDS = {
-        1: [-120, 75, -86.2, 2700, 2640, -60, 100],      
-        2: [-35, 75, -84.2, 2400, 2640, -60, 100],   #updated speeds
-        3: [30, 75, -82.2, 1700, 2640, -60, 100]
+        1: [-120, 70, -86.2, 2700, 2640, -55, 100],      
+        2: [-35, 70, -84.2, 2400, 2640, -55, 100],   #updated speeds
+        3: [30, 70, -82.2, 1700, 2640, -55, 100]
     }
 
     IN_SLOT_OPEN = {
@@ -1547,6 +1697,7 @@ class StoreFuelTank(smach.State):
                          message_data=self.IN_SLOT_COORDS[self.slot_number],
                          delay=1,
                          timeout_function=None)
+        rospy.loginfo("Lowering the arm into slot {self.slot_number}")
         
         # Open the gripper
         publish_and_wait(pub=self.task_space_pub,
@@ -1555,12 +1706,13 @@ class StoreFuelTank(smach.State):
                          message_data=self.IN_SLOT_OPEN[self.slot_number],
                          delay=0.75,
                          timeout_function=None)
+        rospy.loginfo("Releasing fuel tank into slot {self.slot_number}")
         
+        # If done storing fuel tanks, return
         if self.slot_number == 1:
             return 'fuel_tank_stored'
+        
         # Go back to scan fuel tank pose
-        speed = 50 #updated speed
-        gripper = 2440
         rospy.loginfo('Moving to scan pose')
         # Publish command to set the arm to the scan pose
         publish_and_wait(pub=self.arm_angles_pub,
@@ -1570,7 +1722,7 @@ class StoreFuelTank(smach.State):
                         delay=1,
                         timeout_function=None)
         
-        rospy.sleep(1)
+        rospy.sleep(0.75)
         return 'fuel_tank_stored'
 
 

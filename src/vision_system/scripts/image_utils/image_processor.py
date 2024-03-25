@@ -33,6 +33,7 @@ class ImageProcessor_():
     }
 
     POSE_AREA_RANGES = {
+        Poses.MAIN_SCAN: (0.0005, 0.015),
         Poses.SMALL_PACKAGE_SCAN: (0.0005, 0.015),
         Poses.FUEL_TANK_SCAN: (0.005, 0.075)
     }
@@ -194,6 +195,8 @@ class ImageProcessor_():
         #coords_image = np.hstack([image, blur, median, darkened_frame, self.image])
         
         sorted_coordinates_list = sorted(coordinates, key=lambda coord: coord.z, reverse=True)
+        coords_image = np.hstack([coords_image, magenta_mask])
+
         return (sorted_coordinates_list, coords_image)
     
     def find_fuel_tank_coords(self, pose: str) -> Tuple[List[Point], np.ndarray]:
@@ -345,7 +348,10 @@ class ImageProcessor_():
             y: float - The y-coordinate in the arm frame.
             z: float - The z-coordinate in the arm frame.
         '''
-        if pose == Poses.SMALL_PACKAGE_SCAN:
+        if pose == Poses.MAIN_SCAN:
+            return self.image_height - y, area, x 
+        
+        elif pose == Poses.SMALL_PACKAGE_SCAN:
             '''#print("image_height: ", self.image_height)
             #print("image_width: ", self.image_width)
             KX = 59/60
@@ -609,7 +615,7 @@ def main_():
             print("Can't receive frame")
             break
 
-        coords_list, coords_image = ip.get_coords(object_type=BoardObjects.FUEL_TANK.value, pose=Poses.FUEL_TANK_SCAN.value)        
+        coords_list, coords_image = ip.get_coords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.MAIN_SCAN.value)        
         
         if coords_image is None:
             logwarn("Coords Image is None")
