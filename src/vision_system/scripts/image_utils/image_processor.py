@@ -465,11 +465,11 @@ class ImageProcessor_():
         
         elif pose == Poses.FUEL_TANK_SCAN:
             KX = -1
-            PX2MM_Y = 165/self.image_height
-            PX2MM_X = 222/self.image_width * KX
+            PX2MM_Y = 100/self.image_height
+            PX2MM_X = 130/self.image_width * KX
 
             # Offset from bottom of image to arm base
-            A = 0
+            A = 20
             KY = 1
 
             # Convert px to mm
@@ -479,18 +479,25 @@ class ImageProcessor_():
             #print(f"Y: {y}  |   Max_Cam_Height: {self.image_height}     |   Conversion Factior: {PX2MM_Y}")
 
             # Correction offsets
-            Xarm_offset = 0
-            Zarm_offset = 0
+            Xarm_offset = -40
+            Zarm_offset = -7
 
             Xarm_xi_obj = Xarm_xi_obj + Xarm_offset
             Zarm_xi_obj = Zarm_xi_obj + Zarm_offset
 
             # Mapped offsets using linear regression
             Xarm_poly_offset, Zarm_poly_offset = self.get_fuel_tank_poly_offset(Xarm_xi_obj, Zarm_xi_obj)
+            print(f'X: {Xarm_xi_obj}   |   X offset: {Xarm_poly_offset}')
+            print(f'Z: {Zarm_xi_obj}   |   Z offset: {Zarm_poly_offset}')
 
             # Total mm
-            Xarm_xi_obj = Xarm_xi_obj# + Xarm_poly_offset
-            Zarm_xi_obj = Zarm_xi_obj# - 11.5 # + Zarm_poly_offset
+            Xarm_xi_obj = Xarm_xi_obj + Xarm_poly_offset
+            Zarm_xi_obj = Zarm_xi_obj + Zarm_poly_offset
+
+            # Targeted offset
+            if x < -30:
+                Xarm_targeted_offset = -10
+                Xarm_xi_obj = Xarm_xi_obj + Xarm_targeted_offset
             
             # Total mm
             #Xarm_xi_obj = Xarm_xi_obj + Xarm_poly_offset
@@ -510,8 +517,8 @@ class ImageProcessor_():
             x_offset: float - The offset for the fuel tank polynomial regression.
             z_offset: float - The offset for the fuel tank polynomial regression.
         '''
-        x_offset = round(-0.2296 * x - 2.788, 1)
-        z_offset = round(0.489 * z**2 - 86.56 * z +3817, 1)
+        x_offset = round(-1.88e-5 * x**3 - 0.002244 * x**2 - 0.2844 * x + 19.49, 1)
+        z_offset = round(-3.011 * z + 209.2, 1)
         return x_offset, z_offset
     
     def get_small_package_poly_offset(self, x: float, z: float) -> float:
