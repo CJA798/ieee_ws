@@ -56,7 +56,7 @@ def main():
                                transitions={'pose_reached':'PACKAGE_PICK_UP', 'pose_not_reached':'SET_INITIAL_ARMS'})
         
         # Package pickup state machine
-        package_pickup_sm = smach.StateMachine(outcomes=['packages_picked_up', 'packages_not_picked_up'])
+        package_pickup_sm = smach.StateMachine(outcomes=['packages_picked_up', 'packages_not_picked_up', 'emergency_stop'])
 
         with package_pickup_sm:
             # Scan initial area before path planning
@@ -68,13 +68,13 @@ def main():
                                     transitions={'coords_received':'PATH_PLANNING', 'coords_not_received':'MAIN_SCAN'})
             # Figure out the path planning for the robot
             smach.StateMachine.add('PATH_PLANNING', PathPlanning(),
-                                    transitions={'path_found':'SET_BULK_GRABBER_ARMS', 'path_not_found':'PATH_PLANNING'})
+                                    transitions={'path_found':'SET_BULK_GRABBER_ARMS', 'path_not_found':'MAIN_SCAN'})
             
             # Pickup big packages
             smach.StateMachine.add('SET_BULK_GRABBER_ARMS', SetPose(pose=Poses.SET_BULK_GRABBER_ARMS, misc_angles_publisher=misc_angles_pub),
                                     transitions={'pose_reached':'MOVE_TO_BIG_PACKAGE_WALL', 'pose_not_reached':'SET_BULK_GRABBER_ARMS'})
             smach.StateMachine.add('MOVE_TO_BIG_PACKAGE_WALL', GoTo_(Areas.BIG_PACKAGE_WALL, move_publisher=move_pub, grav_enable_publisher=grav_enable_pub, misc_angles_publisher=misc_angles_pub),
-                                    transitions={'arrived':'CLOSE_TOP_BULK_GRABBER_ARM', 'not_arrived':'MOVE_TO_BIG_PACKAGE_WALL'})
+                                    transitions={'arrived':'CLOSE_TOP_BULK_GRABBER_ARM', 'not_arrived':'MOVE_TO_BIG_PACKAGE_WALL', 'emergency_stop':'emergency_stop'})
             smach.StateMachine.add('CLOSE_TOP_BULK_GRABBER_ARM', SetPose(pose=Poses.CLOSE_TOP_BULK_GRABBER_ARM, misc_angles_publisher=misc_angles_pub),
                                     transitions={'pose_reached':'MINI_RAISE_BULK_GRABBER', 'pose_not_reached':'CLOSE_TOP_BULK_GRABBER_ARM'})
             smach.StateMachine.add('MINI_RAISE_BULK_GRABBER', SetPose(pose=Poses.MINI_RAISE_BULK_GRABBER, move_publisher=move_pub, misc_angles_publisher=misc_angles_pub),
@@ -89,31 +89,25 @@ def main():
                                     transitions={'pose_reached':'SP_GET_COORDS', 'pose_not_reached':'SP_SCAN'})
             smach.StateMachine.add('SP_GET_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value, timeout=0.5, expected_pairs=3, camera_enable_publisher=camera_enable_pub),
                                     transitions={'coords_received':'GO_TO_NEXT_AREA', 'coords_not_received':'SP_GET_COORDS'})
-            #smach.StateMachine.add('PICK_UP_SMALL_PACKAGES', PickUpSmallPackage(task_space_pub=task_space_pub),
-                                    #transitions={'packages_picked_up':'GO_TO_NEXT_AREA', 'no_coordinates_received':'GO_TO_NEXT_AREA'})
+            smach.StateMachine.add('PICK_UP_SMALL_PACKAGES', PickUpSmallPackage(task_space_pub=task_space_pub),
+                                    transitions={'packages_picked_up':'GO_TO_NEXT_AREA', 'no_coordinates_received':'GO_TO_NEXT_AREA'})
             
-            
-            
-            #smach.StateMachine.add('SCAN_SMALL_PACKAGES', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value, timeout=0.5, expected_pairs=3, camera_enable_publisher=camera_enable_pub),
-            #                        transitions={'coords_received':'PICK_UP_SMALL_PACKAGES', 'coords_not_received':'SCAN_SMALL_PACKAGES'})
-            #smach.StateMachine.add('PICK_UP_SMALL_PACKAGES', PickUp(board_object=BoardObjects.SMALL_PACKAGE, arm_angles_publisher=arm_angles_pub, misc_angles_publisher=misc_angles_pub, move_publisher=move_pub),
-            #                        transitions={'packages_picked_up':'GO_TO_NEXT_AREA', 'packages_not_picked_up':'PICK_UP_SMALL_PACKAGES'})
-
-
             
             
             smach.StateMachine.add('BACK_TO_INITIAL_AREA', GoTo_(Areas.INITIAL_AREA, move_publisher=move_pub, grav_enable_publisher=grav_enable_pub, misc_angles_publisher=misc_angles_pub),
-                                    transitions={'arrived':'RAISE_BULK_GRABBER', 'not_arrived':'MOVE_TO_BIG_PACKAGE_WALL'})
+                                    transitions={'arrived':'RAISE_BULK_GRABBER', 'not_arrived':'MOVE_TO_BIG_PACKAGE_WALL', 'emergency_stop':'emergency_stop'})
             smach.StateMachine.add('RAISE_BULK_GRABBER', SetPose(pose=Poses.RAISE_BULK_GRABBER, move_publisher=move_pub, misc_angles_publisher=misc_angles_pub),
                                     transitions={'pose_reached':'packages_picked_up', 'pose_not_reached':'RAISE_BULK_GRABBER'})
             
     
         # Pickup small packages
         smach.StateMachine.add('PACKAGE_PICK_UP', package_pickup_sm,
-                                transitions={'packages_picked_up': 'GO_TO_DROP_OFF_AREA',#'GO_TO_DROP_OFF_AREA',
-                                            'packages_not_picked_up':'PACKAGE_PICK_UP'})
+                                transitions={'packages_picked_up': 'REST_POSE',
+                                            'packages_not_picked_up':'PACKAGE_PICK_UP',
+                                            'emergency_stop':'EMERGENCY_STOP'})
         
-
+        smach.StateMachine.add('REST_POSE', RestPose(arm_angles_pub=arm_angles_pub),
+                               transitions={'pose_reached':'END', 'pose_not_reached':'REST_POSE'})
         # Go to drop off area
         smach.StateMachine.add('GO_TO_DROP_OFF_AREA', GoTo_(Areas.DROP_OFF,
                                                             move_publisher=move_pub,
@@ -121,8 +115,12 @@ def main():
                                                             task_space_publisher=task_space_pub,
                                                             misc_angles_publisher=misc_angles_pub,
                                                             grav_enable_publisher=grav_enable_pub), 
-                               transitions={'arrived':'PACKAGE_DROP_OFF', 'not_arrived':'GO_TO_DROP_OFF_AREA'})
-
+                               transitions={'arrived':'PACKAGE_DROP_OFF', 'not_arrived':'GO_TO_DROP_OFF_AREA', 'emergency_stop':'FORCE_GO_TO_DROP_OFF_AREA'})
+        
+        # If anything fails going to the dropoff area, force it to get there with a move forward command with a long timeout
+        smach.StateMachine.add('FORCE_GO_TO_DROP_OFF_AREA', EmergencyGoToDropoff(move_publisher=move_pub), 
+                               transitions={'arrived':'PACKAGE_DROP_OFF', 'ERROR':'EMERGENCY_STOP'})
+        
         # Create a concurrent state machine for package drop off
         package_dropoff_sm = smach.Concurrence(outcomes=['packages_dropped_off','packages_not_dropped_off'],
                                     default_outcome='packages_not_dropped_off',
@@ -156,7 +154,7 @@ def main():
 
         # Go to fuel tank area
         smach.StateMachine.add('GO_TO_FUEL_TANK_AREA', GoTo_(Areas.FUEL_TANK, move_publisher=move_pub, grav_enable_publisher=grav_enable_pub, misc_angles_publisher=misc_angles_pub), 
-                                       transitions={'arrived':'PICK_UP_FUEL_TANKS', 'not_arrived':'GO_TO_FUEL_TANK_AREA'})
+                                       transitions={'arrived':'PICK_UP_FUEL_TANKS', 'not_arrived':'GO_TO_FUEL_TANK_AREA', 'emergency_stop':'GO_TO_FUEL_TANK_AREA'})
 
         # Pick up fuel tanks
         smach.StateMachine.add('PICK_UP_FUEL_TANKS', PickUp(board_object=BoardObjects.FUEL_TANK, arm_angles_publisher=arm_angles_pub, misc_angles_publisher=misc_angles_pub, move_publisher=move_pub),
@@ -210,10 +208,10 @@ def main():
             with go_to_final_sm:
                 # Go to crater and deploy bridge
                 smach.StateMachine.add('GO_TO_CRATER_AREA', GoTo_(Areas.CRATER, move_publisher=move_pub, misc_angles_publisher=misc_angles_pub, grav_enable_publisher=grav_enable_pub), 
-                                        transitions={'arrived':'GO_TO_FINAL', 'not_arrived':'GO_TO_CRATER_AREA'})
+                                        transitions={'arrived':'GO_TO_FINAL', 'not_arrived':'GO_TO_CRATER_AREA', 'emergency_stop':'GO_TO_CRATER_AREA'})
                 # Cross bridge and go to final area
                 smach.StateMachine.add('GO_TO_FINAL', GoTo_(Areas.BUTTON, move_publisher=move_pub, grav_enable_publisher=grav_enable_pub), 
-                                    transitions={'arrived':'arrived', 'not_arrived':'GO_TO_FINAL'})
+                                    transitions={'arrived':'arrived', 'not_arrived':'GO_TO_FINAL', 'emergency_stop':'GO_TO_FINAL'})
                 
             smach.Concurrence.add('STORE_FUEL_TANKS', fuel_tank_sort_sm)
             smach.Concurrence.add('GO_TO_FINAL', go_to_final_sm)
@@ -254,6 +252,10 @@ def main():
         # Spirit celebration and button press
         smach.StateMachine.add('SPIRIT_CELEBRATION_AND_BUTTON_PRESS', spirit_celebration_and_button_press_sm,
                                 transitions={'succeeded':'END', 'aborted':'SPIRIT_CELEBRATION_AND_BUTTON_PRESS'})
+        
+        # Emergency Stop
+        smach.StateMachine.add('EMERGENCY_STOP', EmergencyStop(task_space_publisher=task_space_pub, move_publisher=move_pub, misc_angles_publisher=misc_angles_pub),
+                               transitions={'stopped':'END', 'not_stopped':'EMERGENCY_STOP'})
         
     # Create and start the introspection server
     sis = smach_ros.IntrospectionServer('server_name', sm, '/START')
