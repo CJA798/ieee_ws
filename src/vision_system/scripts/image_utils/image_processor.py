@@ -368,7 +368,7 @@ class ImageProcessor_():
 
             # Correction offsets
             Xarm_offset = 20
-            Zarm_offset = -6
+            Zarm_offset = -16
 
             Xarm_xi_obj = Xarm_xi_obj + Xarm_offset
             Zarm_xi_obj = Zarm_xi_obj + Zarm_offset
@@ -465,9 +465,20 @@ class ImageProcessor_():
         #z_offset = round(-2e-7 * z**4 - 2e-5 * z**3 + 2e-3 * z**2 + 0.1143 * z + 4.3528, 1)
         z_offset = -0.0597 * z + 6.8607
         '''
-        x_offset = round(-0.001006 * x**2 + 0.3398 * x - 42.96, 1)
-        z_offset = round(-0.001045 * x**2 + 0.03433 * x -8.47, 1)
+        #x_offset = round(-1.587e-11 * x**7 + 2.155e-8 * x**6 -1.239e-5 * x**5 + 0.003909 * x**4 - 0.7301 * x**3 + 80.77 * x**2 - 4898 * x + 1.256e5, 1)
+        #x_offset = round(-1.809e-5 * x**3 + 0.01067 * x**2 - 2.129 * x +144.2, 1)
+        #z_offset = round(-1.877e-16 * x**9 - 1.473e-14 * x**8 + 8.558e-12 * x**7 + 4.512e-10 * x**6 - 1.387e-7 * x**5 - 4.106e-6 * x**4 + 0.0008817 * x**3 + 0.01248 * x**2 - 1.712 * x +26.82, 1)
+        #z_offset = round(-6.261e-6 * x**3 + 0.00288 * x**2 - 0.003607 * x + 19.43, 1)
+        x_offset = round(-0.0009524 * x**2 + 0.205 * x - 18.95, 1)
+        z_offset = 0
+        if -175 < z < -55 or 35 < z < 125:
+            z_offset = -5
+        elif -55 <= z <= 35:
+            z_offset = 0
+        else:
+            z_offset = -10
         
+
         return x_offset, z_offset
     
 

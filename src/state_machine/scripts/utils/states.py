@@ -1091,7 +1091,7 @@ class ScanPose(smach.State):
                             delay=1,
                             timeout_function=None):
             # Wait 2 seconds for the arm to stabilize
-            rospy.sleep(2)
+            rospy.sleep(1)
             rospy.loginfo('Arm set to scan pose')
             return 'pose_reached'
         else:
@@ -1136,7 +1136,7 @@ class PickupScanPose(smach.State):
                             delay=1,
                             timeout_function=None):
             # Wait 2 seconds for the arm to stabilize
-            rospy.sleep(2)
+            rospy.sleep(1)
             rospy.loginfo('Arm set to pickup scan pose')
             return 'pose_reached'
         else:
@@ -1315,7 +1315,6 @@ class PathResolver(smach.State):
     
     def execute(self, userdata):
         rospy.loginfo(f'Executing state PathResolver({userdata.current_path_state})')
-        rospy.sleep(2)
         if userdata.close_right:
             if userdata.current_path_state != 'close_right':    
                 rospy.loginfo('Moving to close right zone')
@@ -1432,7 +1431,7 @@ class PickUpSmallPackage(smach.State):
             publish_and_wait(pub=self.task_space_pub,
                                 wait_for_topic='Arm_Done',
                                 message_type=Float32MultiArray,
-                                message_data=[x, 70, z, wrist, jaw, 50, 50],
+                                message_data=[x, -40, z, wrist, jaw, 10, 1],
                                 delay=3,
                                 timeout_function=None)
             
@@ -1441,22 +1440,17 @@ class PickUpSmallPackage(smach.State):
             publish_and_wait(pub=self.task_space_pub,
                                 wait_for_topic='Arm_Done',
                                 message_type=Float32MultiArray,
-                                message_data=[x, 70, z, wrist, jaw, -170, 10],
+                                message_data=[x, -40, z, wrist, jaw, -45, 10],
                                 delay=3,
                                 timeout_function=None)
             
             # Raise the arm to avoid pushing other blocks around
             rospy.loginfo(f'Raising arm after picking up small package {target}')
-            if z >140: 
-                z = z-50
-            elif z <140: 
-                z = z+50
-            if x > 220:
-                x = x -50
+
             publish_and_wait(pub=self.task_space_pub,
                                 wait_for_topic='Arm_Done',
                                 message_type=Float32MultiArray,
-                                message_data=[x, 70, z, wrist, jaw, 100, 50],
+                                message_data=[x, -40, z, wrist, jaw, 100, 50],
                                 delay=3,
                                 timeout_function=None)
             

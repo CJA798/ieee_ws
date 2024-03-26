@@ -40,7 +40,7 @@ globals: Dict[str, Union[bool, int, None]] = {
 
     # Small Package Macros
     'SP_SCAN_POSE': [2024, 2370, 2359, 2507, 2066, 513, 2025, 1980, 100, 10],
-    'PICKUP_SP_SCAN_POSE': [2017, 2179, 2174, 1861, 2063, 1047, 2016, 1980, 100, 10],
+    'PICKUP_SP_SCAN_POSE': [2017, 2179, 2174, 1861, 2063, 1047, 2016, 1980, 10, 10],
     # Big Package Macros
     'big_package_Y_offset': -248,
 

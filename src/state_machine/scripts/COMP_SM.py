@@ -88,7 +88,7 @@ def main():
             smach.StateMachine.add('SP_SCAN', PickupScanPose(arm_angles_pub=arm_angles_pub),
                                     transitions={'pose_reached':'SP_GET_COORDS', 'pose_not_reached':'SP_SCAN'})
             smach.StateMachine.add('SP_GET_COORDS', GetCoords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value, timeout=0.5, expected_pairs=3, camera_enable_publisher=camera_enable_pub),
-                                    transitions={'coords_received':'GO_TO_NEXT_AREA', 'coords_not_received':'SP_GET_COORDS'})
+                                    transitions={'coords_received':'PICK_UP_SMALL_PACKAGES', 'coords_not_received':'SP_GET_COORDS'})
             smach.StateMachine.add('PICK_UP_SMALL_PACKAGES', PickUpSmallPackage(task_space_pub=task_space_pub),
                                     transitions={'packages_picked_up':'GO_TO_NEXT_AREA', 'no_coordinates_received':'GO_TO_NEXT_AREA'})
             
@@ -107,7 +107,7 @@ def main():
                                             'emergency_stop':'EMERGENCY_STOP'})
         
         smach.StateMachine.add('REST_POSE', RestPose(arm_angles_pub=arm_angles_pub),
-                               transitions={'pose_reached':'END', 'pose_not_reached':'REST_POSE'})
+                               transitions={'pose_reached':'GO_TO_DROP_OFF_AREA', 'pose_not_reached':'REST_POSE'})
         # Go to drop off area
         smach.StateMachine.add('GO_TO_DROP_OFF_AREA', GoTo_(Areas.DROP_OFF,
                                                             move_publisher=move_pub,
