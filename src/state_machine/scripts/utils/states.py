@@ -159,7 +159,7 @@ class EmergencyStop(smach.State):
         self.move_pub = move_publisher
         self.misc_angles_pub = misc_angles_publisher
         self.task_space_pub = task_space_publisher
-        rospy.logfatal_once('Executing state EmergencyStop')
+        rospy.loginfo('Executing state EmergencyStop')
 
     def execute(self, userdata):
         try:
@@ -390,6 +390,14 @@ class GoTo_(smach.State):
                             delay=1,
                             timeout_function=None):
             rospy.loginfo('Rotated 90 degrees')
+
+            publish_and_wait(pub=self.move_pub,
+                            wait_for_topic="Move_Done",
+                            message_type=Float32MultiArray,
+                            message_data=[0, -1, -90, 20],
+                            delay=0.3,
+                            timeout_function=lambda: stop_move(self.move_pub))
+            rospy.loginfo('Reached red corner')
             return 'arrived'
         else:
             rospy.logerror('Error rotating 90 degrees')
@@ -558,57 +566,17 @@ class GoTo_(smach.State):
         rospy.loginfo('Flat area reached')
 
         publish_command(self.move_pub, Float32MultiArray, [0, 0, 90, 65])
-        rospy.wait_for_message("Move_Done", Int8, timeout=10)
+        rospy.wait_for_message("Move_Done", Int8, timeout=15)
 
-        #Here we would like the bot to stop until the fuel tanks have been sorted and placed
-        #publish_command(self.move_pub, Float32MultiArray, [0, 0, 0, 0])
-        #rospy.wait_for_message("Move_Done", Int8, timeout=10)
 
         publish_command(self.move_pub, Float32MultiArray, [120, 180, 90, 100])
-        rospy.wait_for_message("Move_Done", Int8, timeout=10)
+        rospy.wait_for_message("Move_Done", Int8, timeout=15)
 
         if publish_command(self.move_pub, Float32MultiArray, [0, 0, 0, 0]):
            rospy.loginfo('Button Pressed')
            return 'arrived'
         
         return 'not arrived'
-
-        
-       
-
-        #reset move_done
-        #globals['move_done'] = False
-
-        # Rotate
-        #message.data = [0, 0, 90, 100]
-        #self.move_pub.publish(message)
-
-        #while not globals['move_done']  and not rospy.is_shutdown():
-        #    rate.sleep()
-
-        # Reset the move_done global variable
-       # globals['move_done'] = False
-
-        # Aim camera to thruster assembly
-        #message.data = [100, 250, 90, 100]
-        #self.move_pub.publish(message)
-
-        # Wait for the move to complete
-       # while not globals['move_done']  and not rospy.is_shutdown():
-        #    rate.sleep()
-
-        # Reset the move_done global variable
-        #globals['move_done'] = False
-
-        #Stop and hit the button
-        #message.data = [0, 0, 0, 0]
-        #self.move_pub.publish(message)
-
-        # Reset the move_done global variable
-        #globals['move_done'] = False
-
-        # next state
-        #return 'arrived'
 
 
 class SetPose(smach.State):
@@ -730,13 +698,13 @@ class SetPose(smach.State):
         # Set the misc angles
         bridge = -1
         top_bulk = globals['raise_bulk_top']
-        bottom_bulk = globals['raise_bulk_bottom']
+        bottom_bulk = globals['set_bulk_bottom']
         flag = -1
 
         if publish_and_wait(pub=self.misc_angles_pub,
                             wait_for_topic="Misc_Done",
                             message_type=Float32MultiArray,
-                            message_data=[bridge, bottom_bulk+50, 1050+100, flag],
+                            message_data=[bridge, bottom_bulk+100, 1050+100, flag],
                             delay=1,
                             timeout_function=None):
             rospy.loginfo('Bulk grabber mini raise done')
@@ -1107,8 +1075,6 @@ class ScanFuelTankPose(smach.State):
         self.arm_angles_pub = arm_angles_pub
 
     def execute(self, userdata):
-        speed = 50 #updated speed
-        gripper = 2440
         rospy.loginfo('Moving to scan pose')
         # Publish command to set the arm to the scan pose
         publish_and_wait(pub=self.arm_angles_pub,
@@ -1155,7 +1121,7 @@ class RestPose(smach.State):
         try:
             # Reset the arm_done global variable
             globals['arm_done'] = False
-            speed = 10 #updated speed
+            speed = 50 #updated speed
             jaw = globals['gripper_bulk_hold']
             angles_ = Float32MultiArray()
             angles_.data = [2009.0, 2721.0, 2706.0, 1635.0, 2166.0, 1661.0, 1886.0, jaw, speed, 10]
@@ -1293,28 +1259,39 @@ class PathPlanning(smach.State):
         return 'path_found'
     
     def in_close_right(self, x, z):
-        return z > 250 and x < 280
+        return z > 280 and x < 260
     
     def in_close_left(self, x, z):
-        return z < 350 and x < 280
+        return z < 320 and x < 260
     
     def in_far_right(self, x, z):
-        return z > 250 and x >= 280
+        return z > 280 and x >= 260
     
     def in_far_left(self, x, z):
-        return z < 350 and x >= 280
+        return z < 320 and x >= 260
     
 
 class PathResolver(smach.State):
-    def __init__(self, move_publisher):
+    def __init__(self, move_publisher, arm_angles_publisher):
         smach.State.__init__(self,
                              input_keys=['current_path_state', 'close_right', 'close_left', 'far_right', 'far_left'],
                              output_keys=['current_path_state', 'close_right', 'close_left', 'far_right', 'far_left'],
                              outcomes=['area_reached', 'go_to_dropoff'])
         self.move_pub = move_publisher
+        self.arm_angles_pub = arm_angles_publisher
     
     def execute(self, userdata):
         rospy.loginfo(f'Executing state PathResolver({userdata.current_path_state})')
+
+        # Bring arm to scan pose
+        publish_and_wait(pub=self.arm_angles_pub,
+                        wait_for_topic='Arm_Done',
+                        message_type=Float32MultiArray,
+                        message_data=globals['PICKUP_SP_SCAN_POSE'],
+                        delay=1,
+                        timeout_function=None)
+        
+        # Move to the corresponding zone
         if userdata.close_right:
             if userdata.current_path_state != 'close_right':    
                 rospy.loginfo('Moving to close right zone')
@@ -1332,7 +1309,7 @@ class PathResolver(smach.State):
             publish_and_wait(pub=self.move_pub,
                             wait_for_topic='Move_Done',
                             message_type=Float32MultiArray,
-                            message_data=[300, 0, 0, 100],
+                            message_data=[290, 0, 0, 100],
                             delay=1,
                             timeout_function=lambda: stop_move(self.move_pub))
             userdata.close_left = False
@@ -1431,7 +1408,7 @@ class PickUpSmallPackage(smach.State):
             publish_and_wait(pub=self.task_space_pub,
                                 wait_for_topic='Arm_Done',
                                 message_type=Float32MultiArray,
-                                message_data=[x, -40, z, wrist, jaw, 10, 1],
+                                message_data=[x, -40, z, wrist, jaw, 20, 1],
                                 delay=3,
                                 timeout_function=None)
             
@@ -1440,7 +1417,7 @@ class PickUpSmallPackage(smach.State):
             publish_and_wait(pub=self.task_space_pub,
                                 wait_for_topic='Arm_Done',
                                 message_type=Float32MultiArray,
-                                message_data=[x, -40, z, wrist, jaw, -45, 10],
+                                message_data=[x, -40, z, wrist, jaw, -50, 1],
                                 delay=3,
                                 timeout_function=None)
             
@@ -1450,8 +1427,8 @@ class PickUpSmallPackage(smach.State):
             publish_and_wait(pub=self.task_space_pub,
                                 wait_for_topic='Arm_Done',
                                 message_type=Float32MultiArray,
-                                message_data=[x, -40, z, wrist, jaw, 100, 50],
-                                delay=3,
+                                message_data=[x, -20, z, wrist, jaw, 100, 50],
+                                delay=2,
                                 timeout_function=None)
             
             rospy.loginfo(f'Successfully picked up small package {target}')
@@ -1576,8 +1553,8 @@ class PickUpFuelTank(smach.State):
         publish_and_wait(pub=self.task_space_pub,
                          wait_for_topic='Arm_Done',
                          message_type=Float32MultiArray,
-                         message_data=[x, y, z, wrist, gripper, speed, 100],
-                         delay=1,
+                         message_data=[x, y, z, wrist, gripper, speed, 10],
+                         delay=0.75,
                          timeout_function=None)
         rospy.loginfo(f'Going to [{x}, {y}, {z}]')
         
@@ -1586,7 +1563,7 @@ class PickUpFuelTank(smach.State):
                          wait_for_topic='Arm_Done',
                          message_type=Float32MultiArray,
                          message_data=[x, y, z, wrist, gripper, -40, 10],
-                         delay=1,
+                         delay=0.75,
                          timeout_function=None)
         rospy.loginfo('Lowering arm')
         
@@ -1596,7 +1573,7 @@ class PickUpFuelTank(smach.State):
                          wait_for_topic='Arm_Done',
                          message_type=Float32MultiArray,
                          message_data=[x, y-40, z, wrist, gripper, speed, 10],
-                         delay=1,
+                         delay=0.75,
                          timeout_function=None)
         rospy.loginfo("Closing gripper")
         # Go up
@@ -1604,7 +1581,7 @@ class PickUpFuelTank(smach.State):
                          wait_for_topic='Arm_Done',
                          message_type=Float32MultiArray,
                          message_data=[x, y, z, wrist, gripper, speed, 100, 10],
-                         delay=1,
+                         delay=0.75,
                          timeout_function=None)
         rospy.loginfo("Raising arm")
         
@@ -1615,15 +1592,15 @@ class PickUpFuelTank(smach.State):
 class StoreFuelTank(smach.State):
     # Dictionary to map the slot number to the corresponding coordinates
     OVER_SLOT_COORDS = {
-        1: [-120, 70, -86.2, 2700, 2640, 100, 100],      
-        2: [-35, 70, -84.2, 2400, 2640, 100, 100],   #updated speeds
-        3: [30, 70, -82.2, 1700, 2640, 100, 100]
+        1: [-120, 70, -86.2, 2700, 2740, 100, 100],      
+        2: [-35, 70, -84.2, 2400, 2740, 100, 100],   #updated speeds
+        3: [30, 70, -82.2, 1700, 2740, 100, 100]
     }
 
     IN_SLOT_COORDS = {
-        1: [-120, 70, -86.2, 2700, 2640, -55, 100],      
-        2: [-35, 70, -84.2, 2400, 2640, -55, 100],   #updated speeds
-        3: [30, 70, -82.2, 1700, 2640, -55, 100]
+        1: [-120, 70, -86.2, 2700, 2740, -55, 100],      
+        2: [-35, 70, -84.2, 2400, 2740, -55, 100],   #updated speeds
+        3: [30, 70, -82.2, 1700, 2740, -55, 100]
     }
 
     IN_SLOT_OPEN = {
@@ -1647,14 +1624,14 @@ class StoreFuelTank(smach.State):
                          wait_for_topic='Arm_Done',
                          message_type=Float32MultiArray,
                          message_data=self.OVER_SLOT_COORDS[self.slot_number],
-                         delay=1,
+                         delay=1.25,
                          timeout_function=None)
         # Lower the arm
         publish_and_wait(pub=self.task_space_pub,
                          wait_for_topic='Arm_Done',
                          message_type=Float32MultiArray,
                          message_data=self.IN_SLOT_COORDS[self.slot_number],
-                         delay=1,
+                         delay=0.75,
                          timeout_function=None)
         rospy.loginfo("Lowering the arm into slot {self.slot_number}")
         
@@ -1663,7 +1640,7 @@ class StoreFuelTank(smach.State):
                          wait_for_topic='Arm_Done',
                          message_type=Float32MultiArray,
                          message_data=self.IN_SLOT_OPEN[self.slot_number],
-                         delay=1,
+                         delay=0.75,
                          timeout_function=None)
         rospy.loginfo("Releasing fuel tank into slot {self.slot_number}")
         
@@ -1754,7 +1731,7 @@ class FuelTankPlacer(smach.State):
                 message_type=Float32MultiArray,
                 message_data=[130, 100, 76, 3645, 2700, 50, 10], # changed the fourth value from 3700 -> 3650 for less rotation
                 # first value was 135 changing to 130
-                delay=3,
+                delay=2,
                 timeout_function=None)
 
 

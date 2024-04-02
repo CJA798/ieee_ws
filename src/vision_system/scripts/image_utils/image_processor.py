@@ -417,7 +417,10 @@ class ImageProcessor_():
             Zarm_xi_obj = Zarm_xi_obj + Zarm_poly_offset
 
             # Targeted offset
-            if x < -30:
+            if -30 < Xarm_xi_obj <= 0:
+                Xarm_targeted_offset = -9
+                Xarm_xi_obj = Xarm_xi_obj + Xarm_targeted_offset
+            elif Xarm_xi_obj <= -30:
                 Xarm_targeted_offset = -10
                 Xarm_xi_obj = Xarm_xi_obj + Xarm_targeted_offset
             
@@ -471,10 +474,12 @@ class ImageProcessor_():
         #z_offset = round(-6.261e-6 * x**3 + 0.00288 * x**2 - 0.003607 * x + 19.43, 1)
         x_offset = round(-0.0009524 * x**2 + 0.205 * x - 18.95, 1)
         z_offset = 0
-        if -175 < z < -55 or 35 < z < 125:
+        if 35 < z < 125:
             z_offset = -5
         elif -55 <= z <= 35:
             z_offset = 0
+        elif -175 < z < -55:
+            z_offset = 5
         else:
             z_offset = -10
         
@@ -542,7 +547,7 @@ def main_():
             print("Can't receive frame")
             break
 
-        coords_list, coords_image = ip.get_coords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.SMALL_PACKAGE_SCAN.value)        
+        coords_list, coords_image = ip.get_coords(object_type=BoardObjects.SMALL_PACKAGE.value, pose=Poses.MAIN_SCAN.value)        
         
         if coords_image is None:
             logwarn("Coords Image is None")

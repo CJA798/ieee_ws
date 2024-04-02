@@ -80,7 +80,7 @@ def main():
             smach.StateMachine.add('MINI_RAISE_BULK_GRABBER', SetPose(pose=Poses.MINI_RAISE_BULK_GRABBER, move_publisher=move_pub, misc_angles_publisher=misc_angles_pub),
                                     transitions={'pose_reached':'GO_TO_NEXT_AREA', 'pose_not_reached':'MINI_RAISE_BULK_GRABBER'})
             
-            smach.StateMachine.add('GO_TO_NEXT_AREA', PathResolver(move_publisher=move_pub),
+            smach.StateMachine.add('GO_TO_NEXT_AREA', PathResolver(move_publisher=move_pub, arm_angles_publisher=arm_angles_pub),
                                    transitions={'area_reached':'SP_SCAN',
                                                 'go_to_dropoff':'BACK_TO_INITIAL_AREA'})
             # Pickup small packages

@@ -39,8 +39,8 @@ globals: Dict[str, Union[bool, int, None]] = {
     'regular_wrist_angle': 2048,
 
     # Small Package Macros
-    'SP_SCAN_POSE': [2024, 2370, 2359, 2507, 2066, 513, 2025, 1980, 100, 10],
-    'PICKUP_SP_SCAN_POSE': [2017, 2179, 2174, 1861, 2063, 1047, 2016, 1980, 10, 10],
+    'SP_SCAN_POSE': [2024, 2370, 2359, 2507, 2066, 513, 2025, 1980, 100, 5],
+    'PICKUP_SP_SCAN_POSE': [2017, 2179, 2174, 1861, 2063, 1047, 2016, 1980, 10, 5],
     # Big Package Macros
     'big_package_Y_offset': -248,
 
@@ -61,7 +61,7 @@ globals: Dict[str, Union[bool, int, None]] = {
     # Fuel Tank Macros
     'fuel_tank_close_top': 1020,
     'fuel_tank_raise_bulk_offset': 2000,
-    'FT_SCAN_POSE': [626, 2502, 2487, 1772, 2055, 851, 1663, 2440, 50, 10],
+    'FT_SCAN_POSE': [626, 2502, 2487, 1772, 2055, 851, 1663, 2440, 75, 5],
 
     # Bridge Macros
     'raised_bridge': 2048,
