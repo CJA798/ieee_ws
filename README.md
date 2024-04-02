@@ -1,13 +1,4 @@
 # UNCA IEEE Workspace
-#### **TODO: insert image here**
-#### **TODO: insert info of each category**
-### State Machine (Master Node)
-- Add navigation states
-- Add arm states
-### Navigation System
-- Add state machine code to navigation_SM.cpp
-### Arm System
-- Create servo node
-### Vision System
-- Finish get_coords action
-- Benchmark each purple box recognition method
+ROS workspace used in UNC - Asheville's robot for IEEE SouthEastCon 2024's Hardware Competition
+## Earned 1st place in the bot design competition.
+### Placed 9th out of 50+ teams in the hardware competition.
