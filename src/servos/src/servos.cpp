@@ -61,6 +61,7 @@ using namespace dynamixel;
 #define RESTART_TIME            10      // Seconds between check/restart torqued out servos
 #define ARDUINO_TIMEOUT         500     // Millisecond safety between arduino signal that pauses wheel movement
 #define MAX_LOAD                100     // Load threshold needed to assume servo has arrived range 0-1000 = 0-100%
+#define SMALLSPEEDSCALE         5       // Scales speed of the wrist facing down to better match other servos for linear interp
 
 // #if macros
 #define DEBUG                   1       // Prints out ros info's
@@ -440,6 +441,11 @@ public:
             // Scales speed of vel and acc
             uint32_t max_acc = (uint32_t)(MAX_ACC / 100 - 2 + speed[i - 1] * 0.4); // 2-40
             uint32_t max_vel = (uint32_t)(MAX_VEL / 100 - 10 + speed[i - 1] * 4); // 10-400
+
+            if(i == 6){
+                max_acc = max_acc / SMALLSPEEDSCALE + 1;
+                max_vel = max_vel / SMALLSPEEDSCALE + 1;
+            }
 
             // Creates and assigns array with each byte of messages
             uint8_t data_array_acc[4] = {DXL_LOBYTE(DXL_LOWORD(max_acc)), DXL_HIBYTE(DXL_LOWORD(max_acc)), DXL_LOBYTE(DXL_HIWORD(max_acc)), DXL_HIBYTE(DXL_HIWORD(max_acc))};
