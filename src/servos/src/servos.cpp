@@ -61,7 +61,7 @@ using namespace dynamixel;
 #define RESTART_TIME            10      // Seconds between check/restart torqued out servos
 #define ARDUINO_TIMEOUT         500     // Millisecond safety between arduino signal that pauses wheel movement
 #define MAX_LOAD                100     // Load threshold needed to assume servo has arrived range 0-1000 = 0-100%
-#define SMALLSPEEDSCALE         5       // Scales speed of the wrist facing down to better match other servos for linear interp
+#define SMALLSPEEDSCALE         2       // Scales speed of the wrist facing down to better match other servos for linear interp
 
 // #if macros
 #define DEBUG                   1       // Prints out ros info's
