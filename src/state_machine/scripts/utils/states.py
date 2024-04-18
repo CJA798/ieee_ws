@@ -646,7 +646,7 @@ class SetPose(smach.State):
                             wait_for_topic='Arm_Done',
                             message_type=Float32MultiArray,
                             message_data=angles,
-                            delay=1,
+                            delay=1.5,
                             timeout_function=None):
             # Wait 2 seconds for the arm to stabilize
             rospy.sleep(1)
@@ -704,8 +704,8 @@ class SetPose(smach.State):
         if publish_and_wait(pub=self.misc_angles_pub,
                             wait_for_topic="Misc_Done",
                             message_type=Float32MultiArray,
-                            message_data=[bridge, bottom_bulk+100, 1050+100, flag],
-                            delay=1,
+                            message_data=[bridge, bottom_bulk+200, 1050+190, flag], #1) 190-> 200 2) 180 -> 190
+                            delay=1.25,
                             timeout_function=None):
             rospy.loginfo('Bulk grabber mini raise done')
             return 'pose_reached'
@@ -901,7 +901,7 @@ class DropOff(smach.State):
                         wait_for_topic='Arm_Done',
                         message_type=Float32MultiArray,
                         message_data=[-220,0,210,3600,2048,-70,200],
-                        delay=3,
+                        delay=2.5,
                         timeout_function=None)
         rospy.loginfo('Arm lowered into red area')
 
@@ -910,7 +910,7 @@ class DropOff(smach.State):
                         wait_for_topic='Arm_Done',
                         message_type=Float32MultiArray,
                         message_data=[-220,-70,210,3600,1400,100,100],
-                        delay=3,
+                        delay=2.5,
                         timeout_function=None)
         rospy.loginfo('Jaws released')
 
@@ -1099,10 +1099,10 @@ class PickupScanPose(smach.State):
                             wait_for_topic='Arm_Done',
                             message_type=Float32MultiArray,
                             message_data=angles,
-                            delay=1,
+                            delay=0.75,
                             timeout_function=None):
             # Wait 2 seconds for the arm to stabilize
-            rospy.sleep(1)
+            rospy.sleep(0.75)
             rospy.loginfo('Arm set to pickup scan pose')
             return 'pose_reached'
         else:
@@ -1402,13 +1402,15 @@ class PickUpSmallPackage(smach.State):
             # Set the jaw value to hold the small package grabber
             jaw = globals['small_package_jaw_closed']
             wrist = globals['regular_wrist_angle']
+
+            y = -35
             
             # Move over target small package to pick up
             rospy.loginfo(f'Moving over small package {target} to pick it up')
             publish_and_wait(pub=self.task_space_pub,
                                 wait_for_topic='Arm_Done',
                                 message_type=Float32MultiArray,
-                                message_data=[x, -40, z, wrist, jaw, 20, 1],
+                                message_data=[x, y, z, wrist, jaw, 20, 1],
                                 delay=3,
                                 timeout_function=None)
             
@@ -1417,7 +1419,7 @@ class PickUpSmallPackage(smach.State):
             publish_and_wait(pub=self.task_space_pub,
                                 wait_for_topic='Arm_Done',
                                 message_type=Float32MultiArray,
-                                message_data=[x, -40, z, wrist, jaw, -50, 1],
+                                message_data=[x, y, z, wrist, jaw, -55, 1],
                                 delay=3,
                                 timeout_function=None)
             
@@ -1428,7 +1430,7 @@ class PickUpSmallPackage(smach.State):
                                 wait_for_topic='Arm_Done',
                                 message_type=Float32MultiArray,
                                 message_data=[x, -20, z, wrist, jaw, 100, 50],
-                                delay=2,
+                                delay=1.75,
                                 timeout_function=None)
             
             rospy.loginfo(f'Successfully picked up small package {target}')
@@ -1592,19 +1594,19 @@ class PickUpFuelTank(smach.State):
 class StoreFuelTank(smach.State):
     # Dictionary to map the slot number to the corresponding coordinates
     OVER_SLOT_COORDS = {
-        1: [-120, 70, -86.2, 2700, 2740, 100, 100],      
+        1: [-100, 70, -86.5, 2700, 2740, 100, 100],      
         2: [-35, 70, -84.2, 2400, 2740, 100, 100],   #updated speeds
         3: [30, 70, -82.2, 1700, 2740, 100, 100]
     }
 
     IN_SLOT_COORDS = {
-        1: [-120, 70, -86.2, 2700, 2740, -55, 100],      
+        1: [-100, 70, -86.5, 2700, 2740, -55, 100],      
         2: [-35, 70, -84.2, 2400, 2740, -55, 100],   #updated speeds
         3: [30, 70, -82.2, 1700, 2740, -55, 100]
     }
 
     IN_SLOT_OPEN = {
-        1: [-120, 15, -86.2, 2700, 2540, 100, 10],      
+        1: [-100, 15, -86.5, 2700, 2540, 100, 10],      
         2: [-35, 15, -84.2, 2400, 2540, 100, 10],   #updated speeds
         3: [30, 15, -82.2, 1700, 2540, 100, 10]
     }
@@ -1729,9 +1731,9 @@ class FuelTankPlacer(smach.State):
         publish_and_wait(pub=self.task_space_pub,
                 wait_for_topic='Arm_Done',
                 message_type=Float32MultiArray,
-                message_data=[130, 100, 76, 3645, 2700, 50, 10], # changed the fourth value from 3700 -> 3650 for less rotation
+                message_data=[135, 100, 76, 3640, 2700, 50, 10], # changed the fourth value from 3700 -> 3650 for less rotation
                 # first value was 135 changing to 130
-                delay=2,
+                delay=3,
                 timeout_function=None)
 
 
@@ -1741,14 +1743,14 @@ class FuelTankPlacer(smach.State):
         publish_and_wait(pub=self.task_space_pub,
                 wait_for_topic='Arm_Done',
                 message_type=Float32MultiArray,
-                message_data=[130, 0, 85, 3625, 2700, 10, 5], #changed tolerance to 5, and positive z by 5
+                message_data=[135, 0, 85, 3640, 2700, 10, 5], #changed tolerance to 5, and positive z by 5
                 delay=3,
                 timeout_function=None)
 
         publish_and_wait(pub=self.task_space_pub,
                 wait_for_topic='Arm_Done',
                 message_type=Float32MultiArray,
-                message_data=[130, 0, 89, 3625, 2700, -100, 10], #changed tolerance to 5, and positive z by 5 85 -> 89
+                message_data=[135, 0, 89, 3640, 2700, -110, 10], #changed tolerance to 5, and positive z by 5 85 -> 89
                 delay=3,
                 timeout_function=None)
         
@@ -1769,7 +1771,7 @@ class FuelTankPlacer(smach.State):
         publish_and_wait(pub=self.task_space_pub,
                 wait_for_topic='Arm_Done',
                 message_type=Float32MultiArray,
-                message_data=[135, -100, 76, 3700, 2000, 100, 10],
+                message_data=[135, -110, 76, 3700, 2000, 100, 10],
                 delay=2,
                 timeout_function=None)
         

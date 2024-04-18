@@ -556,8 +556,10 @@ def main_():
         if cv2.waitKey(5) == 27:
             break
 
-        cv2.imshow('Coordinates', coords_image)
-        print(coords_list)
+        #cv2.imshow('Coordinates', coords_image)
+        output = np.hstack([ip.image, ip.undistorted_image])
+        cv2.imshow('Presentation', output)
+        #print(coords_list)
 
     cap.release()
     cv2.destroyAllWindows()
